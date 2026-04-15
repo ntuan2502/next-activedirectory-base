@@ -56,15 +56,15 @@ export async function withLdapClient<T>(
   }
 }
 
-export function getAttr(entry: Record<string, any>, attrName: string): string {
+export function getAttr(entry: Record<string, unknown>, attrName: string): string {
   const actualKey = Object.keys(entry).find(
     (k) => k.toLowerCase() === attrName.toLowerCase()
   );
   if (!actualKey) return "";
 
   const val = entry[actualKey];
-  if (Array.isArray(val)) return val[0] || "";
-  return val || "";
+  if (Array.isArray(val)) return String(val[0] ?? "");
+  return String(val ?? "");
 }
 
 export const LDAP_USER_ATTRIBUTES = [

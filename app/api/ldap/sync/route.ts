@@ -11,8 +11,8 @@ export async function POST() {
         paged: { pageSize: 1000 },
       });
 
-      return (searchEntries as any[]).map((entry) => ({
-        dn: entry.dn || entry.objectName || "",
+      return searchEntries.map((entry) => ({
+        dn: entry.dn || "",
         username: getAttr(entry, "sAMAccountName") || getAttr(entry, "userPrincipalName"),
         firstName: getAttr(entry, "givenName"),
         lastName: getAttr(entry, "sn"),
@@ -27,11 +27,12 @@ export async function POST() {
     });
 
     return NextResponse.json({ success: true, data: users });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to synchronize data from LDAP";
     console.error("LDAP Sync Error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to synchronize data from LDAP" },
-      { status: 400 }
+      { error: message },
+      { status: 400 },
     );
   }
 }

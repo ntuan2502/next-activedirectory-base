@@ -8,10 +8,11 @@ export async function POST() {
     });
 
     return NextResponse.json({ success: true, message: "Connection successful" });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to connect to LDAP server";
     console.error("LDAP Test Connection Error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to connect to LDAP server" },
+      { error: message },
       { status: 400 }
     );
   }
