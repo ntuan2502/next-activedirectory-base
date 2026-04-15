@@ -19,6 +19,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (username.includes("@")) {
+      return NextResponse.json(
+        { error: "Please use your username only, not email address." },
+        { status: 400 },
+      );
+    }
+
     const result = await authenticateUser(username, password);
 
     await createSession({
