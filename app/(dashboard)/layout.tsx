@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ScrollToTop } from "@/components/scroll-to-top";
 
 export default function DashboardLayout({
   children,
@@ -11,8 +12,8 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
+      <SidebarInset className="max-h-svh overflow-auto">
+        <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
@@ -20,9 +21,10 @@ export default function DashboardLayout({
           </div>
           <ThemeToggle />
         </header>
-        <main className="flex-1 p-6">
+        <div className="flex-1 p-6">
           {children}
-        </main>
+        </div>
+        <ScrollToTop />
       </SidebarInset>
     </SidebarProvider>
   );
