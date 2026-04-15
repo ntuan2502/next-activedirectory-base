@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Server, Users, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { Server, Users, RefreshCw, CheckCircle, XCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 type LdapUser = {
+  id: string;
   dn: string;
   username: string;
   firstName: string;
@@ -18,6 +20,11 @@ type LdapUser = {
   title: string;
   department: string;
   phone: string;
+};
+
+type SessionUser = {
+  userId: string;
+  username: string;
 };
 
 type ApiErrorResponse = {
@@ -32,6 +39,7 @@ type TestSuccessResponse = {
 type SyncSuccessResponse = {
   success: boolean;
   data: LdapUser[];
+  syncedCount: number;
 };
 
 function isApiError(data: unknown): data is ApiErrorResponse {
@@ -39,11 +47,39 @@ function isApiError(data: unknown): data is ApiErrorResponse {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<SessionUser | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [isSyncLoading, setIsSyncLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [syncResult, setSyncResult] = useState<{ success: boolean; error?: string } | null>(null);
+  const [syncResult, setSyncResult] = useState<{ success: boolean; error?: string; syncedCount?: number } | null>(null);
   const [users, setUsers] = useState<LdapUser[]>([]);
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/session");
+      if (!res.ok) {
+        router.push("/login");
+        return;
+      }
+      const data: { user: SessionUser } = await res.json();
+      setCurrentUser(data.user);
+    } catch {
+      router.push("/login");
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  }, [router]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  };
 
   const handleTestConnection = async () => {
     setIsTestLoading(true);
@@ -71,7 +107,7 @@ export default function Dashboard() {
       const res = await fetch("/api/ldap/sync", { method: "POST" });
       const data: SyncSuccessResponse | ApiErrorResponse = await res.json();
       if (res.ok && "data" in data) {
-        setSyncResult({ success: true });
+        setSyncResult({ success: true, syncedCount: data.syncedCount });
         setUsers(data.data ?? []);
       } else if (isApiError(data)) {
         setSyncResult({ success: false, error: data.error });
@@ -83,6 +119,14 @@ export default function Dashboard() {
       setIsSyncLoading(false);
     }
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center py-10 px-4 sm:px-6 lg:px-8">
@@ -97,7 +141,7 @@ export default function Dashboard() {
                 Active Directory Sync
               </CardTitle>
               <CardDescription className="mt-1">
-                Manage and synchronize user data from your LDAP/Active Directory server.
+                Signed in as <span className="font-medium text-foreground">{currentUser?.username}</span>
               </CardDescription>
             </div>
             <div className="flex gap-3">
@@ -116,6 +160,10 @@ export default function Dashboard() {
                 {isSyncLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
                 Sync Data
               </Button>
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </CardHeader>
 
@@ -125,6 +173,17 @@ export default function Dashboard() {
               <Alert variant={testResult.success ? "default" : "destructive"}>
                 {testResult.success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                 <AlertDescription>{testResult.message}</AlertDescription>
+              </Alert>
+            </CardContent>
+          )}
+
+          {syncResult?.success && (
+            <CardContent className="pt-0">
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Successfully synced {syncResult.syncedCount} users to database.
+                </AlertDescription>
               </Alert>
             </CardContent>
           )}
@@ -166,8 +225,8 @@ export default function Dashboard() {
                 </TableHeader>
                 <TableBody>
                   {users.length > 0 ? (
-                    users.map((user, idx) => (
-                      <TableRow key={idx}>
+                    users.map((user) => (
+                      <TableRow key={user.id}>
                         <TableCell className="font-medium">{user.username || "-"}</TableCell>
                         <TableCell>{user.displayName || "-"}</TableCell>
                         <TableCell>{user.firstName || "-"}</TableCell>
