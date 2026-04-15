@@ -9,7 +9,10 @@ A Next.js dashboard for synchronizing and managing user data from LDAP/Active Di
 - **LDAP Authentication** — Login with corporate AD credentials
 - **Offline Auth Fallback** — Cached password hashes (bcrypt) allow login when LDAP is unreachable
 - **Session Management** — Signed JWT cookies (httpOnly, 8h expiry)
-- **Admin Dashboard** — View all synced users in a searchable table
+- **Users Management** — View all synced users with search/filter
+- **Sidebar Navigation** — shadcn sidebar with collapsible menu
+- **Dark / Light Mode** — System-aware theme with manual toggle
+- **Auth Guard** — Loading screen with seamless redirect (no flash)
 
 ## Tech Stack
 
@@ -22,6 +25,7 @@ A Next.js dashboard for synchronizing and managing user data from LDAP/Active Di
 | ORM | Prisma 7 (driver adapter) |
 | LDAP Client | ldapts |
 | Auth | bcryptjs + jose (JWT) |
+| Theme | next-themes |
 | Runtime | Bun |
 
 ## Getting Started
@@ -97,19 +101,28 @@ Open [http://localhost:3000](http://localhost:3000) — you will be redirected t
 
 ```
 ├── app/
+│   ├── (dashboard)/                # Route group — sidebar layout
+│   │   ├── layout.tsx              # Sidebar + header + theme toggle
+│   │   ├── page.tsx                # Dashboard (test + sync)
+│   │   └── users/page.tsx          # Users table (search, skeleton)
+│   ├── login/page.tsx              # Login form (no sidebar)
 │   ├── api/
 │   │   ├── auth/
 │   │   │   ├── login/route.ts      # POST — LDAP auth + session
 │   │   │   ├── logout/route.ts     # POST — clear session
 │   │   │   └── session/route.ts    # GET  — check session
-│   │   └── ldap/
-│   │       ├── sync/route.ts       # POST — sync LDAP → DB
-│   │       └── test/route.ts       # POST — test connection
-│   ├── login/page.tsx              # Login form
-│   ├── page.tsx                    # Dashboard (protected)
-│   ├── layout.tsx                  # Root layout
+│   │   ├── ldap/
+│   │   │   ├── sync/route.ts       # POST — sync LDAP → DB
+│   │   │   └── test/route.ts       # POST — test connection
+│   │   └── users/route.ts          # GET  — list users from DB
+│   ├── layout.tsx                  # Root: ThemeProvider + AuthProvider
 │   └── globals.css                 # Tailwind + shadcn theme
-├── components/ui/                  # shadcn components
+├── components/
+│   ├── ui/                         # shadcn components
+│   ├── app-sidebar.tsx             # Sidebar navigation
+│   ├── auth-provider.tsx           # Auth guard + loading screen
+│   ├── theme-provider.tsx          # next-themes wrapper
+│   └── theme-toggle.tsx            # Dark/light mode toggle
 ├── lib/
 │   ├── auth.ts                     # LDAP auth + bcrypt fallback
 │   ├── db.ts                       # Prisma client singleton
@@ -119,8 +132,8 @@ Open [http://localhost:3000](http://localhost:3000) — you will be redirected t
 ├── prisma/
 │   └── schema.prisma               # Database schema
 ├── docker-compose.yml              # PostgreSQL + Adminer
-├── .env.example                    # Environment template
-└── prisma.config.ts                # Prisma CLI config
+├── prisma.config.ts                # Prisma CLI config
+└── .env.example                    # Environment template
 ```
 
 ## Authentication Flow
@@ -150,6 +163,14 @@ session      │    │         │
              ▼
           Error: Invalid credentials
 ```
+
+## Auth Guard
+
+The `AuthProvider` wraps the entire app and handles route protection:
+
+- **Protected pages** (`/`, `/users`): Shows loading → checks session → if valid, renders page; if not, redirects to `/login`
+- **Public pages** (`/login`): Shows loading → checks session → if valid, redirects to `/`; if not, renders login form
+- **No flash**: Children are never rendered during redirect — only the loading spinner is visible
 
 ## Scripts
 
