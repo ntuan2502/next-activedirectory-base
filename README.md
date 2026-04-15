@@ -100,40 +100,45 @@ Open [http://localhost:3000](http://localhost:3000) — you will be redirected t
 ## Project Structure
 
 ```
-├── app/
-│   ├── (dashboard)/                # Route group — sidebar layout
-│   │   ├── layout.tsx              # Sidebar + header + theme toggle
-│   │   ├── page.tsx                # Dashboard (test + sync)
-│   │   └── users/page.tsx          # Users table (search, skeleton)
-│   ├── login/page.tsx              # Login form (no sidebar)
-│   ├── api/
-│   │   ├── auth/
-│   │   │   ├── login/route.ts      # POST — LDAP auth + session
-│   │   │   ├── logout/route.ts     # POST — clear session
-│   │   │   └── session/route.ts    # GET  — check session
-│   │   ├── ldap/
-│   │   │   ├── sync/route.ts       # POST — sync LDAP → DB
-│   │   │   └── test/route.ts       # POST — test connection
-│   │   └── users/route.ts          # GET  — list users from DB
-│   ├── layout.tsx                  # Root: ThemeProvider + AuthProvider
-│   └── globals.css                 # Tailwind + shadcn theme
-├── components/
-│   ├── ui/                         # shadcn components
-│   ├── app-sidebar.tsx             # Sidebar navigation
-│   ├── auth-provider.tsx           # Auth guard + loading screen
-│   ├── theme-provider.tsx          # next-themes wrapper
-│   └── theme-toggle.tsx            # Dark/light mode toggle
-├── lib/
-│   ├── auth.ts                     # LDAP auth + bcrypt fallback
-│   ├── db.ts                       # Prisma client singleton
-│   ├── ldap.ts                     # LDAP config + utilities
-│   ├── session.ts                  # JWT session management
-│   └── utils.ts                    # shadcn cn() utility
+├── src/
+│   ├── app/
+│   │   ├── (dashboard)/                # Route group — sidebar layout
+│   │   │   ├── layout.tsx              # Sidebar + header + theme toggle
+│   │   │   ├── page.tsx                # Dashboard (test + sync)
+│   │   │   └── users/page.tsx          # Users table (search, skeleton)
+│   │   ├── login/page.tsx              # Login form (no sidebar)
+│   │   ├── api/
+│   │   │   ├── auth/
+│   │   │   │   ├── login/route.ts      # POST — LDAP auth + session
+│   │   │   │   ├── logout/route.ts     # POST — clear session
+│   │   │   │   └── session/route.ts    # GET  — check session
+│   │   │   ├── ldap/
+│   │   │   │   ├── sync/route.ts       # POST — sync LDAP → DB
+│   │   │   │   └── test/route.ts       # POST — test connection
+│   │   │   └── users/route.ts          # GET  — list users from DB
+│   │   ├── layout.tsx                  # Root: ThemeProvider + AuthProvider
+│   │   └── globals.css                 # Tailwind + shadcn theme
+│   ├── components/
+│   │   ├── ui/                         # shadcn components
+│   │   ├── app-sidebar.tsx             # Sidebar navigation
+│   │   ├── auth-provider.tsx           # Auth guard + loading screen
+│   │   ├── scroll-to-top.tsx           # Scroll to top button
+│   │   ├── theme-provider.tsx          # next-themes wrapper
+│   │   └── theme-toggle.tsx            # Dark/light mode toggle
+│   ├── hooks/
+│   │   └── use-mobile.ts              # Mobile detection hook
+│   └── lib/
+│       ├── auth.ts                     # LDAP auth + bcrypt fallback
+│       ├── db.ts                       # Prisma client singleton
+│       ├── ldap.ts                     # LDAP config + utilities
+│       ├── session.ts                  # JWT session management
+│       └── utils.ts                    # shadcn cn() utility
 ├── prisma/
-│   └── schema.prisma               # Database schema
-├── docker-compose.yml              # PostgreSQL + Adminer
-├── prisma.config.ts                # Prisma CLI config
-└── .env.example                    # Environment template
+│   └── schema.prisma                   # Database schema
+├── public/                             # Static assets
+├── docker-compose.yml                  # PostgreSQL + Adminer
+├── prisma.config.ts                    # Prisma CLI config
+└── .env.example                        # Environment template
 ```
 
 ## Authentication Flow
