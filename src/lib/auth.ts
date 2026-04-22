@@ -2,6 +2,7 @@ import { Client } from "ldapts";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getLdapConfig, createLdapClient } from "@/lib/ldap";
+import { Prisma } from "@prisma/client";
 
 type AuthResult = {
   userId: string;
@@ -79,7 +80,7 @@ async function authenticateViaLdap(
     });
   }
 
-  const createData: any = {
+  const createData: Prisma.UserCreateInput = {
     username: username.toLowerCase(),
     passwordHash,
     lastLoginAt: new Date(),

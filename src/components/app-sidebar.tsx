@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Server, Users, Shield, LogOut, Home } from "lucide-react";
+import { Server, Users, Shield, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,

@@ -4,7 +4,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+export async function GET() {
   const authResponse = await requirePermission(PERMISSIONS.USERS_READ);
   if (authResponse) return authResponse;
 

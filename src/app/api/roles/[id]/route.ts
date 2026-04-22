@@ -23,7 +23,7 @@ export async function PUT(
     }
 
     // Do not allow changing name of system roles
-    const updateData: any = {
+    const updateData: { name?: string; description?: string | null; permissions?: string } = {
       description,
       permissions: JSON.stringify(permissions || []),
     };
