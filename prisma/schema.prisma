@@ -20,6 +20,7 @@ model User {
   employeeId   String    @default("")
   manager      String    @default("")
   passwordHash String?
+  disabled     Boolean   @default(false)
   lastSyncAt   DateTime?
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())

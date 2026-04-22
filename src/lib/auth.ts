@@ -13,6 +13,14 @@ export async function authenticateUser(
   username: string,
   password: string,
 ): Promise<AuthResult> {
+  const dbUser = await prisma.user.findUnique({
+    where: { username: username.toLowerCase() },
+  });
+
+  if (dbUser?.disabled) {
+    throw new Error("Your account has been disabled. Please contact an administrator.");
+  }
+
   const config = getLdapConfig();
 
   // Step 1: Try LDAP authentication

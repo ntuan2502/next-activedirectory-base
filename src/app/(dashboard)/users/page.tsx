@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users as UsersIcon, RefreshCw, Trash2 } from "lucide-react";
+import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import Swal from "sweetalert2";
 
 type UserRecord = {
@@ -20,6 +22,7 @@ type UserRecord = {
   phone: string;
   title: string;
   department: string;
+  disabled: boolean;
 };
 
 type UsersApiResponse = {
@@ -35,9 +38,12 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [isBulkLoading, setIsBulkLoading] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
+    setSelectedUserIds(new Set());
     try {
       const res = await fetch("/api/users");
       if (res.ok) {
@@ -75,6 +81,11 @@ export default function UsersPage() {
       const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
       if (res.ok) {
         setUsers((prev) => prev.filter((u) => u.id !== user.id));
+        setSelectedUserIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(user.id);
+          return newSet;
+        });
         await Swal.fire({
           title: "Deleted!",
           text: `${user.displayName || user.username} has been removed.`,
@@ -91,15 +102,147 @@ export default function UsersPage() {
     }
   };
 
+  const handleToggleStatus = async (user: UserRecord) => {
+    const actionText = user.disabled ? "Unlock" : "Disable";
+    const result = await Swal.fire({
+      title: `${actionText} user?`,
+      html: `Are you sure you want to ${actionText.toLowerCase()} <strong>${user.displayName || user.username}</strong>?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: user.disabled ? "#10b981" : "#f59e0b",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: `Yes, ${actionText}`,
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch("/api/users/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: user.disabled ? "enable" : "disable", userIds: [user.id] })
+      });
+      if (res.ok) {
+        setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, disabled: !u.disabled } : u));
+        await Swal.fire({
+          title: "Success!",
+          text: `${user.displayName || user.username} has been ${user.disabled ? "unlocked" : "disabled"}.`,
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        const data: ApiErrorResponse = await res.json();
+        await Swal.fire("Error", data.error || `Failed to ${actionText.toLowerCase()} user.`, "error");
+      }
+    } catch {
+      await Swal.fire("Error", "Network error. Please try again.", "error");
+    }
+  };
+
+  const handleBulkAction = async (action: "delete" | "disable" | "enable") => {
+    if (selectedUserIds.size === 0) return;
+
+    const actionText = action === "delete" ? "Delete" : action === "disable" ? "Disable" : "Unlock";
+    const result = await Swal.fire({
+      title: `${actionText} selected users?`,
+      html: `Are you sure you want to ${actionText.toLowerCase()} <strong>${selectedUserIds.size}</strong> users?${action === "delete" ? "<br/>This action cannot be undone." : ""}`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: action === "delete" ? "#ef4444" : action === "disable" ? "#f59e0b" : "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: `Yes, ${actionText}`,
+      cancelButtonText: "Cancel",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setIsBulkLoading(true);
+    try {
+      const res = await fetch("/api/users/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userIds: Array.from(selectedUserIds) })
+      });
+      if (res.ok) {
+        if (action === "delete") {
+          setUsers((prev) => prev.filter((u) => !selectedUserIds.has(u.id)));
+        } else {
+          const newDisabledState = action === "disable";
+          setUsers((prev) => prev.map((u) => selectedUserIds.has(u.id) ? { ...u, disabled: newDisabledState } : u));
+        }
+        setSelectedUserIds(new Set());
+        await Swal.fire({
+          title: "Success!",
+          text: `Action applied to ${selectedUserIds.size} users.`,
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        const data: ApiErrorResponse = await res.json();
+        await Swal.fire("Error", data.error || `Failed to perform bulk action.`, "error");
+      }
+    } catch {
+      await Swal.fire("Error", "Network error. Please try again.", "error");
+    } finally {
+      setIsBulkLoading(false);
+    }
+  };
+
+  const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord; direction: "asc" | "desc" } | null>(null);
+
+  const handleSort = (key: keyof UserRecord) => {
+    let direction: "asc" | "desc" = "asc";
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+    setSortConfig({ key, direction });
+  };
+
   const filteredUsers = users.filter((user) => {
     const q = search.toLowerCase();
     return (
       user.username.toLowerCase().includes(q) ||
       user.displayName.toLowerCase().includes(q) ||
       user.email.toLowerCase().includes(q) ||
-      user.department.toLowerCase().includes(q)
+      user.department.toLowerCase().includes(q) ||
+      user.title.toLowerCase().includes(q)
     );
   });
+
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (!sortConfig) return 0;
+    const aValue = a[sortConfig.key];
+    const bValue = b[sortConfig.key];
+    
+    if (aValue < bValue) {
+      return sortConfig.direction === "asc" ? -1 : 1;
+    }
+    if (aValue > bValue) {
+      return sortConfig.direction === "asc" ? 1 : -1;
+    }
+    return 0;
+  });
+
+  const toggleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(new Set(filteredUsers.map(u => u.id)));
+    } else {
+      setSelectedUserIds(new Set());
+    }
+  };
+
+  const toggleSelectUser = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedUserIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedUserIds(newSet);
+  };
 
   return (
     <div className="space-y-6">
@@ -113,70 +256,151 @@ export default function UsersPage() {
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
+            {selectedUserIds.size > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger render={
+                  <Button variant="secondary" disabled={isBulkLoading}>
+                    Bulk Actions <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                } />
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleBulkAction("enable")}>
+                    <Unlock className="mr-2 h-4 w-4 text-emerald-500" />
+                    <span>Unlock Selected</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
+                    <Lock className="mr-2 h-4 w-4 text-amber-500" />
+                    <span>Disable Selected</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-destructive focus:text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    <span>Delete Selected</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
             <Input
               placeholder="Search users..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="sm:w-64"
             />
-            <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading}>
+            <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-md border">
-            <Table>
-              <TableHeader>
+          <div className="rounded-md border">
+            <Table wrapperClassName="max-h-[calc(100vh-220px)]">
+              <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead>Username</TableHead>
-                  <TableHead>Display Name</TableHead>
-                  <TableHead>First Name</TableHead>
-                  <TableHead>Last Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Title / Role</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="w-16 text-center">Action</TableHead>
+                  <TableHead className="w-12 text-center">
+                    <Checkbox 
+                      checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("username")}>
+                    <div className="flex items-center">
+                      Username
+                      {sortConfig?.key === "username" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("displayName")}>
+                    <div className="flex items-center">
+                      Display Name
+                      {sortConfig?.key === "displayName" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("email")}>
+                    <div className="flex items-center">
+                      Email
+                      {sortConfig?.key === "email" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
+                    <div className="flex items-center">
+                      Title / Role
+                      {sortConfig?.key === "title" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("department")}>
+                    <div className="flex items-center">
+                      Department
+                      {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("disabled")}>
+                    <div className="flex items-center">
+                      Status
+                      {sortConfig?.key === "disabled" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-24 text-center">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {Array.from({ length: 8 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
-                ) : filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
+                ) : sortedUsers.length > 0 ? (
+                  sortedUsers.map((user) => (
+                    <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
+                      <TableCell className="text-center">
+                        <Checkbox 
+                          checked={selectedUserIds.has(user.id)}
+                          onCheckedChange={(checked) => toggleSelectUser(user.id, !!checked)}
+                          aria-label={`Select ${user.username}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{user.username || "-"}</TableCell>
                       <TableCell>{user.displayName || "-"}</TableCell>
-                      <TableCell>{user.firstName || "-"}</TableCell>
-                      <TableCell>{user.lastName || "-"}</TableCell>
                       <TableCell>{user.email || "-"}</TableCell>
-                      <TableCell>{user.phone || "-"}</TableCell>
                       <TableCell>{user.title || "-"}</TableCell>
                       <TableCell>{user.department || "-"}</TableCell>
+                      <TableCell>
+                        {user.disabled ? (
+                          <Badge variant="destructive">Disabled</Badge>
+                        ) : (
+                          <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(user)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-center items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleToggleStatus(user)}
+                            title={user.disabled ? "Unlock User" : "Disable User"}
+                            className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"}
+                          >
+                            {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(user)}
+                            title="Delete User"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       {search ? "No users match your search." : "No users found. Sync data from the Dashboard first."}
                     </TableCell>
                   </TableRow>
