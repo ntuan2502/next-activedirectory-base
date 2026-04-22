@@ -62,17 +62,43 @@ async function authenticateViaLdap(
   // Auth successful — hash and cache password in DB
   const passwordHash = await bcrypt.hash(password, 12);
 
+  // Check if this is the first user in the system
+  const userCount = await prisma.user.count();
+  const isFirstUser = userCount === 0;
+
+  // Ensure Super Admin role exists
+  let roleCheck = await prisma.role.findFirst({ where: { isSystem: true } });
+  if (!roleCheck && isFirstUser) {
+    roleCheck = await prisma.role.create({
+      data: {
+        name: "Super Admin",
+        description: "Built-in system administrator with full access",
+        permissions: '["*"]',
+        isSystem: true,
+      },
+    });
+  }
+
+  const createData: any = {
+    username: username.toLowerCase(),
+    passwordHash,
+    lastLoginAt: new Date(),
+  };
+
+  // Only assign Super Admin if this is the very first user in the entire database
+  if (isFirstUser && roleCheck) {
+    createData.roles = {
+      connect: { id: roleCheck.id },
+    };
+  }
+
   const user = await prisma.user.upsert({
     where: { username: username.toLowerCase() },
     update: {
       passwordHash,
       lastLoginAt: new Date(),
     },
-    create: {
-      username: username.toLowerCase(),
-      passwordHash,
-      lastLoginAt: new Date(),
-    },
+    create: createData,
   });
 
   return {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useAuth } from "@/components/auth-provider";
+import { AccessDenied } from "@/components/access-denied";
 import Swal from "sweetalert2";
 
 type UserRecord = {
@@ -23,6 +26,13 @@ type UserRecord = {
   title: string;
   department: string;
   disabled: boolean;
+  roles: { id: string; name: string; isSystem: boolean }[];
+};
+
+type RoleRecord = {
+  id: string;
+  name: string;
+  isSystem: boolean;
 };
 
 type UsersApiResponse = {
@@ -35,11 +45,25 @@ type ApiErrorResponse = {
 };
 
 export default function UsersPage() {
+  const { user } = useAuth();
+  
+  const hasPermission = useCallback((perm: string) => {
+    if (!user?.permissions) return false;
+    if (user.permissions.includes("*")) return true;
+    return user.permissions.includes(perm);
+  }, [user?.permissions]);
+
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [isBulkLoading, setIsBulkLoading] = useState(false);
+
+  const [availableRoles, setAvailableRoles] = useState<RoleRecord[]>([]);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [roleDialogUser, setRoleDialogUser] = useState<UserRecord | null>(null);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  const [isSavingRoles, setIsSavingRoles] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -59,9 +83,24 @@ export default function UsersPage() {
     }
   }, []);
 
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/roles");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setAvailableRoles(data.data);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchRoles();
+  }, [fetchUsers, fetchRoles]);
 
   const handleDelete = async (user: UserRecord) => {
     const result = await Swal.fire({
@@ -244,6 +283,43 @@ export default function UsersPage() {
     setSelectedUserIds(newSet);
   };
 
+  const openRoleDialog = (user: UserRecord) => {
+    setRoleDialogUser(user);
+    setSelectedRoleIds(new Set(user.roles?.map(r => r.id) || []));
+    setIsRoleDialogOpen(true);
+  };
+
+  const handleSaveRoles = async () => {
+    if (!roleDialogUser) return;
+    setIsSavingRoles(true);
+    try {
+      const res = await fetch(`/api/users/${roleDialogUser.id}/roles`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleIds: Array.from(selectedRoleIds) })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setUsers(prev => prev.map(u => u.id === data.data.id ? data.data : u));
+          setIsRoleDialogOpen(false);
+          Swal.fire({ title: "Success", text: "Roles updated successfully.", icon: "success", timer: 1500, showConfirmButton: false });
+        }
+      } else {
+        const errorData = await res.json();
+        Swal.fire("Error", errorData.error || "Failed to update roles", "error");
+      }
+    } catch {
+      Swal.fire("Error", "Network error.", "error");
+    } finally {
+      setIsSavingRoles(false);
+    }
+  };
+
+  if (!hasPermission("users:read")) {
+    return <AccessDenied />;
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -256,7 +332,7 @@ export default function UsersPage() {
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
-            {selectedUserIds.size > 0 && (
+            {selectedUserIds.size > 0 && hasPermission("users:write") && (
               <DropdownMenu>
                 <DropdownMenuTrigger render={
                   <Button variant="secondary" disabled={isBulkLoading}>
@@ -296,11 +372,13 @@ export default function UsersPage() {
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
                   <TableHead className="w-12 text-center">
-                    <Checkbox 
-                      checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                      aria-label="Select all"
-                    />
+                    {hasPermission("users:write") && (
+                      <Checkbox 
+                        checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all"
+                      />
+                    )}
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("username")}>
                     <div className="flex items-center">
@@ -320,6 +398,7 @@ export default function UsersPage() {
                       {sortConfig?.key === "email" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
+                  <TableHead>Roles</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
                     <div className="flex items-center">
                       Title / Role
@@ -338,14 +417,16 @@ export default function UsersPage() {
                       {sortConfig?.key === "disabled" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  <TableHead className="w-24 text-center">Action</TableHead>
+                  {(hasPermission("users:write") || hasPermission("roles:manage")) && (
+                    <TableHead className="w-24 text-center">Action</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 8 }).map((_, j) => (
+                      {Array.from({ length: 9 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -356,15 +437,30 @@ export default function UsersPage() {
                   sortedUsers.map((user) => (
                     <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
                       <TableCell className="text-center">
-                        <Checkbox 
-                          checked={selectedUserIds.has(user.id)}
-                          onCheckedChange={(checked) => toggleSelectUser(user.id, !!checked)}
-                          aria-label={`Select ${user.username}`}
-                        />
+                        {hasPermission("users:write") && (
+                          <Checkbox 
+                            checked={selectedUserIds.has(user.id)}
+                            onCheckedChange={(checked) => toggleSelectUser(user.id, !!checked)}
+                            aria-label={`Select ${user.username}`}
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="font-medium">{user.username || "-"}</TableCell>
                       <TableCell>{user.displayName || "-"}</TableCell>
                       <TableCell>{user.email || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles && user.roles.length > 0 ? (
+                            user.roles.map(r => (
+                              <Badge key={r.id} variant={r.isSystem ? "default" : "secondary"} className={r.isSystem ? "bg-purple-500 hover:bg-purple-600" : ""}>
+                                {r.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-xs italic">None</span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{user.title || "-"}</TableCell>
                       <TableCell>{user.department || "-"}</TableCell>
                       <TableCell>
@@ -374,33 +470,50 @@ export default function UsersPage() {
                           <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex justify-center items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleToggleStatus(user)}
-                            title={user.disabled ? "Unlock User" : "Disable User"}
-                            className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"}
-                          >
-                            {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(user)}
-                            title="Delete User"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      {(hasPermission("users:write") || hasPermission("roles:manage")) && (
+                        <TableCell className="text-center">
+                          <div className="flex justify-center items-center gap-1">
+                            {hasPermission("roles:manage") && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openRoleDialog(user)}
+                                title="Manage Roles"
+                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                              >
+                                <Shield className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {hasPermission("users:write") && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleToggleStatus(user)}
+                                  title={user.disabled ? "Unlock User" : "Disable User"}
+                                  className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"}
+                                >
+                                  {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDelete(user)}
+                                  title="Delete User"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
                       {search ? "No users match your search." : "No users found. Sync data from the Dashboard first."}
                     </TableCell>
                   </TableRow>
@@ -410,6 +523,40 @@ export default function UsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Roles for {roleDialogUser?.displayName || roleDialogUser?.username}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2">
+            {availableRoles.map(role => (
+              <div key={role.id} className="flex items-center space-x-2">
+                <Checkbox 
+                  id={`role-${role.id}`} 
+                  checked={selectedRoleIds.has(role.id)}
+                  onCheckedChange={(checked) => {
+                    const next = new Set(selectedRoleIds);
+                    if (checked) next.add(role.id);
+                    else next.delete(role.id);
+                    setSelectedRoleIds(next);
+                  }}
+                />
+                <label htmlFor={`role-${role.id}`} className="text-sm font-medium leading-none cursor-pointer">
+                  {role.name} {role.isSystem && <Badge variant="outline" className="ml-2 text-xs py-0 h-4">System</Badge>}
+                </label>
+              </div>
+            ))}
+            {availableRoles.length === 0 && (
+              <p className="text-muted-foreground text-sm">No roles available.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)} disabled={isSavingRoles}>Cancel</Button>
+            <Button onClick={handleSaveRoles} disabled={isSavingRoles}>{isSavingRoles ? "Saving..." : "Save Roles"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

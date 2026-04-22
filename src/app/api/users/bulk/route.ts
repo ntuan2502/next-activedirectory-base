@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/permissions";
 
 export async function POST(request: NextRequest) {
+  const authResponse = await requirePermission("users:write");
+  if (authResponse) return authResponse;
+
   try {
     const body = await request.json();
     const { action, userIds } = body;

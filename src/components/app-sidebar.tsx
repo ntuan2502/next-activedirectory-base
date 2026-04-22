@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Server, Users, LogOut } from "lucide-react";
+import { Server, Users, Shield, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,7 +19,8 @@ import { useAuth } from "@/components/auth-provider";
 
 const NAV_ITEMS = [
   { title: "Dashboard", href: "/", icon: Server },
-  { title: "Users", href: "/users", icon: Users },
+  { title: "Users", href: "/users", icon: Users, permission: "users:read" },
+  { title: "Roles", href: "/roles", icon: Shield, permission: "roles:manage" },
 ];
 
 export function AppSidebar() {
@@ -47,7 +48,11 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {NAV_ITEMS.filter((item) => {
+                if (!item.permission) return true;
+                if (user?.permissions?.includes("*")) return true;
+                return user?.permissions?.includes(item.permission);
+              }).map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     isActive={pathname === item.href}

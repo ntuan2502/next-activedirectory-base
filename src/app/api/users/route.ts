@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requirePermission } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const authResponse = await requirePermission("users:read");
+  if (authResponse) return authResponse;
+
   try {
     const users = await prisma.user.findMany({
       orderBy: { username: "asc" },
@@ -18,6 +22,13 @@ export async function GET() {
         title: true,
         department: true,
         disabled: true,
+        roles: {
+          select: {
+            id: true,
+            name: true,
+            isSystem: true,
+          },
+        },
       },
     });
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
+import { getUserPermissions } from "@/lib/permissions";
 
 export async function GET() {
   const session = await getSession();
@@ -11,8 +12,13 @@ export async function GET() {
     );
   }
 
+  const permissions = await getUserPermissions(session.userId);
+
   return NextResponse.json({
     authenticated: true,
-    user: session,
+    user: {
+      ...session,
+      permissions,
+    },
   });
 }

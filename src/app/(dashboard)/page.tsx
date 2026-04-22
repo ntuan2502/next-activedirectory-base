@@ -41,6 +41,12 @@ function isApiError(data: unknown): data is ApiErrorResponse {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  
+  const hasPermission = (perm: string) => {
+    if (!user?.permissions) return false;
+    if (user.permissions.includes("*")) return true;
+    return user.permissions.includes(perm);
+  };
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -193,151 +199,154 @@ export default function DashboardPage() {
             </CardDescription>
           </div>
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={handleTestConnection}
-              disabled={isTestLoading}
-            >
-              {isTestLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
-              Test Connection
-            </Button>
-            
-            <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog}>
-              <DialogTrigger render={
-                <Button>
-                  <Users className="w-4 h-4 mr-2" />
-                  Sync Data
+            {hasPermission("ldap:sync") && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleTestConnection}
+                  disabled={isTestLoading}
+                >
+                  {isTestLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
+                  Test Connection
                 </Button>
-              } />
-              <DialogContent className="max-w-[90vw] md:max-w-4xl lg:max-w-6xl w-full max-h-[85vh] flex flex-col p-4 md:p-6 overflow-hidden">
-                <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <div>
-                    <DialogTitle className="flex items-center gap-2">
-                      LDAP Sync Preview
-                      {!isPreviewLoading && (
-                        <Badge variant="secondary">{filteredPreviewUsers.length} users</Badge>
-                      )}
-                    </DialogTitle>
-                    <DialogDescription className="mt-1">
-                      Review the users found in LDAP. Only users with email addresses can be selected for synchronization.
-                    </DialogDescription>
-                  </div>
-                  <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-                    <Input
-                      placeholder="Search users..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="sm:w-64"
-                    />
-                    <Button variant="outline" size="icon" onClick={fetchPreview} disabled={isPreviewLoading}>
-                      <RefreshCw className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
-                    </Button>
-                  </div>
-                </DialogHeader>
                 
-                <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                  {isPreviewLoading ? (
-                    <div className="flex-1 flex items-center justify-center">
-                      <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                  ) : filteredPreviewUsers.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                      {search ? "No users match your search." : "No users found in LDAP."}
-                    </div>
-                  ) : (
-                    <div className="border rounded-md flex-1 overflow-hidden flex flex-col">
-                      <Table wrapperClassName="max-h-[60vh]">
-                        <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
-                          <TableRow>
-                              <TableHead className="w-12 text-center">
-                                <Checkbox 
-                                  checked={selectedUsernames.size === syncableUsersCount && syncableUsersCount > 0}
-                                  onCheckedChange={toggleSelectAll}
-                                  aria-label="Select all"
-                                  disabled={syncableUsersCount === 0}
-                                />
-                              </TableHead>
-                              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("username")}>
-                                <div className="flex items-center">
-                                  Username
-                                  {sortConfig?.key === "username" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("displayName")}>
-                                <div className="flex items-center">
-                                  Display Name
-                                  {sortConfig?.key === "displayName" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("email")}>
-                                <div className="flex items-center">
-                                  Email
-                                  {sortConfig?.key === "email" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("title")}>
-                                <div className="flex items-center">
-                                  Title / Role
-                                  {sortConfig?.key === "title" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("department")}>
-                                <div className="flex items-center">
-                                  Department
-                                  {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
-                                </div>
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {sortedPreviewUsers.map((u) => {
-                              const hasEmail = u.email && u.email.trim() !== "";
-                              return (
-                                <TableRow key={u.username} className={!hasEmail ? "opacity-60 bg-muted/20" : ""}>
-                                  <TableCell className="w-12 text-center">
+                <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Users className="w-4 h-4 mr-2" />
+                      Sync Data
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-[90vw] md:max-w-4xl lg:max-w-6xl w-full max-h-[85vh] flex flex-col p-4 md:p-6 overflow-hidden">
+                    <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <DialogTitle className="flex items-center gap-2">
+                          LDAP Sync Preview
+                          {!isPreviewLoading && (
+                            <Badge variant="secondary">{filteredPreviewUsers.length} users</Badge>
+                          )}
+                        </DialogTitle>
+                        <DialogDescription className="mt-1">
+                          Review the users found in LDAP. Only users with email addresses can be selected for synchronization.
+                        </DialogDescription>
+                      </div>
+                      <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+                        <Input
+                          placeholder="Search users..."
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                          className="sm:w-64"
+                        />
+                        <Button variant="outline" size="icon" onClick={fetchPreview} disabled={isPreviewLoading}>
+                          <RefreshCw className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
+                        </Button>
+                      </div>
+                    </DialogHeader>
+                    
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                      {isPreviewLoading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : filteredPreviewUsers.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                          {search ? "No users match your search." : "No users found in LDAP."}
+                        </div>
+                      ) : (
+                        <div className="border rounded-md flex-1 overflow-hidden flex flex-col">
+                          <Table wrapperClassName="max-h-[60vh]">
+                            <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
+                              <TableRow>
+                                  <TableHead className="w-12 text-center">
                                     <Checkbox 
-                                      checked={selectedUsernames.has(u.username)}
-                                      onCheckedChange={(checked) => toggleSelectUser(u.username, !!checked)}
-                                      aria-label={`Select ${u.username}`}
-                                      disabled={!hasEmail}
+                                      checked={selectedUsernames.size === syncableUsersCount && syncableUsersCount > 0}
+                                      onCheckedChange={toggleSelectAll}
+                                      aria-label="Select all"
+                                      disabled={syncableUsersCount === 0}
                                     />
-                                  </TableCell>
-                                  <TableCell className="font-medium">{u.username}</TableCell>
-                                  <TableCell>{u.displayName}</TableCell>
-                                  <TableCell>
-                                    {hasEmail ? u.email : <span className="text-destructive text-xs font-semibold">MISSING EMAIL</span>}
-                                  </TableCell>
-                                  <TableCell>{u.title || "-"}</TableCell>
-                                  <TableCell>{u.department || "-"}</TableCell>
+                                  </TableHead>
+                                  <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("username")}>
+                                    <div className="flex items-center">
+                                      Username
+                                      {sortConfig?.key === "username" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("displayName")}>
+                                    <div className="flex items-center">
+                                      Display Name
+                                      {sortConfig?.key === "displayName" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("email")}>
+                                    <div className="flex items-center">
+                                      Email
+                                      {sortConfig?.key === "email" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("title")}>
+                                    <div className="flex items-center">
+                                      Title / Role
+                                      {sortConfig?.key === "title" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("department")}>
+                                    <div className="flex items-center">
+                                      Department
+                                      {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                                    </div>
+                                  </TableHead>
                                 </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
+                              </TableHeader>
+                              <TableBody>
+                                {sortedPreviewUsers.map((u) => {
+                                  const hasEmail = u.email && u.email.trim() !== "";
+                                  return (
+                                    <TableRow key={u.username} className={!hasEmail ? "opacity-60 bg-muted/20" : ""}>
+                                      <TableCell className="w-12 text-center">
+                                        <Checkbox 
+                                          checked={selectedUsernames.has(u.username)}
+                                          onCheckedChange={(checked) => toggleSelectUser(u.username, !!checked)}
+                                          aria-label={`Select ${u.username}`}
+                                          disabled={!hasEmail}
+                                        />
+                                      </TableCell>
+                                      <TableCell className="font-medium">{u.username}</TableCell>
+                                      <TableCell>{u.displayName}</TableCell>
+                                      <TableCell>
+                                        {hasEmail ? u.email : <span className="text-destructive text-xs font-semibold">MISSING EMAIL</span>}
+                                      </TableCell>
+                                      <TableCell>{u.title || "-"}</TableCell>
+                                      <TableCell>{u.department || "-"}</TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-
-                <DialogFooter className="mt-4 shrink-0">
-                  <div className="flex w-full items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {selectedUsernames.size} of {syncableUsersCount} valid users selected
-                    </span>
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>Cancel</Button>
-                      <Button 
-                        onClick={handleConfirmSync} 
-                        disabled={isSyncing || selectedUsernames.size === 0}
-                      >
-                        {isSyncing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                        Confirm Sync
-                      </Button>
-                    </div>
-                  </div>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
+    
+                    <DialogFooter className="mt-4 shrink-0">
+                      <div className="flex w-full items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          {selectedUsernames.size} of {syncableUsersCount} valid users selected
+                        </span>
+                        <div className="flex gap-2">
+                          <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>Cancel</Button>
+                          <Button 
+                            onClick={handleConfirmSync} 
+                            disabled={isSyncing || selectedUsernames.size === 0}
+                          >
+                            {isSyncing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                            Confirm Sync
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </>
+            )}
           </div>
         </CardHeader>
 
