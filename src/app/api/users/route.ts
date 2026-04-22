@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const authResponse = await requirePermission("users:read");
+export async function GET(req: Request) {
+  const authResponse = await requirePermission(PERMISSIONS.USERS_READ);
   if (authResponse) return authResponse;
 
   try {

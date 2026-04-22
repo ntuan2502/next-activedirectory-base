@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withLdapClient, getAttr, LDAP_USER_ATTRIBUTES } from "@/lib/ldap";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 async function fetchLdapUsers() {
   return await withLdapClient(async (client, config) => {
@@ -30,7 +30,7 @@ async function fetchLdapUsers() {
 
 // GET: Return a preview of LDAP users
 export async function GET() {
-  const authResponse = await requirePermission("ldap:sync");
+  const authResponse = await requirePermission(PERMISSIONS.LDAP_SYNC);
   if (authResponse) return authResponse;
 
   try {
@@ -52,7 +52,7 @@ export async function GET() {
 
 // POST: Sync specifically selected users
 export async function POST(request: NextRequest) {
-  const authResponse = await requirePermission("ldap:sync");
+  const authResponse = await requirePermission(PERMISSIONS.LDAP_SYNC);
   if (authResponse) return authResponse;
 
   try {

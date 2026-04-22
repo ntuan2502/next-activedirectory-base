@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requirePermission("users:write");
+  const authResponse = await requirePermission(PERMISSIONS.USERS_WRITE);
   if (authResponse) return authResponse;
 
   try {

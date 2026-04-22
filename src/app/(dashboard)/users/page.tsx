@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
+import { PERMISSIONS } from "@/config/permissions";
 import Swal from "sweetalert2";
 
 type UserRecord = {
@@ -316,7 +317,7 @@ export default function UsersPage() {
     }
   };
 
-  if (!hasPermission("users:read")) {
+  if (!hasPermission(PERMISSIONS.USERS_READ)) {
     return <AccessDenied />;
   }
 
@@ -332,7 +333,7 @@ export default function UsersPage() {
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
-            {selectedUserIds.size > 0 && hasPermission("users:write") && (
+            {selectedUserIds.size > 0 && hasPermission(PERMISSIONS.USERS_WRITE) && (
               <DropdownMenu>
                 <DropdownMenuTrigger render={
                   <Button variant="secondary" disabled={isBulkLoading}>
@@ -372,7 +373,7 @@ export default function UsersPage() {
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
                   <TableHead className="w-12 text-center">
-                    {hasPermission("users:write") && (
+                    {hasPermission(PERMISSIONS.USERS_WRITE) && (
                       <Checkbox 
                         checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
                         onCheckedChange={toggleSelectAll}
@@ -417,7 +418,7 @@ export default function UsersPage() {
                       {sortConfig?.key === "disabled" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  {(hasPermission("users:write") || hasPermission("roles:manage")) && (
+                  {(hasPermission(PERMISSIONS.USERS_WRITE) || hasPermission(PERMISSIONS.ROLES_MANAGE)) && (
                     <TableHead className="w-24 text-center">Action</TableHead>
                   )}
                 </TableRow>
@@ -437,7 +438,7 @@ export default function UsersPage() {
                   sortedUsers.map((user) => (
                     <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
                       <TableCell className="text-center">
-                        {hasPermission("users:write") && (
+                        {hasPermission(PERMISSIONS.USERS_WRITE) && (
                           <Checkbox 
                             checked={selectedUserIds.has(user.id)}
                             onCheckedChange={(checked) => toggleSelectUser(user.id, !!checked)}
@@ -470,10 +471,10 @@ export default function UsersPage() {
                           <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>
                         )}
                       </TableCell>
-                      {(hasPermission("users:write") || hasPermission("roles:manage")) && (
+                      {(hasPermission(PERMISSIONS.USERS_WRITE) || hasPermission(PERMISSIONS.ROLES_MANAGE)) && (
                         <TableCell className="text-center">
                           <div className="flex justify-center items-center gap-1">
-                            {hasPermission("roles:manage") && (
+                            {hasPermission(PERMISSIONS.ROLES_MANAGE) && (
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -484,7 +485,7 @@ export default function UsersPage() {
                                 <Shield className="h-4 w-4" />
                               </Button>
                             )}
-                            {hasPermission("users:write") && (
+                            {hasPermission(PERMISSIONS.USERS_WRITE) && (
                               <>
                                 <Button
                                   variant="ghost"

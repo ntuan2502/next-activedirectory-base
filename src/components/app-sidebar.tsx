@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Server, Users, Shield, LogOut } from "lucide-react";
+import { Server, Users, Shield, LogOut, Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -16,11 +16,12 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/components/auth-provider";
+import { PERMISSIONS } from "@/config/permissions";
 
 const NAV_ITEMS = [
   { title: "Dashboard", href: "/", icon: Server },
-  { title: "Users", href: "/users", icon: Users, permission: "users:read" },
-  { title: "Roles", href: "/roles", icon: Shield, permission: "roles:manage" },
+  { title: "Users", href: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
+  { title: "Roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
 ];
 
 export function AppSidebar() {

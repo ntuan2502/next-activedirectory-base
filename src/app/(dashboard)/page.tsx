@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth-provider";
+import { PERMISSIONS } from "@/config/permissions";
 
 type ApiErrorResponse = {
   error: string;
@@ -199,7 +200,7 @@ export default function DashboardPage() {
             </CardDescription>
           </div>
           <div className="flex gap-3">
-            {hasPermission("ldap:sync") && (
+            {hasPermission(PERMISSIONS.LDAP_SYNC) && (
               <>
                 <Button
                   variant="outline"
@@ -210,13 +211,12 @@ export default function DashboardPage() {
                   Test Connection
                 </Button>
                 
+                <Button onClick={() => handleOpenSyncDialog(true)}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Sync Data
+                </Button>
                 <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Users className="w-4 h-4 mr-2" />
-                      Sync Data
-                    </Button>
-                  </DialogTrigger>
+
                   <DialogContent className="max-w-[90vw] md:max-w-4xl lg:max-w-6xl w-full max-h-[85vh] flex flex-col p-4 md:p-6 overflow-hidden">
                     <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>

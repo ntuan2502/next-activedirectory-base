@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
+import { PERMISSIONS, AVAILABLE_PERMISSIONS } from "@/config/permissions";
 import Swal from "sweetalert2";
 
 type RoleRecord = {
@@ -25,16 +26,9 @@ type RoleRecord = {
   };
 };
 
-const AVAILABLE_PERMISSIONS = [
-  { id: "users:read", name: "View Users", description: "Can view the list of users." },
-  { id: "users:write", name: "Manage Users", description: "Can edit, delete, or bulk action users." },
-  { id: "roles:manage", name: "Manage Roles", description: "Can create, edit, and delete roles." },
-  { id: "ldap:sync", name: "Sync LDAP", description: "Can fetch and sync users from LDAP." },
-];
-
 export default function RolesPage() {
   const { user } = useAuth();
-  
+
   const hasPermission = (perm: string) => {
     if (!user?.permissions) return false;
     if (user.permissions.includes("*")) return true;
@@ -47,7 +41,7 @@ export default function RolesPage() {
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleRecord | null>(null);
-  
+
   // Form State
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
@@ -186,7 +180,7 @@ export default function RolesPage() {
     }
   };
 
-  if (!hasPermission("roles:manage")) {
+  if (!hasPermission(PERMISSIONS.ROLES_MANAGE)) {
     return <AccessDenied />;
   }
 

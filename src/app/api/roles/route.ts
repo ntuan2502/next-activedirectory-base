@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { requirePermission } from "@/lib/permissions";
+import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const authResponse = await requirePermission("roles:manage");
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_MANAGE);
   if (authResponse) return authResponse;
 
   try {
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const authResponse = await requirePermission("roles:manage");
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_MANAGE);
   if (authResponse) return authResponse;
 
   try {

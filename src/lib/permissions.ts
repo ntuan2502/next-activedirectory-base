@@ -2,6 +2,8 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+export * from "@/config/permissions";
+
 export async function getUserPermissions(userId: string): Promise<string[]> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
