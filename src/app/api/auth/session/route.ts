@@ -22,6 +22,10 @@ export async function GET() {
       displayName: true,
       email: true,
       createdAt: true,
+      theme: true,
+      locale: true,
+      fontSize: true,
+      fontFamily: true,
       roles: {
         select: {
           name: true,
@@ -51,6 +55,59 @@ export async function GET() {
       createdAt: dbUser?.createdAt ? dbUser.createdAt.toISOString() : null,
       roles: dbUser?.roles || [],
       permissions,
+      theme: dbUser?.theme || "dark",
+      locale: dbUser?.locale || "vi",
+      fontSize: dbUser?.fontSize || 14,
+      fontFamily: dbUser?.fontFamily || "sans",
     },
   });
+}
+
+export async function PATCH(request: Request) {
+  const session = await getSession();
+
+  if (!session) {
+    return NextResponse.json(
+      { error: "Not authenticated" },
+      { status: 401 },
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { theme, locale, fontSize, fontFamily } = body;
+
+    const updateData: {
+      theme?: string;
+      locale?: string;
+      fontSize?: number;
+      fontFamily?: string;
+    } = {};
+    if (theme !== undefined) updateData.theme = theme;
+    if (locale !== undefined) updateData.locale = locale;
+    if (fontSize !== undefined) updateData.fontSize = Number(fontSize);
+    if (fontFamily !== undefined) updateData.fontFamily = fontFamily;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: session.userId },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      success: true,
+      settings: {
+        theme: updatedUser.theme,
+        locale: updatedUser.locale,
+        fontSize: updatedUser.fontSize,
+        fontFamily: updatedUser.fontFamily,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to update settings";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

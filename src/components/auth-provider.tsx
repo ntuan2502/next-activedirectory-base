@@ -13,6 +13,10 @@ type SessionUser = {
   createdAt?: string | null;
   roles?: { name: string; description: string | null }[];
   permissions?: string[];
+  theme?: string;
+  locale?: string;
+  fontSize?: number;
+  fontFamily?: string;
 };
 
 type AuthContextType = {

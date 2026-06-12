@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
 import { useTheme } from "next-themes";
+import { useSettings } from "@/components/settings-provider";
+import { LanguageToggle } from "@/components/language-toggle";
 import Swal from "sweetalert2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,11 +19,14 @@ import {
   LogOut,
   Sun,
   Moon,
-  Globe,
   Sliders,
   AlertCircle,
   KeyRound,
   ShieldAlert,
+  Laptop,
+  Smartphone,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 
 interface UserAvatarProps {
@@ -68,55 +73,192 @@ const FONT_FAMILIES = [
   { id: "mono", nameKey: "accountPage.fontFamilyOptions.mono", value: 'GeistMono, "Fira Code", Courier, monospace' },
 ];
 
+type ActiveSession = {
+  id: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastActiveAt: string;
+  isCurrent: boolean;
+};
+
 export default function AccountPage() {
   const { user, logout } = useAuth();
-  const { locale, t, changeLocale } = useLanguage();
-  const { theme, setTheme } = useTheme();
+  const { locale, t } = useLanguage();
+  const { theme } = useTheme();
+  const { fontSize, fontFamily, updateSetting } = useSettings();
   const [mounted, setMounted] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
-  const [fontFamily, setFontFamily] = useState<string>("sans");
+  const [sessions, setSessions] = useState<ActiveSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
 
-  // Sync component mount to avoid hydration warnings with next-themes and load settings
+  const fetchSessions = async () => {
+    try {
+      const res = await fetch("/api/auth/sessions");
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data.sessions || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sessions:", error);
+    } finally {
+      setSessionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
-
-      const savedFontSize = localStorage.getItem("sys_font_size");
-      if (savedFontSize) {
-        setFontSize(Number(savedFontSize));
-      }
-
-      const savedFontFamily = localStorage.getItem("sys_font_family");
-      if (savedFontFamily) {
-        setFontFamily(savedFontFamily);
-      }
+      fetchSessions();
     }, 0);
     return () => clearTimeout(timer);
   }, []);
 
-  // Synchronize font settings with DOM root styles safely in an effect
-  useEffect(() => {
-    if (!mounted) return;
+  const parseUserAgent = (ua: string | null) => {
+    if (!ua) return { browser: "Unknown Browser", os: "Unknown OS", isMobile: false };
 
-    // Apply font size using setProperty to avoid styling immutability issues
-    document.documentElement.style.setProperty("font-size", `${fontSize}px`);
-    localStorage.setItem("sys_font_size", String(fontSize));
+    let browser = "Unknown Browser";
+    let os = "Unknown OS";
+    let isMobile = false;
 
-    // Apply font family variables
-    const fontOption = FONT_FAMILIES.find((f) => f.id === fontFamily);
-    if (fontOption) {
-      document.documentElement.style.setProperty("--font-sans", fontOption.value);
-      document.documentElement.style.setProperty("font-family", fontOption.value);
-      localStorage.setItem("sys_font_family", fontFamily);
+    // Detect OS
+    if (ua.includes("Windows")) {
+      os = "Windows";
+    } else if (ua.includes("Macintosh") || ua.includes("Mac OS X")) {
+      if (ua.includes("iPhone") || ua.includes("iPad") || ua.includes("iPod")) {
+        os = "iOS";
+        isMobile = true;
+      } else {
+        os = "macOS";
+      }
+    } else if (ua.includes("Android")) {
+      os = "Android";
+      isMobile = true;
+    } else if (ua.includes("Linux")) {
+      os = "Linux";
+    } else if (ua.includes("iPhone") || ua.includes("iPad")) {
+      os = "iOS";
+      isMobile = true;
     }
-  }, [fontSize, fontFamily, mounted]);
 
-  const handleFontSizeChange = (size: number) => {
-    setFontSize(size);
+    // Detect Browser
+    if (ua.includes("Edg/")) browser = "Microsoft Edge";
+    else if (ua.includes("Chrome") && !ua.includes("Chromium")) browser = "Google Chrome";
+    else if (ua.includes("Firefox")) browser = "Mozilla Firefox";
+    else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Apple Safari";
+    else if (ua.includes("Opera") || ua.includes("OPR/")) browser = "Opera";
+
+    return { browser, os, isMobile };
   };
 
-  const handleFontFamilyChange = (id: string) => {
-    setFontFamily(id);
+  const handleRevokeSession = async (id: string) => {
+    const result = await Swal.fire({
+      title: t("common.confirm"),
+      text: t("accountPage.revokeSessionConfirm"),
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: t("common.confirm"),
+      cancelButtonText: t("common.cancel"),
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch(`/api/auth/sessions?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.loggedOutCurrent) {
+          logout();
+        } else {
+          Swal.fire({
+            title: t("common.success"),
+            text: t("accountPage.signOutOtherSuccessText"),
+            icon: "success",
+            timer: 1500,
+            showConfirmButton: false,
+          });
+          fetchSessions();
+        }
+      } else {
+        Swal.fire(t("common.error"), t("common.failedToDelete"), "error");
+      }
+    } catch {
+      Swal.fire(t("common.error"), t("common.networkError"), "error");
+    }
+  };
+
+  const handleRevokeOtherSessions = async () => {
+    const result = await Swal.fire({
+      title: t("accountPage.signOutOtherSessions"),
+      text: t("accountPage.signOutOtherSessionsDesc"),
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: t("common.confirm"),
+      cancelButtonText: t("common.cancel"),
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch("/api/auth/sessions?action=other", { method: "DELETE" });
+      if (res.ok) {
+        Swal.fire({
+          title: t("common.success"),
+          text: t("accountPage.signOutOtherSuccessText"),
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+        fetchSessions();
+      } else {
+        Swal.fire(t("common.error"), t("common.failedToDelete"), "error");
+      }
+    } catch {
+      Swal.fire(t("common.error"), t("common.networkError"), "error");
+    }
+  };
+
+  const handleRevokeAllSessions = async () => {
+    const result = await Swal.fire({
+      title: t("accountPage.signOutAllSessions"),
+      text: t("accountPage.signOutAllSessionsDesc"),
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: t("common.confirm"),
+      cancelButtonText: t("common.cancel"),
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const res = await fetch("/api/auth/sessions?action=all", { method: "DELETE" });
+      if (res.ok) {
+        logout();
+      } else {
+        Swal.fire(t("common.error"), t("common.failedToDelete"), "error");
+      }
+    } catch {
+      Swal.fire(t("common.error"), t("common.networkError"), "error");
+    }
+  };
+
+  const formatDateTime = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleString(locale === "vi" ? "vi-VN" : "en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   const getRoleName = (name: string) => {
@@ -143,29 +285,6 @@ export default function AccountPage() {
         day: "numeric",
       })
     : "-";
-
-  const handleSignOutOtherSessions = () => {
-    Swal.fire({
-      title: t("accountPage.signOutOtherSessions"),
-      text: t("accountPage.signOutOtherSessionsDesc"),
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.confirm"),
-      cancelButtonText: t("common.cancel"),
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: t("accountPage.signOutOtherSuccessTitle"),
-          text: t("accountPage.signOutOtherSuccessText"),
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      }
-    });
-  };
 
   const handleLogout = () => {
     logout();
@@ -356,169 +475,6 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* RIGHT COLUMN: Preferences, Roles, Danger Zone */}
-        <div className="lg:col-span-5 space-y-8">
-          
-          {/* DISPLAY PREFERENCES CARD */}
-          <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-muted/5 p-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
-                  <Sliders className="h-4 w-4" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg font-bold text-foreground">
-                    {t("accountPage.preferences")}
-                  </CardTitle>
-                  <CardDescription className="text-xs text-muted-foreground">
-                    {t("accountPage.preferencesSubtitle")}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              {/* Theme Settings */}
-              <div className="space-y-3">
-                <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                    {t("accountPage.theme")}
-                  </Label>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    {t("accountPage.themeSubtitle")}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setTheme("light")}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
-                      theme === "light"
-                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Sun className="h-4 w-4" />
-                    <span>Light</span>
-                  </button>
-                  <button
-                    onClick={() => setTheme("dark")}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
-                      theme === "dark"
-                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Moon className="h-4 w-4" />
-                    <span>Dark</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Language Settings */}
-              <div className="space-y-3 border-t pt-5">
-                <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                    {t("accountPage.language")}
-                  </Label>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    {t("accountPage.languageSubtitle")}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => changeLocale("en")}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
-                      locale === "en"
-                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Globe className="h-4 w-4" />
-                    <span>English</span>
-                  </button>
-                  <button
-                    onClick={() => changeLocale("vi")}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
-                      locale === "vi"
-                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Globe className="h-4 w-4" />
-                    <span>Tiếng Việt</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Font Family Settings */}
-              <div className="space-y-3 border-t pt-5">
-                <div>
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                    {t("accountPage.fontFamily")}
-                  </Label>
-                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                    {t("accountPage.fontFamilySubtitle")}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {FONT_FAMILIES.map((font) => (
-                    <button
-                      key={font.id}
-                      onClick={() => handleFontFamilyChange(font.id)}
-                      style={{ fontFamily: font.value }}
-                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                        fontFamily === font.id
-                          ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
-                          : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <span className="text-sm font-bold">Aa</span>
-                      <span className="text-[10px] mt-1 font-sans truncate w-full text-center">
-                        {t(font.nameKey)}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Font Size Settings */}
-              <div className="space-y-3 border-t pt-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
-                      {t("accountPage.fontSize")}
-                    </Label>
-                    <span className="text-[11px] text-muted-foreground mt-0.5 block">
-                      {t("accountPage.fontSizeSubtitle")}
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="text-xs font-mono font-bold bg-muted px-2 py-0.5">
-                    {fontSize}px
-                  </Badge>
-                </div>
-                
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    min="12"
-                    max="18"
-                    step="1"
-                    value={fontSize}
-                    onChange={(e) => handleFontSizeChange(Number(e.target.value))}
-                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                  
-                  {/* Real-time scaling typography preview */}
-                  <div className="p-3 border rounded-lg bg-muted/15 min-h-[48px] flex items-center justify-center">
-                    <p style={{ fontSize: `${fontSize}px` }} className="text-muted-foreground font-medium text-center transition-all duration-200">
-                      {t("accountPage.fontSizePreview")}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* ROLES & PERMISSIONS CARD */}
           <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
@@ -601,62 +557,318 @@ export default function AccountPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* DANGER ZONE CARD */}
-          <Card className="border border-destructive/20 bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-destructive/5 p-6">
+        {/* RIGHT COLUMN: Preferences, Roles, Active Sessions, Danger Zone */}
+        <div className="lg:col-span-5 space-y-8">
+          
+          {/* DISPLAY PREFERENCES CARD */}
+          <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
+            <CardHeader className="border-b bg-muted/5 p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
-                  <LogOut className="h-4 w-4" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                  <Sliders className="h-4 w-4" />
                 </div>
                 <div>
-                  <CardTitle className="text-lg font-bold text-destructive">
-                    {t("accountPage.dangerZone")}
+                  <CardTitle className="text-lg font-bold text-foreground">
+                    {t("accountPage.preferences")}
                   </CardTitle>
                   <CardDescription className="text-xs text-muted-foreground">
-                    {t("accountPage.dangerZoneSubtitle")}
+                    {t("accountPage.preferencesSubtitle")}
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              {/* Sign out other sessions */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-foreground">
-                    {t("accountPage.signOutOtherSessions")}
-                  </h4>
-                  <p className="text-xs text-muted-foreground max-w-sm leading-normal">
-                    {t("accountPage.signOutOtherSessionsDesc")}
-                  </p>
+              {/* Theme Settings */}
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                    {t("accountPage.theme")}
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    {t("accountPage.themeSubtitle")}
+                  </span>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={handleSignOutOtherSessions}
-                  className="sm:w-auto shrink-0 border-border hover:border-destructive/40 hover:text-destructive hover:bg-destructive/5 transition-all text-xs font-semibold cursor-pointer py-1.5 h-auto rounded-lg"
-                >
-                  {t("accountPage.signOutOtherSessionsButton")}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => updateSetting("theme", "light")}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                      theme === "light"
+                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Sun className="h-4 w-4" />
+                    <span>Light</span>
+                  </button>
+                  <button
+                    onClick={() => updateSetting("theme", "dark")}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                      theme === "dark"
+                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Moon className="h-4 w-4" />
+                    <span>Dark</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Log out current device */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t pt-5">
-                <div className="space-y-1">
-                  <h4 className="text-sm font-bold text-foreground">
-                    {t("accountPage.logoutDevice")}
-                  </h4>
-                  <p className="text-xs text-muted-foreground max-w-sm leading-normal">
-                    {t("accountPage.logoutDeviceDesc")}
-                  </p>
+              {/* Language Settings */}
+              <div className="space-y-3 border-t pt-5">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                    {t("accountPage.language")}
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    {t("accountPage.languageSubtitle")}
+                  </span>
+                </div>
+                <LanguageToggle size="md" />
+              </div>
+
+              {/* Font Family Settings */}
+              <div className="space-y-3 border-t pt-5">
+                <div>
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                    {t("accountPage.fontFamily")}
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    {t("accountPage.fontFamilySubtitle")}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {FONT_FAMILIES.map((font) => (
+                    <button
+                      key={font.id}
+                      onClick={() => updateSetting("fontFamily", font.id)}
+                      style={{ fontFamily: font.value }}
+                      className={`flex flex-col items-center justify-center p-3 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                        fontFamily === font.id
+                          ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                          : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <span className="text-sm font-bold">Aa</span>
+                      <span className="text-[10px] mt-1 font-sans truncate w-full text-center">
+                        {t(font.nameKey)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Font Size Settings */}
+              <div className="space-y-3 border-t pt-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                      {t("accountPage.fontSize")}
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                      {t("accountPage.fontSizeSubtitle")}
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-mono font-bold bg-muted px-2 py-0.5">
+                    {fontSize}px
+                  </Badge>
+                </div>
+                
+                <div className="space-y-2">
+                  <input
+                    type="range"
+                    min="12"
+                    max="18"
+                    step="1"
+                    value={fontSize}
+                    onChange={(e) => updateSetting("fontSize", Number(e.target.value))}
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                  />
+                  
+                  {/* Real-time scaling typography preview */}
+                  <div className="p-3 border rounded-lg bg-muted/15 min-h-[48px] flex items-center justify-center">
+                    <p style={{ fontSize: `${fontSize}px` }} className="text-muted-foreground font-medium text-center transition-all duration-200">
+                      {t("accountPage.fontSizePreview")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ACTIVE SESSIONS & SECURITY CARD */}
+          <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
+            <CardHeader className="border-b bg-muted/5 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
+                    <Laptop className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-bold text-foreground">
+                      {t("accountPage.activeSessions")}
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      {t("accountPage.activeSessionsSubtitle")}
+                    </CardDescription>
+                  </div>
                 </div>
                 <Button
-                  variant="destructive"
-                  onClick={handleLogout}
-                  className="sm:w-auto shrink-0 text-xs font-bold transition-all cursor-pointer py-1.5 h-auto rounded-lg shadow-sm"
+                  variant="ghost"
+                  size="icon"
+                  onClick={fetchSessions}
+                  disabled={sessionsLoading}
+                  className="h-8 w-8 rounded-lg cursor-pointer"
+                  title="Refresh sessions"
                 >
-                  <LogOut className="h-3.5 w-3.5" />
-                  {t("accountPage.logoutButton")}
+                  <RefreshCw className={`h-4 w-4 ${sessionsLoading ? "animate-spin" : ""}`} />
                 </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {/* Sessions List */}
+              <div className="space-y-4">
+                {sessionsLoading ? (
+                  <div className="space-y-3 animate-pulse">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
+                        <div className="h-10 w-10 bg-muted rounded-lg" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted rounded w-2/3" />
+                          <div className="h-3 bg-muted rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : sessions.length > 0 ? (
+                  <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
+                    {sessions.map((session) => {
+                      const { browser, os, isMobile } = parseUserAgent(session.userAgent);
+                      const Icon = isMobile ? Smartphone : Laptop;
+                      return (
+                        <div
+                          key={session.id}
+                          className="flex items-center justify-between gap-4 p-3.5 rounded-lg border bg-muted/25 relative overflow-hidden transition-colors hover:bg-muted/40"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-card border border-border">
+                              <Icon className="h-5 w-5 text-muted-foreground/80" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-sm text-foreground truncate">
+                                  {browser} on {os}
+                                </span>
+                                {session.isCurrent && (
+                                  <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[9px] font-extrabold uppercase tracking-wider py-0.5 rounded px-1.5 shrink-0">
+                                    {t("accountPage.currentDevice")}
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground truncate mt-0.5">
+                                {session.ipAddress || "Unknown IP"} • {formatDateTime(session.lastActiveAt)}
+                              </span>
+                              <span
+                                className="text-[10px] text-muted-foreground/60 font-mono truncate max-w-[240px] sm:max-w-[320px] mt-1 select-all cursor-help"
+                                title={session.userAgent || ""}
+                              >
+                                {session.userAgent || "-"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {!session.isCurrent && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRevokeSession(session.id)}
+                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 rounded-lg shrink-0 cursor-pointer"
+                              title="Sign out this device"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic text-center py-2">
+                    No active sessions found.
+                  </p>
+                )}
+              </div>
+
+              {/* DANGER ZONE / SECURITY ACTIONS */}
+              <div className="border-t border-destructive/20 bg-destructive/5 -mx-6 -mb-6 p-6 space-y-5">
+                <div className="flex items-center gap-2 text-destructive">
+                  <LogOut className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    {t("accountPage.dangerZone")}
+                  </span>
+                </div>
+
+                {/* Sign out other sessions */}
+                {!sessionsLoading && sessions.length > 1 && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <h4 className="text-xs font-bold text-foreground">
+                        {t("accountPage.signOutOtherSessions")}
+                      </h4>
+                      <p className="text-[10px] text-muted-foreground max-w-sm leading-normal">
+                        {t("accountPage.signOutOtherSessionsDesc")}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleRevokeOtherSessions}
+                      className="sm:w-auto shrink-0 border-border hover:border-destructive/40 hover:text-destructive hover:bg-destructive/5 transition-all text-xs font-semibold cursor-pointer py-1.5 h-auto rounded-lg"
+                    >
+                      {t("accountPage.signOutOtherSessionsButton")}
+                    </Button>
+                  </div>
+                )}
+
+                {/* Sign out all sessions */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-destructive/10 pt-4">
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs font-bold text-foreground">
+                      {t("accountPage.signOutAllSessions")}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground max-w-sm leading-normal">
+                      {t("accountPage.signOutAllSessionsDesc")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleRevokeAllSessions}
+                    className="sm:w-auto shrink-0 border-border hover:border-destructive/40 hover:text-destructive hover:bg-destructive/5 transition-all text-xs font-semibold cursor-pointer py-1.5 h-auto rounded-lg"
+                  >
+                    {t("accountPage.signOutAllSessionsButton")}
+                  </Button>
+                </div>
+
+                {/* Log out current device */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-destructive/10 pt-4">
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs font-bold text-foreground">
+                      {t("accountPage.logoutDevice")}
+                    </h4>
+                    <p className="text-[10px] text-muted-foreground max-w-sm leading-normal">
+                      {t("accountPage.logoutDeviceDesc")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={handleLogout}
+                    className="sm:w-auto shrink-0 text-xs font-bold transition-all cursor-pointer py-1.5 h-auto rounded-lg shadow-sm"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    {t("accountPage.logoutButton")}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

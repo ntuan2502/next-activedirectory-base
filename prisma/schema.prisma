@@ -24,11 +24,16 @@ model User {
   disabled     Boolean   @default(false)
   lastSyncAt   DateTime?
   lastLoginAt  DateTime?
+  theme        String    @default("dark")
+  locale       String    @default("vi")
+  fontSize     Int       @default(14)
+  fontFamily   String    @default("sans")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   roles        Role[]
   auditLogs    AuditLog[]
+  sessions     Session[]
 
   @@map("users")
 }
@@ -61,5 +66,19 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now()) @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }
 
