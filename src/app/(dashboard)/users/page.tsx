@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchDebounce } from "@/hooks/use-search-debounce";
 import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -102,14 +103,7 @@ export default function UsersPage() {
   }, []);
 
   // Debounce search query input (1s delay)
-  useEffect(() => {
-    if (!isReady) return;
-    const timer = setTimeout(() => {
-      setSearch(localSearch);
-      setPage(1); // Reset page to 1 when search query changes
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [localSearch, isReady]);
+  useSearchDebounce({ localSearch, isReady, setSearch, setPage });
 
   // Synchronize state changes to URL query string
   useEffect(() => {
