@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
+import { logAction } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,11 @@ export async function POST(request: NextRequest) {
         description,
         permissions: JSON.stringify(permissions || []),
       },
+    });
+
+    await logAction("role:create", role.name, {
+      description: role.description,
+      permissions: permissions || [],
     });
 
     return NextResponse.json({ success: true, data: role });

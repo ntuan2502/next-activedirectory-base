@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
+import { logAction } from "@/lib/audit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,19 +26,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No users selected." }, { status: 400 });
     }
 
+    const affectedUsers = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true, disabled: true }
+    });
+
     if (action === "delete") {
       await prisma.user.deleteMany({
         where: { id: { in: userIds } },
+      });
+      await logAction("users:bulk_delete", `${userIds.length} users`, {
+        before: affectedUsers.map((u) => ({ id: u.id, username: u.username })),
+        after: null,
       });
     } else if (action === "disable") {
       await prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { disabled: true },
       });
+      await logAction("users:bulk_disable", `${userIds.length} users`, {
+        before: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: u.disabled })),
+        after: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: true })),
+      });
     } else if (action === "enable") {
       await prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { disabled: false },
+      });
+      await logAction("users:bulk_enable", `${userIds.length} users`, {
+        before: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: u.disabled })),
+        after: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: false })),
       });
     }
 

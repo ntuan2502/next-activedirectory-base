@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
+import { logAction } from "@/lib/audit";
 
 export async function DELETE(
   _request: NextRequest,
@@ -11,6 +12,26 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!existingUser) {
+      return NextResponse.json({ error: "User not found." }, { status: 404 });
+    }
+
+    await logAction("user:delete", existingUser.username, {
+      before: {
+        username: existingUser.username,
+        displayName: existingUser.displayName,
+        email: existingUser.email,
+        title: existingUser.title,
+        department: existingUser.department,
+        company: existingUser.company,
+      },
+      after: null,
+    });
 
     await prisma.user.delete({
       where: { id },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/lib/auth";
 import { createSession } from "@/lib/session";
+import { logAction } from "@/lib/audit";
 
 type LoginBody = {
   username: string;
@@ -8,9 +9,11 @@ type LoginBody = {
 };
 
 export async function POST(request: NextRequest) {
+  let requestUsername = "";
   try {
     const body = (await request.json()) as LoginBody;
     const { username, password } = body;
+    requestUsername = username || "";
 
     if (!username || !password) {
       return NextResponse.json(
@@ -33,6 +36,8 @@ export async function POST(request: NextRequest) {
       username: result.username,
     });
 
+    await logAction("auth:login", result.username, { userId: result.userId }, { userId: result.userId, username: result.username });
+
     return NextResponse.json({
       success: true,
       user: {
@@ -43,6 +48,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Authentication failed.";
+    if (requestUsername) {
+      await logAction("auth:login_failed", requestUsername, { error: message });
+    }
     return NextResponse.json(
       { error: message },
       { status: 401 },

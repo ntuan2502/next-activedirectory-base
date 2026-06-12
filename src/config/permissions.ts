@@ -13,6 +13,9 @@ export const PERMISSIONS = {
   // LDAP Group
   LDAP_TEST: "ldap:test",
   LDAP_SYNC: "ldap:sync",
+
+  // System Audits
+  AUDIT_LOGS_READ: "audit_logs:read",
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -39,5 +42,8 @@ export const AVAILABLE_PERMISSIONS: PermissionItem[] = [
   // LDAP Integration
   { id: PERMISSIONS.LDAP_TEST, name: "Test LDAP Connection", description: "Can perform LDAP connection health checks and test credentials.", group: "LDAP Integration" },
   { id: PERMISSIONS.LDAP_SYNC, name: "Sync LDAP Data", description: "Can trigger directory synchronization and import users.", group: "LDAP Integration" },
+
+  // System Audits
+  { id: PERMISSIONS.AUDIT_LOGS_READ, name: "View Audit Logs", description: "Can view and search the system activity logs.", group: "System Audits" },
 ];
 

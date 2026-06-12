@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Server, Users, Shield, LogOut } from "lucide-react";
+import { Server, Users, Shield, LogOut, ClipboardList } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { title: "Dashboard", href: "/", icon: Server },
   { title: "Users", href: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
   { title: "Roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_READ },
+  { title: "Audit Logs", href: "/audit-logs", icon: ClipboardList, permission: PERMISSIONS.AUDIT_LOGS_READ },
 ];
 
 export function AppSidebar() {

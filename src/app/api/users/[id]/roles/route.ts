@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
+import { logAction } from "@/lib/audit";
 
 export async function PUT(
   request: NextRequest,
@@ -42,6 +43,15 @@ export async function PUT(
           select: { id: true, name: true, isSystem: true }
         }
       }
+    });
+
+    await logAction("user:update_roles", user.username, {
+      before: {
+        roles: user.roles.map((r) => r.name),
+      },
+      after: {
+        roles: updatedUser.roles.map((r) => r.name),
+      },
     });
 
     return NextResponse.json({ success: true, data: updatedUser });

@@ -28,6 +28,7 @@ model User {
   updatedAt    DateTime  @updatedAt
 
   roles        Role[]
+  auditLogs    AuditLog[]
 
   @@map("users")
 }
@@ -44,3 +45,19 @@ model Role {
 
   @@map("roles")
 }
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  username  String   @default("system")
+  action    String
+  target    String?
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+

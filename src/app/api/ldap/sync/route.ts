@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withLdapClient, getAttr, LDAP_USER_ATTRIBUTES } from "@/lib/ldap";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
+import { logAction } from "@/lib/audit";
 
 async function fetchLdapUsers() {
   return await withLdapClient(async (client, config) => {
@@ -71,6 +72,10 @@ export async function POST(request: NextRequest) {
       (u) => usernamesToSync.includes(u.username) && u.email && u.email.trim() !== ""
     );
 
+    const existingUsers = await prisma.user.findMany({
+      where: { username: { in: usersToSync.map(u => u.username) } }
+    });
+
     const now = new Date();
     let syncedCount = 0;
 
@@ -132,6 +137,36 @@ export async function POST(request: NextRequest) {
         lastSyncAt: true,
         disabled: true,
       },
+    });
+
+    const syncDetails = usersToSync.map(user => {
+      const dbUser = existingUsers.find(eu => eu.username === user.username);
+      return {
+        username: user.username,
+        before: dbUser ? {
+          dn: dbUser.dn,
+          displayName: dbUser.displayName,
+          email: dbUser.email,
+          phone: dbUser.phone,
+          title: dbUser.title,
+          department: dbUser.department,
+          company: dbUser.company
+        } : null,
+        after: {
+          dn: user.dn,
+          displayName: user.displayName,
+          email: user.email,
+          phone: user.phone,
+          title: user.title,
+          department: user.department,
+          company: user.company
+        }
+      };
+    });
+
+    await logAction("ldap:sync_data", `${syncedCount} users`, {
+      usernames: usernamesToSync,
+      details: syncDetails
     });
 
     return NextResponse.json({
