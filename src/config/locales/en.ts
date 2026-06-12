@@ -193,6 +193,7 @@ export const en = {
       logout: "Logout",
       ldapTest: "LDAP Connection Test",
       ldapSync: "LDAP Sync",
+      ldapFetch: "Fetch LDAP Data",
       deleteUser: "Delete User",
       updateUserRoles: "Update User Roles",
       bulkDelete: "Bulk Delete Users",
@@ -206,6 +207,26 @@ export const en = {
       success: "Success",
       failed: "Failed",
       users: "{{count}} users",
+    },
+    ldapTest: {
+      details: "LDAP Connection Details",
+      success: "Connection Successful",
+      successDesc: "Successfully established connection with the LDAP server.",
+      failed: "Connection Failed",
+      failedDesc: "Could not connect to the LDAP server.",
+      configParams: "Connection Configuration Parameters",
+      serverUrl: "LDAP Server URL",
+      bindDn: "Bind DN (Username)",
+      baseDn: "Base DN",
+      userFilter: "User Filter"
+    },
+    ldapFetch: {
+      details: "LDAP Fetch Details",
+      success: "Data Fetched Successfully",
+      successDesc: "Successfully retrieved the user directory list from Active Directory.",
+      failed: "Data Fetch Failed",
+      failedDesc: "Could not retrieve the user directory list from Active Directory.",
+      fetchedCount: "Number of users found",
     }
   },
   accountPage: {
@@ -246,6 +267,21 @@ export const en = {
       mono: "Monospace",
       display: "Display"
     },
+    dateFormat: "Date Format",
+    dateFormatSubtitle: "Choose how dates are displayed across the system",
+    dateFormatOptions: {
+      "YYYY-MM-DD": "YYYY-MM-DD (Default)",
+      "DD/MM/YYYY": "DD/MM/YYYY",
+      "MM/DD/YYYY": "MM/DD/YYYY",
+      "medium": "Medium (e.g., Jun 12, 2026)"
+    },
+    timeFormat: "Time Format",
+    timeFormatSubtitle: "Choose between 12-hour or 24-hour time display",
+    timeFormatOptions: {
+      "12h": "12-hour (AM/PM)",
+      "24h": "24-hour"
+    },
+    dateTimePreview: "Date & time format preview",
     rolesAndAccess: "Roles & Access",
     rolesAndAccessSubtitle: "Roles assigned to your account",
     globalPermissions: "global permissions",

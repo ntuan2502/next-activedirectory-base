@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,11 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
+import { useSettings } from "@/components/settings-provider";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
-import { getPageNumbers, parseUserAgent } from "@/lib/utils";
+import { DEFAULT_LIMIT } from "@/config/constants";
+import { getPageNumbers, parseUserAgent, formatRelativeTime, formatDateTimeCustom } from "@/lib/utils";
 import {
   Pagination,
   PaginationContent,
@@ -46,6 +48,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "auth:login_failed": { label: "Login Failed", color: "bg-destructive/10 text-destructive border-destructive/20" },
   "auth:logout": { label: "Logout", color: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" },
   "ldap:test_connection": { label: "LDAP Connection Test", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
+  "ldap:fetch_data": { label: "Fetch LDAP Data", color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20" },
   "ldap:sync_data": { label: "LDAP Sync", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
   "user:delete": { label: "Delete User", color: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
   "user:update_roles": { label: "Update User Roles", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
@@ -63,6 +66,7 @@ const getActionTranslationKey = (action: string): string => {
     "auth:login_failed": "loginFailed",
     "auth:logout": "logout",
     "ldap:test_connection": "ldapTest",
+    "ldap:fetch_data": "ldapFetch",
     "ldap:sync_data": "ldapSync",
     "user:delete": "deleteUser",
     "user:update_roles": "updateUserRoles",
@@ -228,11 +232,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
             return (
               <div
                 key={k}
-                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${
-                  isChanged
+                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${isChanged
                     ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
                     : "text-muted-foreground/85"
-                }`}
+                  }`}
               >
                 &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valBefore)}
               </div>
@@ -267,11 +270,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
             return (
               <div
                 key={k}
-                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${
-                  isChanged
+                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${isChanged
                     ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
                     : "text-muted-foreground/85"
-                }`}
+                  }`}
               >
                 &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valAfter)}
               </div>
@@ -286,7 +288,8 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
 
 export default function AuditLogsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const { dateFormat, timeFormat } = useSettings();
 
   const hasPermission = (perm: string) => {
     if (!user?.permissions) return false;
@@ -302,7 +305,7 @@ export default function AuditLogsPage() {
   const [localSearch, setLocalSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [isReady, setIsReady] = useState(false);
@@ -354,7 +357,7 @@ export default function AuditLogsPage() {
     Promise.resolve().then(() => {
       const params = new URLSearchParams(window.location.search);
       const p = parseInt(params.get("page") || "1", 10);
-      const l = parseInt(params.get("limit") || "20", 10);
+      const l = parseInt(params.get("limit") || DEFAULT_LIMIT.toString(), 10);
       const a = params.get("action") || "all";
       const s = params.get("search") || "";
 
@@ -383,7 +386,7 @@ export default function AuditLogsPage() {
     if (!isReady) return;
     const params = new URLSearchParams();
     if (page > 1) params.set("page", page.toString());
-    if (limit !== 20) params.set("limit", limit.toString());
+    if (limit !== DEFAULT_LIMIT) params.set("limit", limit.toString());
     if (actionFilter !== "all") params.set("action", actionFilter);
     if (search.trim()) params.set("search", search.trim());
 
@@ -420,19 +423,7 @@ export default function AuditLogsPage() {
   };
 
   const formatDateTime = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleString("en-US", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-    } catch {
-      return dateStr;
-    }
+    return formatDateTimeCustom(dateStr, dateFormat, timeFormat, locale);
   };
 
   const parseDiff = (detailsStr: string | null) => {
@@ -488,6 +479,32 @@ export default function AuditLogsPage() {
     }
   };
 
+  interface LdapTestLogDetail {
+    success?: boolean;
+    error?: string;
+    message?: string;
+    config?: {
+      url: string;
+      port: string;
+      username: string;
+      baseDN: string;
+      filter: string;
+    } | null;
+  }
+
+  const parseLdapTestInfo = (detailsStr: string | null): LdapTestLogDetail | null => {
+    if (!detailsStr) return null;
+    try {
+      const parsed = JSON.parse(detailsStr);
+      if (parsed && typeof parsed === "object" && ("success" in parsed || "error" in parsed || "config" in parsed)) {
+        return parsed as LdapTestLogDetail;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
 
 
   const getActionBadge = (action: string) => {
@@ -510,6 +527,26 @@ export default function AuditLogsPage() {
   const isBatchSync = !!batchSyncDetails && batchSyncDetails.length > 0;
   const sessionInfo = (selectedLog && ["auth:login", "auth:login_failed", "auth:logout"].includes(selectedLog.action))
     ? parseSessionInfo(selectedLog.details)
+    : null;
+  const ldapTestInfo = (selectedLog && selectedLog.action === "ldap:test_connection")
+    ? parseLdapTestInfo(selectedLog.details)
+    : null;
+
+  const parseLdapFetchInfo = (detailsStr: string | null) => {
+    if (!detailsStr) return null;
+    try {
+      const parsed = JSON.parse(detailsStr);
+      if (parsed && typeof parsed === "object" && ("count" in parsed || "error" in parsed)) {
+        return parsed as { count?: number; error?: string };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const ldapFetchInfo = (selectedLog && selectedLog.action === "ldap:fetch_data")
+    ? parseLdapFetchInfo(selectedLog.details)
     : null;
 
   const filteredBatchUsers = batchSyncDetails
@@ -611,41 +648,76 @@ export default function AuditLogsPage() {
                     </TableRow>
                   ))
                 ) : logs.length > 0 ? (
-                  logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="text-muted-foreground text-xs font-mono">
-                        {formatDateTime(log.createdAt)}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div className="flex flex-col">
-                          <span>{log.username}</span>
-                          {log.user?.displayName && (
-                            <span className="text-[10px] text-muted-foreground font-normal">
-                              {log.user.displayName}
+                  logs.map((log) => {
+                    const isFailed = log.action.includes("failed") || log.target === "failed";
+                    return (
+                      <TableRow
+                        key={log.id}
+                        className={isFailed
+                          ? "bg-destructive/10 dark:bg-destructive/20 hover:bg-destructive/15 dark:hover:bg-destructive/25 border-l-2 border-l-destructive"
+                          : "border-l-2 border-l-transparent"
+                        }
+                      >
+                        <TableCell className="text-muted-foreground text-xs">
+                          <div className="flex flex-col font-mono">
+                            <span className="font-semibold text-foreground">
+                              {formatRelativeTime(log.createdAt, locale)}
                             </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getActionBadge(log.action)}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm" title={log.target ? getTargetTranslation(log.target) : ""}>
-                        {getTargetTranslation(log.target)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs font-mono">
-                        {log.ipAddress || "-"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedLog(log)}
-                          disabled={!log.details}
-                          title={log.details ? t("auditLogsPage.viewDetails") : t("auditLogsPage.noDetailAvailable")}
-                        >
-                          <Eye className={`h-4 w-4 ${log.details ? "text-primary" : "text-muted-foreground/30"}`} />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                            <span className="text-[10px] text-muted-foreground">
+                              ({formatDateTime(log.createdAt)})
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex flex-col">
+                            <span>{log.username}</span>
+                            {log.user?.displayName && (
+                              <span className="text-[10px] text-muted-foreground font-normal">
+                                {log.user.displayName}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{getActionBadge(log.action)}</TableCell>
+                        <TableCell className="max-w-[200px] truncate text-sm" title={log.target ? getTargetTranslation(log.target) : ""}>
+                          <div className="flex flex-col">
+                            <span className="font-semibold">{getTargetTranslation(log.target)}</span>
+                            {(() => {
+                              if (["auth:login", "auth:logout", "auth:login_failed"].includes(log.action) && log.details) {
+                                try {
+                                  const detailsObj = JSON.parse(log.details);
+                                  const ua = detailsObj?.userAgent;
+                                  const sessId = detailsObj?.sessionId;
+                                  const { browser, os } = ua ? parseUserAgent(ua) : { browser: "", os: "" };
+                                  return (
+                                    <div className="text-[10px] text-muted-foreground font-normal space-y-0.5 mt-0.5">
+                                      {browser && <div>{browser} on {os}</div>}
+                                      {sessId && <div className="font-mono text-[9px] text-muted-foreground/75 truncate max-w-[180px]" title={sessId}>Session: {sessId.slice(0, 8)}...</div>}
+                                    </div>
+                                  );
+                                } catch { }
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-xs font-mono">
+                          {log.ipAddress || "-"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setSelectedLog(log)}
+                            disabled={!log.details}
+                            title={log.details ? t("auditLogsPage.viewDetails") : t("auditLogsPage.noDetailAvailable")}
+                          >
+                            <Eye className={`h-4 w-4 ${log.details ? "text-primary" : "text-muted-foreground/30"}`} />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
@@ -724,7 +796,9 @@ export default function AuditLogsPage() {
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.timestamp")}</span>
-                  <span className="font-semibold block mt-0.5">{formatDateTime(selectedLog.createdAt)}</span>
+                  <span className="font-semibold block mt-0.5">
+                    {formatRelativeTime(selectedLog.createdAt, locale)} ({formatDateTime(selectedLog.createdAt)})
+                  </span>
                 </div>
                 <div>
                   <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.operator")}</span>
@@ -765,16 +839,16 @@ export default function AuditLogsPage() {
                                 setSelectedBatchUserIndex(originalIndex !== -1 ? originalIndex : 0);
                               }}
                               className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition-colors text-left border ${isSelected
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-background hover:bg-muted text-foreground border-border"
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-background hover:bg-muted text-foreground border-border"
                                 }`}
                             >
                               <span className="font-mono truncate mr-2">{detail.username}</span>
                               {isCreated ? (
                                 <Badge
                                   className={`text-[9px] px-1 py-0 h-4 border ${isSelected
-                                      ? "bg-emerald-600 text-white border-emerald-500"
-                                      : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                    ? "bg-emerald-600 text-white border-emerald-500"
+                                    : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                                     }`}
                                 >
                                   {t("auditLogsPage.badgeCreated")}
@@ -782,8 +856,8 @@ export default function AuditLogsPage() {
                               ) : (
                                 <Badge
                                   className={`text-[9px] px-1 py-0 h-4 border ${isSelected
-                                      ? "bg-blue-600 text-white border-blue-500"
-                                      : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                                    ? "bg-blue-600 text-white border-blue-500"
+                                    : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                                     }`}
                                 >
                                   {t("auditLogsPage.badgeUpdated")}
@@ -882,6 +956,113 @@ export default function AuditLogsPage() {
                           );
                         })()}
                       </div>
+                    </div>
+                  </div>
+                </div>
+              ) : ldapTestInfo ? (
+                <div className="space-y-4">
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-muted px-4 py-2 border-b font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      {t("auditLogsPage.ldapTest.details")}
+                    </div>
+                    <div className="p-4 space-y-4">
+                      {/* Success / Error Banner */}
+                      {ldapTestInfo.success ? (
+                        <div className="flex gap-2.5 items-start p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 text-sm">
+                          <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold block">{t("auditLogsPage.ldapTest.success")}</span>
+                            <span className="text-xs">{ldapTestInfo.message || t("auditLogsPage.ldapTest.successDesc")}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2.5 items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
+                          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold block">{t("auditLogsPage.ldapTest.failed")}</span>
+                            <span className="text-xs font-mono">{ldapTestInfo.error || t("auditLogsPage.ldapTest.failedDesc")}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Config parameters */}
+                      {ldapTestInfo.config && (
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            {t("auditLogsPage.ldapTest.configParams")}
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-muted/10 p-4 rounded-lg border">
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.serverUrl")}</span>
+                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
+                                {ldapTestInfo.config.url}:{ldapTestInfo.config.port}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.bindDn")}</span>
+                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
+                                {ldapTestInfo.config.username}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.baseDn")}</span>
+                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
+                                {ldapTestInfo.config.baseDN}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.userFilter")}</span>
+                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
+                                {ldapTestInfo.config.filter}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : ldapFetchInfo ? (
+                <div className="space-y-4">
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-muted px-4 py-2 border-b font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <Globe className="w-4 h-4 text-primary" />
+                      {t("auditLogsPage.ldapFetch.details")}
+                    </div>
+                    <div className="p-4 space-y-4">
+                      {/* Success / Error Banner */}
+                      {ldapFetchInfo.error ? (
+                        <div className="flex gap-2.5 items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
+                          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold block">{t("auditLogsPage.ldapFetch.failed")}</span>
+                            <span className="text-xs font-mono">{ldapFetchInfo.error || t("auditLogsPage.ldapFetch.failedDesc")}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2.5 items-start p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 text-sm">
+                          <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold block">{t("auditLogsPage.ldapFetch.success")}</span>
+                            <span className="text-xs">{t("auditLogsPage.ldapFetch.successDesc")}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display Count */}
+                      {!ldapFetchInfo.error && typeof ldapFetchInfo.count === "number" && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 gap-4 text-sm bg-muted/10 p-4 rounded-lg border">
+                            <div className="space-y-1">
+                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapFetch.fetchedCount")}</span>
+                              <span className="font-semibold text-lg text-emerald-600 dark:text-emerald-400">
+                                {ldapFetchInfo.count}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

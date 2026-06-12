@@ -193,6 +193,7 @@ export const vi = {
       logout: "Đăng xuất",
       ldapTest: "Kiểm tra kết nối LDAP",
       ldapSync: "Đồng bộ LDAP",
+      ldapFetch: "Lấy dữ liệu LDAP",
       deleteUser: "Xóa người dùng",
       updateUserRoles: "Cập nhật vai trò user",
       bulkDelete: "Xóa hàng loạt user",
@@ -206,6 +207,26 @@ export const vi = {
       success: "Thành công",
       failed: "Thất bại",
       users: "{{count}} người dùng",
+    },
+    ldapTest: {
+      details: "Thông tin kết nối LDAP",
+      success: "Kết nối thành công",
+      successDesc: "Đã thiết lập liên kết thành công với máy chủ LDAP.",
+      failed: "Kết nối thất bại",
+      failedDesc: "Không thể kết nối đến máy chủ LDAP.",
+      configParams: "Tham số cấu hình kết nối",
+      serverUrl: "LDAP Server URL",
+      bindDn: "Bind DN (Tài khoản)",
+      baseDn: "Base DN",
+      userFilter: "Bộ lọc người dùng"
+    },
+    ldapFetch: {
+      details: "Chi tiết truy xuất dữ liệu LDAP",
+      success: "Lấy dữ liệu thành công",
+      successDesc: "Đã truy xuất thành công danh sách người dùng từ Active Directory.",
+      failed: "Lấy dữ liệu thất bại",
+      failedDesc: "Không thể truy xuất danh sách người dùng từ Active Directory.",
+      fetchedCount: "Số lượng người dùng tìm thấy",
     }
   },
   accountPage: {
@@ -246,6 +267,21 @@ export const vi = {
       mono: "Đơn cách (Monospace)",
       display: "Hiện đại (Display)"
     },
+    dateFormat: "Định dạng ngày",
+    dateFormatSubtitle: "Chọn cách hiển thị ngày trên toàn hệ thống",
+    dateFormatOptions: {
+      "YYYY-MM-DD": "YYYY-MM-DD (Mặc định)",
+      "DD/MM/YYYY": "DD/MM/YYYY",
+      "MM/DD/YYYY": "MM/DD/YYYY",
+      "medium": "Trung bình (VD: 12 thg 6, 2026)"
+    },
+    timeFormat: "Định dạng giờ",
+    timeFormatSubtitle: "Chọn hiển thị giờ dạng 12 giờ hoặc 24 giờ",
+    timeFormatOptions: {
+      "12h": "12 giờ (SA/CH)",
+      "24h": "24 giờ"
+    },
+    dateTimePreview: "Xem trước định dạng ngày & giờ",
     rolesAndAccess: "Vai trò & Quyền hạn",
     rolesAndAccessSubtitle: "Các vai trò được gán cho bạn",
     globalPermissions: "quyền hạn toàn cục",

@@ -7,7 +7,7 @@ import { useTheme } from "next-themes";
 import { useSettings } from "@/components/settings-provider";
 import { LanguageToggle } from "@/components/language-toggle";
 import Swal from "sweetalert2";
-import { parseUserAgent } from "@/lib/utils";
+import { parseUserAgent, formatDateTimeCustom } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ import {
   Smartphone,
   Trash2,
   RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 
 interface UserAvatarProps {
@@ -87,7 +88,7 @@ export default function AccountPage() {
   const { user, logout } = useAuth();
   const { locale, t } = useLanguage();
   const { theme } = useTheme();
-  const { fontSize, fontFamily, updateSetting } = useSettings();
+  const { fontSize, fontFamily, dateFormat, timeFormat, updateSetting } = useSettings();
   const [mounted, setMounted] = useState(false);
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
@@ -214,17 +215,7 @@ export default function AccountPage() {
   };
 
   const formatDateTime = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleString(locale === "vi" ? "vi-VN" : "en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return dateStr;
-    }
+    return formatDateTimeCustom(dateStr, dateFormat, timeFormat, locale);
   };
 
   const getRoleName = (name: string) => {
@@ -658,6 +649,71 @@ export default function AccountPage() {
                     <p style={{ fontSize: `${fontSize}px` }} className="text-muted-foreground font-medium text-center transition-all duration-200">
                       {t("accountPage.fontSizePreview")}
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Date & Time Format Settings */}
+              <div className="space-y-4 border-t pt-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Date Format */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                      {t("accountPage.dateFormat")}
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                      {t("accountPage.dateFormatSubtitle")}
+                    </span>
+                    <div className="relative w-full">
+                      <select
+                        value={dateFormat}
+                        onChange={(e) => updateSetting("dateFormat", e.target.value)}
+                        className="w-full pl-3 pr-9 py-2.5 text-sm rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground"
+                      >
+                        <option value="YYYY-MM-DD" className="bg-card text-foreground">{t("accountPage.dateFormatOptions.YYYY-MM-DD")}</option>
+                        <option value="DD/MM/YYYY" className="bg-card text-foreground">{t("accountPage.dateFormatOptions.DD/MM/YYYY")}</option>
+                        <option value="MM/DD/YYYY" className="bg-card text-foreground">{t("accountPage.dateFormatOptions.MM/DD/YYYY")}</option>
+                        <option value="medium" className="bg-card text-foreground">{t("accountPage.dateFormatOptions.medium")}</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Time Format */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
+                      {t("accountPage.timeFormat")}
+                    </Label>
+                    <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                      {t("accountPage.timeFormatSubtitle")}
+                    </span>
+                    <div className="relative w-full">
+                      <select
+                        value={timeFormat}
+                        onChange={(e) => updateSetting("timeFormat", e.target.value)}
+                        className="w-full pl-3 pr-9 py-2.5 text-sm rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground"
+                      >
+                        <option value="24h" className="bg-card text-foreground">
+                          {t("accountPage.timeFormatOptions.24h")}
+                        </option>
+                        <option value="12h" className="bg-card text-foreground">
+                          {t("accountPage.timeFormatOptions.12h")}
+                        </option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Date & Time Preview */}
+                <div className="space-y-2 pt-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                    {t("accountPage.dateTimePreview")}
+                  </span>
+                  <div className="p-3 border rounded-lg bg-muted/15 flex items-center justify-center min-h-[48px]">
+                    <span className="text-sm font-mono font-semibold text-primary transition-all duration-200">
+                      {formatDateTimeCustom(new Date(), dateFormat, timeFormat, locale)}
+                    </span>
                   </div>
                 </div>
               </div>

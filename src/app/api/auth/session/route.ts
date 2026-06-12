@@ -26,6 +26,8 @@ export async function GET() {
       locale: true,
       fontSize: true,
       fontFamily: true,
+      dateFormat: true,
+      timeFormat: true,
       roles: {
         select: {
           name: true,
@@ -59,6 +61,8 @@ export async function GET() {
       locale: dbUser?.locale || "vi",
       fontSize: dbUser?.fontSize || 14,
       fontFamily: dbUser?.fontFamily || "sans",
+      dateFormat: dbUser?.dateFormat || "YYYY-MM-DD",
+      timeFormat: dbUser?.timeFormat || "24h",
     },
   });
 }
@@ -75,18 +79,22 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await request.json();
-    const { theme, locale, fontSize, fontFamily } = body;
+    const { theme, locale, fontSize, fontFamily, dateFormat, timeFormat } = body;
 
     const updateData: {
       theme?: string;
       locale?: string;
       fontSize?: number;
       fontFamily?: string;
+      dateFormat?: string;
+      timeFormat?: string;
     } = {};
     if (theme !== undefined) updateData.theme = theme;
     if (locale !== undefined) updateData.locale = locale;
     if (fontSize !== undefined) updateData.fontSize = Number(fontSize);
     if (fontFamily !== undefined) updateData.fontFamily = fontFamily;
+    if (dateFormat !== undefined) updateData.dateFormat = dateFormat;
+    if (timeFormat !== undefined) updateData.timeFormat = timeFormat;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
@@ -104,6 +112,8 @@ export async function PATCH(request: Request) {
         locale: updatedUser.locale,
         fontSize: updatedUser.fontSize,
         fontFamily: updatedUser.fontFamily,
+        dateFormat: updatedUser.dateFormat,
+        timeFormat: updatedUser.timeFormat,
       },
     });
   } catch (error) {

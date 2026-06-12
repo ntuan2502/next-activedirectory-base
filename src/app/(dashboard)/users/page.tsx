@@ -17,6 +17,7 @@ import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
+import { DEFAULT_LIMIT } from "@/config/constants";
 import Swal from "sweetalert2";
 import { getPageNumbers } from "@/lib/utils";
 import {
@@ -57,7 +58,7 @@ type ApiErrorResponse = {
 export default function UsersPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  
+
   const hasPermission = useCallback((perm: string) => {
     if (!user?.permissions) return false;
     if (user.permissions.includes("*")) return true;
@@ -78,7 +79,7 @@ export default function UsersPage() {
   const [isSavingRoles, setIsSavingRoles] = useState(false);
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord; direction: "asc" | "desc" } | null>(null);
@@ -89,7 +90,7 @@ export default function UsersPage() {
     Promise.resolve().then(() => {
       const params = new URLSearchParams(window.location.search);
       const p = parseInt(params.get("page") || "1", 10);
-      const l = parseInt(params.get("limit") || "20", 10);
+      const l = parseInt(params.get("limit") || DEFAULT_LIMIT.toString(), 10);
       const s = params.get("search") || "";
       const sb = params.get("sortBy") || "username";
       const so = params.get("sortOrder") || "asc";
@@ -111,7 +112,7 @@ export default function UsersPage() {
     if (!isReady) return;
     const params = new URLSearchParams();
     if (page > 1) params.set("page", page.toString());
-    if (limit !== 20) params.set("limit", limit.toString());
+    if (limit !== DEFAULT_LIMIT) params.set("limit", limit.toString());
     if (search.trim()) params.set("search", search.trim());
     if (sortConfig) {
       params.set("sortBy", sortConfig.key);
@@ -120,7 +121,7 @@ export default function UsersPage() {
 
     const queryString = params.toString();
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
-    
+
     window.history.replaceState(null, "", newUrl);
   }, [page, limit, search, sortConfig, isReady]);
 
@@ -448,7 +449,7 @@ export default function UsersPage() {
                 <TableRow>
                   <TableHead className="w-12 text-center">
                     {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
-                      <Checkbox 
+                      <Checkbox
                         checked={selectedUserIds.size === users.length && users.length > 0}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all"
@@ -519,7 +520,7 @@ export default function UsersPage() {
                     <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
                       <TableCell className="text-center">
                         {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
-                          <Checkbox 
+                          <Checkbox
                             checked={selectedUserIds.has(user.id)}
                             onCheckedChange={(checked) => toggleSelectUser(user.id, !!checked)}
                             aria-label={`Select ${user.username}`}
@@ -579,11 +580,11 @@ export default function UsersPage() {
                             )}
                             {hasPermission(PERMISSIONS.USERS_DELETE) && (
                               <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDelete(user)}
-                                  title={t("common.delete")}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(user)}
+                                title={t("common.delete")}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -620,7 +621,7 @@ export default function UsersPage() {
                       {t("common.previous")}
                     </PaginationPrevious>
                   </PaginationItem>
-                  
+
                   {getPageNumbers(page, totalPages).map((pageNum, index) => (
                     <PaginationItem key={index}>
                       {typeof pageNum === "string" ? (
@@ -635,7 +636,7 @@ export default function UsersPage() {
                       )}
                     </PaginationItem>
                   ))}
-                  
+
                   <PaginationItem>
                     <PaginationNext
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
@@ -659,8 +660,8 @@ export default function UsersPage() {
           <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2">
             {availableRoles.map(role => (
               <div key={role.id} className="flex items-center space-x-2">
-                <Checkbox 
-                  id={`role-${role.id}`} 
+                <Checkbox
+                  id={`role-${role.id}`}
                   checked={selectedRoleIds.has(role.id)}
                   onCheckedChange={(checked) => {
                     const next = new Set(selectedRoleIds);

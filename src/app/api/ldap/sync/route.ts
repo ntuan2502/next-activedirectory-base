@@ -38,6 +38,8 @@ export async function GET() {
   try {
     const ldapUsers = await fetchLdapUsers();
 
+    await logAction("ldap:fetch_data", "success", { count: ldapUsers.length });
+
     return NextResponse.json({
       success: true,
       data: ldapUsers,
@@ -45,6 +47,9 @@ export async function GET() {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to fetch preview data from LDAP";
     console.error("LDAP Preview Error:", error);
+
+    await logAction("ldap:fetch_data", "failed", { error: message });
+
     return NextResponse.json(
       { error: message },
       { status: 400 },

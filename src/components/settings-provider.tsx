@@ -16,11 +16,15 @@ type Settings = {
   locale: "en" | "vi";
   fontSize: number;
   fontFamily: string;
+  dateFormat: string;
+  timeFormat: string;
 };
 
 type SettingsContextType = {
   fontSize: number;
   fontFamily: string;
+  dateFormat: string;
+  timeFormat: string;
   updateSetting: (key: keyof Settings, value: string | number) => Promise<void>;
   isLoading: boolean;
 };
@@ -33,6 +37,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const { locale, changeLocale } = useLanguage();
   const [fontSize, setFontSize] = useState(14);
   const [fontFamily, setFontFamily] = useState("sans");
+  const [dateFormat, setDateFormat] = useState("YYYY-MM-DD");
+  const [timeFormat, setTimeFormat] = useState("24h");
   const [isLoading, setIsLoading] = useState(true);
 
   // Apply settings to DOM
@@ -64,17 +70,33 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           setFontFamily(user.fontFamily);
           localStorage.setItem("sys_font_family", user.fontFamily);
         }
+        if (user.dateFormat) {
+          setDateFormat(user.dateFormat);
+          localStorage.setItem("sys_date_format", user.dateFormat);
+        }
+        if (user.timeFormat) {
+          setTimeFormat(user.timeFormat);
+          localStorage.setItem("sys_time_format", user.timeFormat);
+        }
         applyDOMSettings(user.fontSize || 14, user.fontFamily || "sans");
       } else {
         // Not logged in: Fallback to LocalStorage
         const savedFontSize = localStorage.getItem("sys_font_size");
         const savedFontFamily = localStorage.getItem("sys_font_family");
+        const savedDateFormat = localStorage.getItem("sys_date_format");
+        const savedTimeFormat = localStorage.getItem("sys_time_format");
 
         if (savedFontSize) {
           setFontSize(Number(savedFontSize));
         }
         if (savedFontFamily) {
           setFontFamily(savedFontFamily);
+        }
+        if (savedDateFormat) {
+          setDateFormat(savedDateFormat);
+        }
+        if (savedTimeFormat) {
+          setTimeFormat(savedTimeFormat);
         }
         applyDOMSettings(Number(savedFontSize || 14), savedFontFamily || "sans");
       }
@@ -100,6 +122,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setFontFamily(value as string);
       localStorage.setItem("sys_font_family", value as string);
       applyDOMSettings(fontSize, value as string);
+    } else if (key === "dateFormat") {
+      setDateFormat(value as string);
+      localStorage.setItem("sys_date_format", value as string);
+    } else if (key === "timeFormat") {
+      setTimeFormat(value as string);
+      localStorage.setItem("sys_time_format", value as string);
     }
 
     if (user) {
@@ -116,7 +144,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <SettingsContext.Provider value={{ fontSize, fontFamily, updateSetting, isLoading }}>
+    <SettingsContext.Provider value={{ fontSize, fontFamily, dateFormat, timeFormat, updateSetting, isLoading }}>
       {children}
     </SettingsContext.Provider>
   );

@@ -17,6 +17,8 @@ type SessionUser = {
   locale?: string;
   fontSize?: number;
   fontFamily?: string;
+  dateFormat?: string;
+  timeFormat?: string;
 };
 
 type AuthContextType = {
