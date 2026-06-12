@@ -22,15 +22,15 @@ export async function PUT(
       return NextResponse.json({ error: "Role not found." }, { status: 404 });
     }
 
-    // Do not allow changing name of system roles
+    if (existingRole.isSystem) {
+      return NextResponse.json({ error: "System roles cannot be modified." }, { status: 400 });
+    }
+
     const updateData: { name?: string; description?: string | null; permissions?: string } = {
+      name,
       description,
       permissions: JSON.stringify(permissions || []),
     };
-
-    if (!existingRole.isSystem && name) {
-      updateData.name = name;
-    }
 
     const role = await prisma.role.update({
       where: { id },

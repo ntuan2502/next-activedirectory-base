@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Shield, Plus, Edit, Trash2, CheckSquare, Square, RefreshCw } from "lucide-react";
+import { Shield, Plus, Edit, Trash2, CheckSquare, Square, RefreshCw, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -254,14 +254,25 @@ export default function RolesPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(role)}
-                            title="Edit Role"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {role.isSystem ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(role)}
+                              title="View Role"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(role)}
+                              title="Edit Role"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -292,7 +303,7 @@ export default function RolesPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>{editingRole ? "Edit Role" : "Create Role"}</DialogTitle>
+            <DialogTitle>{editingRole ? (editingRole.isSystem ? "View Role" : "Edit Role") : "Create Role"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 py-4">
             <div className="space-y-4">
@@ -306,7 +317,7 @@ export default function RolesPage() {
                   disabled={editingRole?.isSystem}
                 />
                 {editingRole?.isSystem && (
-                  <p className="text-xs text-muted-foreground">System role names cannot be changed.</p>
+                  <p className="text-xs text-muted-foreground">System role details cannot be modified.</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -316,6 +327,7 @@ export default function RolesPage() {
                   placeholder="e.g. Can manage users and sync LDAP"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
+                  disabled={editingRole?.isSystem}
                 />
               </div>
             </div>
@@ -329,12 +341,14 @@ export default function RolesPage() {
               ) : null}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-md p-4 bg-card">
                 {AVAILABLE_PERMISSIONS.map((perm) => {
-                  const isChecked = formPermissions.has(perm.id);
+                  const isChecked = editingRole?.isSystem ? true : formPermissions.has(perm.id);
                   return (
                     <div
                       key={perm.id}
-                      className={`flex items-start space-x-3 p-3 rounded-md border cursor-pointer transition-colors ${isChecked ? "bg-primary/5 border-primary/20" : "hover:bg-muted/50"}`}
-                      onClick={() => togglePermission(perm.id)}
+                      className={`flex items-start space-x-3 p-3 rounded-md border transition-colors ${
+                        editingRole?.isSystem ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
+                      } ${isChecked ? "bg-primary/5 border-primary/20" : ""}`}
+                      onClick={() => !editingRole?.isSystem && togglePermission(perm.id)}
                     >
                       <div className="mt-0.5">
                         {isChecked ? (
@@ -355,11 +369,13 @@ export default function RolesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
-              Cancel
+              {editingRole?.isSystem ? "Close" : "Cancel"}
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Role"}
-            </Button>
+            {!editingRole?.isSystem && (
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Role"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
