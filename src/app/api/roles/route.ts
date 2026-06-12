@@ -5,7 +5,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const authResponse = await requirePermission(PERMISSIONS.ROLES_MANAGE);
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_READ);
   if (authResponse) return authResponse;
 
   try {
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const authResponse = await requirePermission(PERMISSIONS.ROLES_MANAGE);
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_CREATE);
   if (authResponse) return authResponse;
 
   try {

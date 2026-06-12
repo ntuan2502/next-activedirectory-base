@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { withLdapClient } from "@/lib/ldap";
+import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 export async function POST() {
+  const authResponse = await requirePermission(PERMISSIONS.LDAP_TEST);
+  if (authResponse) return authResponse;
+
   try {
     await withLdapClient(async () => {
       // Bind is handled by withLdapClient — if we reach here, connection is OK

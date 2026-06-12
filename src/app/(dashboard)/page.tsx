@@ -205,17 +205,19 @@ export default function DashboardPage() {
             </CardDescription>
           </div>
           <div className="flex gap-3">
+            {hasPermission(PERMISSIONS.LDAP_TEST) && (
+              <Button
+                variant="outline"
+                onClick={handleTestConnection}
+                disabled={isTestLoading}
+              >
+                {isTestLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
+                Test Connection
+              </Button>
+            )}
+
             {hasPermission(PERMISSIONS.LDAP_SYNC) && (
               <>
-                <Button
-                  variant="outline"
-                  onClick={handleTestConnection}
-                  disabled={isTestLoading}
-                >
-                  {isTestLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
-                  Test Connection
-                </Button>
-
                 <Button onClick={() => handleOpenSyncDialog(true)}>
                   <Users className="w-4 h-4 mr-2" />
                   Sync Data

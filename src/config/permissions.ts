@@ -1,15 +1,43 @@
 export const PERMISSIONS = {
+  // Users Group
   USERS_READ: "users:read",
-  USERS_WRITE: "users:write",
-  ROLES_MANAGE: "roles:manage",
+  USERS_UPDATE: "users:update",
+  USERS_DELETE: "users:delete",
+
+  // Roles Group
+  ROLES_READ: "roles:read",
+  ROLES_CREATE: "roles:create",
+  ROLES_UPDATE: "roles:update",
+  ROLES_DELETE: "roles:delete",
+
+  // LDAP Group
+  LDAP_TEST: "ldap:test",
   LDAP_SYNC: "ldap:sync",
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
-export const AVAILABLE_PERMISSIONS = [
-  { id: PERMISSIONS.USERS_READ, name: "View Users", description: "Can view the list of users." },
-  { id: PERMISSIONS.USERS_WRITE, name: "Manage Users", description: "Can edit, delete, or bulk action users." },
-  { id: PERMISSIONS.ROLES_MANAGE, name: "Manage Roles", description: "Can create, edit, and delete roles." },
-  { id: PERMISSIONS.LDAP_SYNC, name: "Sync LDAP", description: "Can fetch and sync users from LDAP." },
+export interface PermissionItem {
+  id: Permission;
+  name: string;
+  description: string;
+  group: string;
+}
+
+export const AVAILABLE_PERMISSIONS: PermissionItem[] = [
+  // Users Management
+  { id: PERMISSIONS.USERS_READ, name: "View Users", description: "Can view the list of users and active directory status.", group: "Users Management" },
+  { id: PERMISSIONS.USERS_UPDATE, name: "Update Users", description: "Can update user roles and toggle status (enable/disable).", group: "Users Management" },
+  { id: PERMISSIONS.USERS_DELETE, name: "Delete Users", description: "Can delete users from the system.", group: "Users Management" },
+
+  // Roles Management
+  { id: PERMISSIONS.ROLES_READ, name: "View Roles", description: "Can view the list of roles and their configured permissions.", group: "Roles Management" },
+  { id: PERMISSIONS.ROLES_CREATE, name: "Create Roles", description: "Can create new custom access control roles.", group: "Roles Management" },
+  { id: PERMISSIONS.ROLES_UPDATE, name: "Update Roles", description: "Can modify permissions and descriptions of custom roles.", group: "Roles Management" },
+  { id: PERMISSIONS.ROLES_DELETE, name: "Delete Roles", description: "Can delete custom access control roles.", group: "Roles Management" },
+
+  // LDAP Integration
+  { id: PERMISSIONS.LDAP_TEST, name: "Test LDAP Connection", description: "Can perform LDAP connection health checks and test credentials.", group: "LDAP Integration" },
+  { id: PERMISSIONS.LDAP_SYNC, name: "Sync LDAP Data", description: "Can trigger directory synchronization and import users.", group: "LDAP Integration" },
 ];
+

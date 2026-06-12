@@ -48,6 +48,17 @@ export default function RolesPage() {
   const [formPermissions, setFormPermissions] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
 
+  const isReadOnly = editingRole ? (editingRole.isSystem || !hasPermission(PERMISSIONS.ROLES_UPDATE)) : false;
+
+  const groupedPermissions = AVAILABLE_PERMISSIONS.reduce((acc, perm) => {
+    const group = perm.group || "Other";
+    if (!acc[group]) {
+      acc[group] = [];
+    }
+    acc[group].push(perm);
+    return acc;
+  }, {} as Record<string, typeof AVAILABLE_PERMISSIONS>);
+
   const fetchRoles = useCallback(async () => {
     await Promise.resolve();
     setIsLoading(true);
@@ -101,6 +112,25 @@ export default function RolesPage() {
       } else {
         next.add(permId);
       }
+      return next;
+    });
+  };
+
+  const isAllGroupChecked = (perms: typeof AVAILABLE_PERMISSIONS) => {
+    return perms.every((p) => formPermissions.has(p.id));
+  };
+
+  const handleToggleGroupPermissions = (perms: typeof AVAILABLE_PERMISSIONS) => {
+    const allChecked = isAllGroupChecked(perms);
+    setFormPermissions((prev) => {
+      const next = new Set(prev);
+      perms.forEach((p) => {
+        if (allChecked) {
+          next.delete(p.id);
+        } else {
+          next.add(p.id);
+        }
+      });
       return next;
     });
   };
@@ -183,7 +213,7 @@ export default function RolesPage() {
     }
   };
 
-  if (!hasPermission(PERMISSIONS.ROLES_MANAGE)) {
+  if (!hasPermission(PERMISSIONS.ROLES_READ)) {
     return <AccessDenied />;
   }
 
@@ -204,10 +234,12 @@ export default function RolesPage() {
             <Button variant="outline" size="icon" onClick={fetchRoles} disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Role
-            </Button>
+            {hasPermission(PERMISSIONS.ROLES_CREATE) && (
+              <Button onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Role
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -254,7 +286,7 @@ export default function RolesPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center items-center gap-1">
-                          {role.isSystem ? (
+                          {role.isSystem || !hasPermission(PERMISSIONS.ROLES_UPDATE) ? (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -273,16 +305,18 @@ export default function RolesPage() {
                               <Edit className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(role)}
-                            disabled={role.isSystem}
-                            title={role.isSystem ? "System roles cannot be deleted" : "Delete Role"}
-                            className={role.isSystem ? "opacity-50 cursor-not-allowed" : "text-destructive hover:text-destructive hover:bg-destructive/10"}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {hasPermission(PERMISSIONS.ROLES_DELETE) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDelete(role)}
+                              disabled={role.isSystem}
+                              title={role.isSystem ? "System roles cannot be deleted" : "Delete Role"}
+                              className={role.isSystem ? "opacity-50 cursor-not-allowed" : "text-destructive hover:text-destructive hover:bg-destructive/10"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -301,11 +335,11 @@ export default function RolesPage() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{editingRole ? (editingRole.isSystem ? "View Role" : "Edit Role") : "Create Role"}</DialogTitle>
+        <DialogContent className="sm:max-w-7xl max-h-[85vh] flex flex-col p-6 overflow-hidden">
+          <DialogHeader className="shrink-0 mb-2">
+            <DialogTitle>{editingRole ? (isReadOnly ? "View Role" : "Edit Role") : "Create Role"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4">
+          <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-6 min-h-0">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Role Name <span className="text-destructive">*</span></Label>
@@ -314,10 +348,13 @@ export default function RolesPage() {
                   placeholder="e.g. HR Manager"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  disabled={editingRole?.isSystem}
+                  disabled={isReadOnly}
                 />
                 {editingRole?.isSystem && (
                   <p className="text-xs text-muted-foreground">System role details cannot be modified.</p>
+                )}
+                {!editingRole?.isSystem && isReadOnly && (
+                  <p className="text-xs text-muted-foreground">You do not have permission to modify roles.</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -327,39 +364,67 @@ export default function RolesPage() {
                   placeholder="e.g. Can manage users and sync LDAP"
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  disabled={editingRole?.isSystem}
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label>Permissions</Label>
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Permissions</Label>
               {editingRole?.isSystem ? (
                 <div className="p-4 bg-muted/50 rounded-md border text-sm text-muted-foreground">
                   System roles inherently have all permissions or bypass checks. Modifying specific permissions here may not restrict their access.
                 </div>
+              ) : isReadOnly ? (
+                <div className="p-4 bg-muted/50 rounded-md border text-sm text-muted-foreground">
+                  You are viewing this role in read-only mode.
+                </div>
               ) : null}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border rounded-md p-4 bg-card">
-                {AVAILABLE_PERMISSIONS.map((perm) => {
-                  const isChecked = editingRole?.isSystem ? true : formPermissions.has(perm.id);
+
+              <div className="space-y-6">
+                {Object.entries(groupedPermissions).map(([groupName, perms]) => {
+                  const allChecked = isAllGroupChecked(perms);
                   return (
-                    <div
-                      key={perm.id}
-                      className={`flex items-start space-x-3 p-3 rounded-md border transition-colors ${
-                        editingRole?.isSystem ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
-                      } ${isChecked ? "bg-primary/5 border-primary/20" : ""}`}
-                      onClick={() => !editingRole?.isSystem && togglePermission(perm.id)}
-                    >
-                      <div className="mt-0.5">
-                        {isChecked ? (
-                          <CheckSquare className="w-5 h-5 text-primary" />
-                        ) : (
-                          <Square className="w-5 h-5 text-muted-foreground" />
+                    <div key={groupName} className="space-y-3">
+                      <div className="flex items-center justify-between border-b pb-1.5">
+                        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          {groupName}
+                        </h4>
+                        {!isReadOnly && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="h-auto p-0 text-xs text-primary hover:text-primary/80"
+                            onClick={() => handleToggleGroupPermissions(perms)}
+                          >
+                            {allChecked ? "Deselect All" : "Select All"}
+                          </Button>
                         )}
                       </div>
-                      <div className="flex flex-col space-y-1">
-                        <span className="text-sm font-medium leading-none">{perm.name}</span>
-                        <span className="text-xs text-muted-foreground">{perm.description}</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {perms.map((perm) => {
+                          const isChecked = editingRole?.isSystem ? true : formPermissions.has(perm.id);
+                          return (
+                            <div
+                              key={perm.id}
+                              className={`flex items-start space-x-3 p-3 rounded-md border transition-colors ${isReadOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
+                                } ${isChecked ? "bg-primary/5 border-primary/20" : ""}`}
+                              onClick={() => !isReadOnly && togglePermission(perm.id)}
+                            >
+                              <div className="mt-0.5">
+                                {isChecked ? (
+                                  <CheckSquare className="w-5 h-5 text-primary" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-sm font-medium leading-none">{perm.name}</span>
+                                <span className="text-xs text-muted-foreground leading-normal">{perm.description}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -367,11 +432,11 @@ export default function RolesPage() {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 mt-4 border-t pt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
-              {editingRole?.isSystem ? "Close" : "Cancel"}
+              {isReadOnly ? "Close" : "Cancel"}
             </Button>
-            {!editingRole?.isSystem && (
+            {!isReadOnly && (
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save Role"}
               </Button>

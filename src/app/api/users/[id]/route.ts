@@ -6,7 +6,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requirePermission(PERMISSIONS.USERS_WRITE);
+  const authResponse = await requirePermission(PERMISSIONS.USERS_DELETE);
   if (authResponse) return authResponse;
 
   try {

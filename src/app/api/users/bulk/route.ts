@@ -3,15 +3,22 @@ import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 
 export async function POST(request: NextRequest) {
-  const authResponse = await requirePermission(PERMISSIONS.USERS_WRITE);
-  if (authResponse) return authResponse;
-
   try {
     const body = await request.json();
     const { action, userIds } = body;
 
     if (!action || !userIds || !Array.isArray(userIds)) {
       return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
+    }
+
+    if (action === "delete") {
+      const authResponse = await requirePermission(PERMISSIONS.USERS_DELETE);
+      if (authResponse) return authResponse;
+    } else if (action === "enable" || action === "disable") {
+      const authResponse = await requirePermission(PERMISSIONS.USERS_UPDATE);
+      if (authResponse) return authResponse;
+    } else {
+      return NextResponse.json({ error: "Invalid action." }, { status: 400 });
     }
 
     if (userIds.length === 0) {
@@ -32,8 +39,6 @@ export async function POST(request: NextRequest) {
         where: { id: { in: userIds } },
         data: { disabled: false },
       });
-    } else {
-      return NextResponse.json({ error: "Invalid action." }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });

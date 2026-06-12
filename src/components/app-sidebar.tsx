@@ -21,7 +21,7 @@ import { PERMISSIONS } from "@/config/permissions";
 const NAV_ITEMS = [
   { title: "Dashboard", href: "/", icon: Server },
   { title: "Users", href: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
-  { title: "Roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_MANAGE },
+  { title: "Roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_READ },
 ];
 
 export function AppSidebar() {

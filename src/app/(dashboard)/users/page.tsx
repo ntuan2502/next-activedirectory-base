@@ -338,7 +338,7 @@ export default function UsersPage() {
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
-            {selectedUserIds.size > 0 && hasPermission(PERMISSIONS.USERS_WRITE) && (
+             {selectedUserIds.size > 0 && (hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
               <DropdownMenu>
                 <DropdownMenuTrigger render={
                   <Button variant="secondary" disabled={isBulkLoading}>
@@ -346,18 +346,24 @@ export default function UsersPage() {
                   </Button>
                 } />
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleBulkAction("enable")}>
-                    <Unlock className="mr-2 h-4 w-4 text-emerald-500" />
-                    <span>Unlock Selected</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
-                    <Lock className="mr-2 h-4 w-4 text-amber-500" />
-                    <span>Disable Selected</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-destructive focus:text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    <span>Delete Selected</span>
-                  </DropdownMenuItem>
+                  {hasPermission(PERMISSIONS.USERS_UPDATE) && (
+                    <>
+                      <DropdownMenuItem onClick={() => handleBulkAction("enable")}>
+                        <Unlock className="mr-2 h-4 w-4 text-emerald-500" />
+                        <span>Unlock Selected</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
+                        <Lock className="mr-2 h-4 w-4 text-amber-500" />
+                        <span>Disable Selected</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {hasPermission(PERMISSIONS.USERS_DELETE) && (
+                    <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-destructive focus:text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      <span>Delete Selected</span>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -378,7 +384,7 @@ export default function UsersPage() {
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
                   <TableHead className="w-12 text-center">
-                    {hasPermission(PERMISSIONS.USERS_WRITE) && (
+                    {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                       <Checkbox 
                         checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
                         onCheckedChange={toggleSelectAll}
@@ -429,7 +435,7 @@ export default function UsersPage() {
                       {sortConfig?.key === "disabled" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  {(hasPermission(PERMISSIONS.USERS_WRITE) || hasPermission(PERMISSIONS.ROLES_MANAGE)) && (
+                  {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                     <TableHead className="w-24 text-center">Action</TableHead>
                   )}
                 </TableRow>
@@ -449,7 +455,7 @@ export default function UsersPage() {
                   sortedUsers.map((user) => (
                     <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
                       <TableCell className="text-center">
-                        {hasPermission(PERMISSIONS.USERS_WRITE) && (
+                        {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                           <Checkbox 
                             checked={selectedUserIds.has(user.id)}
                             onCheckedChange={(checked) => toggleSelectUser(user.id, !!checked)}
@@ -483,22 +489,20 @@ export default function UsersPage() {
                           <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>
                         )}
                       </TableCell>
-                      {(hasPermission(PERMISSIONS.USERS_WRITE) || hasPermission(PERMISSIONS.ROLES_MANAGE)) && (
+                      {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                         <TableCell className="text-center">
                           <div className="flex justify-center items-center gap-1">
-                            {hasPermission(PERMISSIONS.ROLES_MANAGE) && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openRoleDialog(user)}
-                                title="Manage Roles"
-                                className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
-                              >
-                                <Shield className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {hasPermission(PERMISSIONS.USERS_WRITE) && (
+                            {hasPermission(PERMISSIONS.USERS_UPDATE) && (
                               <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openRoleDialog(user)}
+                                  title="Manage Roles"
+                                  className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                >
+                                  <Shield className="h-4 w-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -508,16 +512,18 @@ export default function UsersPage() {
                                 >
                                   {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDelete(user)}
-                                  title="Delete User"
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
                               </>
+                            )}
+                            {hasPermission(PERMISSIONS.USERS_DELETE) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(user)}
+                                title="Delete User"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>

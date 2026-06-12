@@ -6,7 +6,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requirePermission(PERMISSIONS.ROLES_MANAGE);
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_UPDATE);
   if (authResponse) return authResponse;
 
   try {
@@ -48,7 +48,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResponse = await requirePermission(PERMISSIONS.ROLES_MANAGE);
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_DELETE);
   if (authResponse) return authResponse;
 
   try {
