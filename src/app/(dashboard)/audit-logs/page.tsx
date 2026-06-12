@@ -93,8 +93,9 @@ export default function AuditLogsPage() {
   const [batchUserSearch, setBatchUserSearch] = useState<string>("");
   const [prevLogId, setPrevLogId] = useState<string | null>(null);
 
-  if (selectedLog?.id !== prevLogId) {
-    setPrevLogId(selectedLog?.id || null);
+  const currentLogId = selectedLog?.id || null;
+  if (currentLogId !== prevLogId) {
+    setPrevLogId(currentLogId);
     setSelectedBatchUserIndex(0);
     setBatchUserSearch("");
   }
