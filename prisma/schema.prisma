@@ -17,6 +17,7 @@ model User {
   phone        String    @default("")
   title        String    @default("")
   department   String    @default("")
+  company      String    @default("")
   employeeId   String    @default("")
   manager      String    @default("")
   passwordHash String?

@@ -21,6 +21,7 @@ export async function GET() {
         phone: true,
         title: true,
         department: true,
+        company: true,
         disabled: true,
         roles: {
           select: {

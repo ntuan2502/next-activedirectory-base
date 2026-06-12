@@ -76,6 +76,7 @@ export const LDAP_USER_ATTRIBUTES = [
   "cn",
   "title",
   "department",
+  "company",
   "employeeID",
   "manager",
   "mobile",

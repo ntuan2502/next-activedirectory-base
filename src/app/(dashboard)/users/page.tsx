@@ -26,6 +26,7 @@ type UserRecord = {
   phone: string;
   title: string;
   department: string;
+  company: string;
   disabled: boolean;
   roles: { id: string; name: string; isSystem: boolean }[];
 };
@@ -251,6 +252,7 @@ export default function UsersPage() {
       user.displayName.toLowerCase().includes(q) ||
       user.email.toLowerCase().includes(q) ||
       user.department.toLowerCase().includes(q) ||
+      (user.company || "").toLowerCase().includes(q) ||
       user.title.toLowerCase().includes(q)
     );
   });
@@ -415,6 +417,12 @@ export default function UsersPage() {
                       {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("company")}>
+                    <div className="flex items-center">
+                      Company
+                      {sortConfig?.key === "company" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("disabled")}>
                     <div className="flex items-center">
                       Status
@@ -430,7 +438,7 @@ export default function UsersPage() {
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
+                      {Array.from({ length: 10 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-4 w-full" />
                         </TableCell>
@@ -467,6 +475,7 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell>{user.title || "-"}</TableCell>
                       <TableCell>{user.department || "-"}</TableCell>
+                      <TableCell>{user.company || "-"}</TableCell>
                       <TableCell>
                         {user.disabled ? (
                           <Badge variant="destructive">Disabled</Badge>
@@ -517,7 +526,7 @@ export default function UsersPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
                       {search ? "No users match your search." : "No users found. Sync data from the Dashboard first."}
                     </TableCell>
                   </TableRow>
