@@ -13,6 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS } from "@/config/permissions";
+import { getPageNumbers } from "@/lib/utils";
 import {
   Pagination,
   PaginationContent,
@@ -88,6 +89,7 @@ export default function AuditLogsPage() {
 
   // Filters and Pagination State
   const [search, setSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -149,10 +151,21 @@ export default function AuditLogsPage() {
       setPage(p);
       setLimit(l);
       setActionFilter(a);
+      setLocalSearch(s);
       setSearch(s);
       setIsReady(true);
     });
   }, []);
+
+  // Debounce search query input (1s delay)
+  useEffect(() => {
+    if (!isReady) return;
+    const timer = setTimeout(() => {
+      setSearch(localSearch);
+      setPage(1); // Reset page to 1 when search query changes
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [localSearch, isReady]);
 
   // Fetch logs when states change and page is ready
   useEffect(() => {
@@ -185,8 +198,7 @@ export default function AuditLogsPage() {
   };
 
   const handleSearchChange = (val: string) => {
-    setSearch(val);
-    setPage(1);
+    setLocalSearch(val);
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -237,36 +249,7 @@ export default function AuditLogsPage() {
     }
   };
 
-  const getPageNumbers = () => {
-    const pages: (number | string)[] = [];
-    const maxVisible = 5;
-    
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      pages.push(1);
-      
-      const start = Math.max(2, page - 1);
-      const end = Math.min(totalPages - 1, page + 1);
-      
-      if (start > 2) {
-        pages.push("ellipsis-1");
-      }
-      
-      for (let i = start; i <= end; i++) {
-        pages.push(i);
-      }
-      
-      if (end < totalPages - 1) {
-        pages.push("ellipsis-2");
-      }
-      
-      pages.push(totalPages);
-    }
-    return pages;
-  };
+
 
   const getActionBadge = (action: string) => {
     const config = ACTION_LABELS[action] || { label: action, color: "bg-muted text-muted-foreground border-muted-foreground/20" };
@@ -321,7 +304,7 @@ export default function AuditLogsPage() {
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder={t("auditLogsPage.searchPlaceholder")}
-                value={search}
+                value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-9"
               />
@@ -452,7 +435,7 @@ export default function AuditLogsPage() {
                     </PaginationPrevious>
                   </PaginationItem>
                   
-                  {getPageNumbers().map((pageNum, index) => (
+                  {getPageNumbers(page, totalPages).map((pageNum, index) => (
                     <PaginationItem key={index}>
                       {typeof pageNum === "string" ? (
                         <PaginationEllipsis />

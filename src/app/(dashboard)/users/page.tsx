@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +16,16 @@ import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
 import Swal from "sweetalert2";
+import { getPageNumbers } from "@/lib/utils";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 type UserRecord = {
   id: string;
@@ -38,11 +48,6 @@ type RoleRecord = {
   isSystem: boolean;
 };
 
-type UsersApiResponse = {
-  success: boolean;
-  data: UserRecord[];
-};
-
 type ApiErrorResponse = {
   error: string;
 };
@@ -59,6 +64,7 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [search, setSearch] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [isBulkLoading, setIsBulkLoading] = useState(false);
@@ -69,16 +75,87 @@ export default function UsersPage() {
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
   const [isSavingRoles, setIsSavingRoles] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord; direction: "asc" | "desc" } | null>(null);
+  const [isReady, setIsReady] = useState(false);
+
+  // Load initial state from URL search params on mount
+  useEffect(() => {
+    Promise.resolve().then(() => {
+      const params = new URLSearchParams(window.location.search);
+      const p = parseInt(params.get("page") || "1", 10);
+      const l = parseInt(params.get("limit") || "20", 10);
+      const s = params.get("search") || "";
+      const sb = params.get("sortBy") || "username";
+      const so = params.get("sortOrder") || "asc";
+
+      setPage(p);
+      setLimit(l);
+      setLocalSearch(s);
+      setSearch(s);
+      setSortConfig({ key: sb as keyof UserRecord, direction: so as "asc" | "desc" });
+      setIsReady(true);
+    });
+  }, []);
+
+  // Debounce search query input (1s delay)
+  useEffect(() => {
+    if (!isReady) return;
+    const timer = setTimeout(() => {
+      setSearch(localSearch);
+      setPage(1); // Reset page to 1 when search query changes
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [localSearch, isReady]);
+
+  // Synchronize state changes to URL query string
+  useEffect(() => {
+    if (!isReady) return;
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", page.toString());
+    if (limit !== 20) params.set("limit", limit.toString());
+    if (search.trim()) params.set("search", search.trim());
+    if (sortConfig) {
+      params.set("sortBy", sortConfig.key);
+      params.set("sortOrder", sortConfig.direction);
+    }
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    
+    window.history.replaceState(null, "", newUrl);
+  }, [page, limit, search, sortConfig, isReady]);
+
+  const handleSearchChange = (val: string) => {
+    setLocalSearch(val);
+  };
+
   const fetchUsers = useCallback(async () => {
-    await Promise.resolve();
+    if (!isReady) return;
     setIsLoading(true);
     setSelectedUserIds(new Set());
     try {
-      const res = await fetch("/api/users");
+      const params = new URLSearchParams();
+      params.set("page", page.toString());
+      params.set("limit", limit.toString());
+      if (search.trim()) {
+        params.set("search", search.trim());
+      }
+      if (sortConfig) {
+        params.set("sortBy", sortConfig.key);
+        params.set("sortOrder", sortConfig.direction);
+      }
+
+      const res = await fetch(`/api/users?${params.toString()}`);
       if (res.ok) {
-        const data: UsersApiResponse | ApiErrorResponse = await res.json();
-        if ("data" in data) {
+        const data = await res.json();
+        if (data.success) {
           setUsers(data.data);
+          setTotalCount(data.pagination.totalCount);
+          setTotalPages(data.pagination.totalPages);
         }
       }
     } catch {
@@ -86,7 +163,7 @@ export default function UsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page, limit, search, sortConfig, isReady]);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -103,11 +180,18 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
+    if (!isReady) return;
     Promise.resolve().then(() => {
-      fetchUsers();
       fetchRoles();
     });
-  }, [fetchUsers, fetchRoles]);
+  }, [fetchRoles, isReady]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    Promise.resolve().then(() => {
+      fetchUsers();
+    });
+  }, [fetchUsers, isReady]);
 
   const handleDelete = async (user: UserRecord) => {
     const result = await Swal.fire({
@@ -126,7 +210,6 @@ export default function UsersPage() {
     try {
       const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
       if (res.ok) {
-        setUsers((prev) => prev.filter((u) => u.id !== user.id));
         setSelectedUserIds((prev) => {
           const newSet = new Set(prev);
           newSet.delete(user.id);
@@ -139,6 +222,7 @@ export default function UsersPage() {
           timer: 1500,
           showConfirmButton: false,
         });
+        fetchUsers();
       } else {
         const data: ApiErrorResponse = await res.json();
         await Swal.fire(t("common.error"), data.error || t("usersPage.failedToDeleteUser"), "error");
@@ -211,12 +295,6 @@ export default function UsersPage() {
         body: JSON.stringify({ action, userIds: Array.from(selectedUserIds) })
       });
       if (res.ok) {
-        if (action === "delete") {
-          setUsers((prev) => prev.filter((u) => !selectedUserIds.has(u.id)));
-        } else {
-          const newDisabledState = action === "disable";
-          setUsers((prev) => prev.map((u) => selectedUserIds.has(u.id) ? { ...u, disabled: newDisabledState } : u));
-        }
         setSelectedUserIds(new Set());
         await Swal.fire({
           title: t("common.success"),
@@ -225,6 +303,7 @@ export default function UsersPage() {
           timer: 1500,
           showConfirmButton: false,
         });
+        fetchUsers();
       } else {
         const data: ApiErrorResponse = await res.json();
         await Swal.fire(t("common.error"), data.error || t("usersPage.failedBulkAction"), "error");
@@ -236,8 +315,6 @@ export default function UsersPage() {
     }
   };
 
-  const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord; direction: "asc" | "desc" } | null>(null);
-
   const handleSort = (key: keyof UserRecord) => {
     let direction: "asc" | "desc" = "asc";
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
@@ -246,37 +323,9 @@ export default function UsersPage() {
     setSortConfig({ key, direction });
   };
 
-  const filteredUsers = useMemo(() => {
-    const q = search.toLowerCase();
-    return users.filter((user) =>
-      user.username.toLowerCase().includes(q) ||
-      user.displayName.toLowerCase().includes(q) ||
-      user.email.toLowerCase().includes(q) ||
-      user.department.toLowerCase().includes(q) ||
-      (user.company || "").toLowerCase().includes(q) ||
-      user.title.toLowerCase().includes(q)
-    );
-  }, [users, search]);
-
-  const sortedUsers = useMemo(() => {
-    if (!sortConfig) return filteredUsers;
-    return [...filteredUsers].sort((a, b) => {
-      const aValue = a[sortConfig.key];
-      const bValue = b[sortConfig.key];
-      
-      if (aValue < bValue) {
-        return sortConfig.direction === "asc" ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortConfig.direction === "asc" ? 1 : -1;
-      }
-      return 0;
-    });
-  }, [filteredUsers, sortConfig]);
-
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedUserIds(new Set(filteredUsers.map(u => u.id)));
+      setSelectedUserIds(new Set(users.map(u => u.id)));
     } else {
       setSelectedUserIds(new Set());
     }
@@ -337,7 +386,7 @@ export default function UsersPage() {
             <UsersIcon className="w-6 h-6 text-primary" />
             {t("common.users")}
             {!isLoading && (
-              <Badge variant="secondary">{filteredUsers.length} {t("common.users").toLowerCase()}</Badge>
+              <Badge variant="secondary">{totalCount} {t("common.users").toLowerCase()}</Badge>
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
@@ -372,10 +421,23 @@ export default function UsersPage() {
             )}
             <Input
               placeholder={t("usersPage.searchPlaceholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={localSearch}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="sm:w-64"
             />
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(parseInt(e.target.value, 10));
+                setPage(1);
+              }}
+              className="flex h-8 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <option value="10">{t("auditLogsPage.rowsPerPage", { count: 10 })}</option>
+              <option value="20">{t("auditLogsPage.rowsPerPage", { count: 20 })}</option>
+              <option value="50">{t("auditLogsPage.rowsPerPage", { count: 50 })}</option>
+              <option value="100">{t("auditLogsPage.rowsPerPage", { count: 100 })}</option>
+            </select>
             <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
@@ -389,7 +451,7 @@ export default function UsersPage() {
                   <TableHead className="w-12 text-center">
                     {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                       <Checkbox 
-                        checked={selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0}
+                        checked={selectedUserIds.size === users.length && users.length > 0}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all"
                       />
@@ -454,8 +516,8 @@ export default function UsersPage() {
                       ))}
                     </TableRow>
                   ))
-                ) : sortedUsers.length > 0 ? (
-                  sortedUsers.map((user) => (
+                ) : users.length > 0 ? (
+                  users.map((user) => (
                     <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
                       <TableCell className="text-center">
                         {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
@@ -519,11 +581,11 @@ export default function UsersPage() {
                             )}
                             {hasPermission(PERMISSIONS.USERS_DELETE) && (
                               <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleDelete(user)}
-                                title={t("common.delete")}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDelete(user)}
+                                  title={t("common.delete")}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -543,6 +605,51 @@ export default function UsersPage() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t mt-4">
+              <span className="text-sm text-muted-foreground">
+                {t("usersPage.showingRecords", { count: users.length, total: totalCount })}
+              </span>
+              <Pagination className="w-auto mx-0">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      {t("common.previous")}
+                    </PaginationPrevious>
+                  </PaginationItem>
+                  
+                  {getPageNumbers(page, totalPages).map((pageNum, index) => (
+                    <PaginationItem key={index}>
+                      {typeof pageNum === "string" ? (
+                        <PaginationEllipsis />
+                      ) : (
+                        <PaginationLink
+                          isActive={page === pageNum}
+                          onClick={() => setPage(pageNum)}
+                        >
+                          {pageNum}
+                        </PaginationLink>
+                      )}
+                    </PaginationItem>
+                  ))}
+                  
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      {t("common.next")}
+                    </PaginationNext>
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
