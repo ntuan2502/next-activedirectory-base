@@ -58,6 +58,8 @@ model AuditLog {
 
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([action])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 

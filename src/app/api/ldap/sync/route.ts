@@ -77,47 +77,84 @@ export async function POST(request: NextRequest) {
     });
 
     const now = new Date();
-    let syncedCount = 0;
+    const syncOperations = [];
+    const usersCreated = [];
+    const usersUpdated = [];
 
     for (const user of usersToSync) {
       if (!user.username) continue;
 
-      await prisma.user.upsert({
-        where: { username: user.username },
-        update: {
-          dn: user.dn,
-          displayName: user.displayName,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          title: user.title,
-          department: user.department,
-          company: user.company,
-          employeeId: user.employeeId,
-          manager: user.manager,
-          lastSyncAt: now,
-        },
-        create: {
-          dn: user.dn,
-          username: user.username,
-          displayName: user.displayName,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          title: user.title,
-          department: user.department,
-          company: user.company,
-          employeeId: user.employeeId,
-          manager: user.manager,
-          lastSyncAt: now,
-        },
-      });
-      syncedCount++;
+      const dbUser = existingUsers.find((eu) => eu.username === user.username);
+
+      if (!dbUser) {
+        // User is new -> Create
+        usersCreated.push(user);
+        syncOperations.push(
+          prisma.user.create({
+            data: {
+              dn: user.dn,
+              username: user.username,
+              displayName: user.displayName || "",
+              firstName: user.firstName || "",
+              lastName: user.lastName || "",
+              email: user.email || "",
+              phone: user.phone || "",
+              title: user.title || "",
+              department: user.department || "",
+              company: user.company || "",
+              employeeId: user.employeeId || "",
+              manager: user.manager || "",
+              lastSyncAt: now,
+            },
+          })
+        );
+      } else {
+        // User exists -> Check if any properties changed
+        const hasChanges =
+          dbUser.dn !== (user.dn || "") ||
+          dbUser.displayName !== (user.displayName || "") ||
+          dbUser.firstName !== (user.firstName || "") ||
+          dbUser.lastName !== (user.lastName || "") ||
+          dbUser.email !== (user.email || "") ||
+          dbUser.phone !== (user.phone || "") ||
+          dbUser.title !== (user.title || "") ||
+          dbUser.department !== (user.department || "") ||
+          dbUser.company !== (user.company || "") ||
+          dbUser.employeeId !== (user.employeeId || "") ||
+          dbUser.manager !== (user.manager || "");
+
+        if (hasChanges) {
+          usersUpdated.push(user);
+          syncOperations.push(
+            prisma.user.update({
+              where: { username: user.username },
+              data: {
+                dn: user.dn,
+                displayName: user.displayName || "",
+                firstName: user.firstName || "",
+                lastName: user.lastName || "",
+                email: user.email || "",
+                phone: user.phone || "",
+                title: user.title || "",
+                department: user.department || "",
+                company: user.company || "",
+                employeeId: user.employeeId || "",
+                manager: user.manager || "",
+                lastSyncAt: now,
+              },
+            })
+          );
+        }
+      }
     }
 
-    // Return all users from database
+    // Execute bulk writes only for users with actual changes
+    if (syncOperations.length > 0) {
+      await prisma.$transaction(syncOperations);
+    }
+    const syncedCount = usersCreated.length + usersUpdated.length;
+
+    // Return all users from database for the UI list
     const dbUsers = await prisma.user.findMany({
       orderBy: { username: "asc" },
       select: {
@@ -139,9 +176,28 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const syncDetails = usersToSync.map(user => {
-      const dbUser = existingUsers.find(eu => eu.username === user.username);
-      return {
+    // Generate details logs only for created/updated records (exclude skipped ones)
+    const syncDetails = [];
+    
+    for (const user of usersCreated) {
+      syncDetails.push({
+        username: user.username,
+        before: null,
+        after: {
+          dn: user.dn,
+          displayName: user.displayName,
+          email: user.email,
+          phone: user.phone,
+          title: user.title,
+          department: user.department,
+          company: user.company
+        }
+      });
+    }
+
+    for (const user of usersUpdated) {
+      const dbUser = existingUsers.find((eu) => eu.username === user.username);
+      syncDetails.push({
         username: user.username,
         before: dbUser ? {
           dn: dbUser.dn,
@@ -161,13 +217,16 @@ export async function POST(request: NextRequest) {
           department: user.department,
           company: user.company
         }
-      };
-    });
+      });
+    }
 
-    await logAction("ldap:sync_data", `${syncedCount} users`, {
-      usernames: usernamesToSync,
-      details: syncDetails
-    });
+    // Only log if something actually synced (created or updated)
+    if (syncedCount > 0) {
+      await logAction("ldap:sync_data", `${syncedCount} users`, {
+        usernames: usernamesToSync,
+        details: syncDetails
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -88,6 +88,17 @@ export default function AuditLogsPage() {
   // Dialog details state
   const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
 
+  // Batch sync navigation inside dialog
+  const [selectedBatchUserIndex, setSelectedBatchUserIndex] = useState<number>(0);
+  const [batchUserSearch, setBatchUserSearch] = useState<string>("");
+  const [prevLogId, setPrevLogId] = useState<string | null>(null);
+
+  if (selectedLog?.id !== prevLogId) {
+    setPrevLogId(selectedLog?.id || null);
+    setSelectedBatchUserIndex(0);
+    setBatchUserSearch("");
+  }
+
   const fetchLogs = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -119,6 +130,7 @@ export default function AuditLogsPage() {
       fetchLogs();
     });
   }, [fetchLogs]);
+
 
   // Reset page when filter changes
   const handleFilterChange = (val: string) => {
@@ -160,6 +172,25 @@ export default function AuditLogsPage() {
     }
   };
 
+  interface BatchLdapSyncDetail {
+    username: string;
+    before: Record<string, unknown> | null;
+    after: Record<string, unknown>;
+  }
+
+  const parseBatchLdapSync = (log: AuditLogRecord | null): BatchLdapSyncDetail[] | null => {
+    if (!log || log.action !== "ldap:sync_data" || !log.details) return null;
+    try {
+      const parsed = JSON.parse(log.details);
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.details)) {
+        return parsed.details as BatchLdapSyncDetail[];
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
   const getActionBadge = (action: string) => {
     const config = ACTION_LABELS[action] || { label: action, color: "bg-muted text-muted-foreground border-muted-foreground/20" };
     const translationKey = getActionTranslationKey(action);
@@ -176,6 +207,16 @@ export default function AuditLogsPage() {
   }
 
   const diffData = selectedLog ? parseDiff(selectedLog.details) : null;
+  const batchSyncDetails = selectedLog ? parseBatchLdapSync(selectedLog) : null;
+  const isBatchSync = !!batchSyncDetails && batchSyncDetails.length > 0;
+
+  const filteredBatchUsers = batchSyncDetails
+    ? batchSyncDetails.filter((detail) =>
+        detail.username.toLowerCase().includes(batchUserSearch.toLowerCase())
+      )
+    : [];
+
+  const activeBatchUser = filteredBatchUsers[selectedBatchUserIndex] || filteredBatchUsers[0] || null;
 
   return (
     <div className="space-y-6">
@@ -351,7 +392,7 @@ export default function AuditLogsPage() {
 
       {/* Details Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="lg:max-w-[850px] md:max-w-[750px] sm:max-w-[600px] w-full max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogContent className={`${isBatchSync ? "lg:max-w-[1000px] md:max-w-[850px]" : "lg:max-w-[850px] md:max-w-[750px]"} sm:max-w-[600px] w-full max-h-[85vh] flex flex-col overflow-hidden`}>
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-primary" />
@@ -381,7 +422,121 @@ export default function AuditLogsPage() {
                 </div>
               </div>
 
-              {diffData ? (
+              {isBatchSync ? (
+                <div className="flex flex-col md:flex-row gap-4 h-[52vh] min-h-0">
+                  {/* Left pane: Sync List */}
+                  <div className="w-full md:w-1/3 flex flex-col border rounded-lg bg-muted/10 p-3 gap-2 min-h-0">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                      {t("auditLogsPage.syncedUsersList")} ({batchSyncDetails.length})
+                    </span>
+                    <Input
+                      placeholder={t("auditLogsPage.searchUserPlaceholder")}
+                      value={batchUserSearch}
+                      onChange={(e) => {
+                        setBatchUserSearch(e.target.value);
+                        setSelectedBatchUserIndex(0);
+                      }}
+                      className="h-8 text-xs bg-background"
+                    />
+                    <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                      {filteredBatchUsers.length > 0 ? (
+                        filteredBatchUsers.map((detail) => {
+                          const isSelected = activeBatchUser?.username === detail.username;
+                          const isCreated = !detail.before;
+                          return (
+                            <button
+                              key={detail.username}
+                              onClick={() => {
+                                const originalIndex = filteredBatchUsers.indexOf(detail);
+                                setSelectedBatchUserIndex(originalIndex !== -1 ? originalIndex : 0);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition-colors text-left border ${
+                                isSelected
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-background hover:bg-muted text-foreground border-border"
+                              }`}
+                            >
+                              <span className="font-mono truncate mr-2">{detail.username}</span>
+                              {isCreated ? (
+                                <Badge
+                                  className={`text-[9px] px-1 py-0 h-4 border ${
+                                    isSelected
+                                      ? "bg-emerald-600 text-white border-emerald-500"
+                                      : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                  }`}
+                                >
+                                  {t("auditLogsPage.badgeCreated")}
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  className={`text-[9px] px-1 py-0 h-4 border ${
+                                    isSelected
+                                      ? "bg-blue-600 text-white border-blue-500"
+                                      : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                                  }`}
+                                >
+                                  {t("auditLogsPage.badgeUpdated")}
+                                </Badge>
+                              )}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-6 text-xs text-muted-foreground font-medium">
+                          {t("common.noData")}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right pane: Side-by-side Diff */}
+                  <div className="flex-1 flex flex-col min-h-0 gap-2">
+                    {activeBatchUser ? (
+                      <>
+                        <div className="flex items-center gap-2 px-1">
+                          <span className="text-xs text-muted-foreground">{t("auditLogsPage.comparingChangesFor")}</span>
+                          <Badge variant="outline" className="font-mono text-xs px-2 py-0.5 bg-muted">
+                            {activeBatchUser.username}
+                          </Badge>
+                        </div>
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-0">
+                          {/* Before state */}
+                          <div className="flex flex-col min-h-0 h-full">
+                            <div className="flex justify-between items-center bg-rose-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-rose-500/20">
+                              <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                                {t("auditLogsPage.beforeState")}
+                              </span>
+                            </div>
+                            <pre className="flex-1 bg-rose-500/[0.02] dark:bg-rose-500/[0.04] p-3 rounded-b-md text-xs font-mono overflow-auto border border-rose-500/20 select-all">
+                              {activeBatchUser.before
+                                ? JSON.stringify(activeBatchUser.before, null, 2)
+                                : t("auditLogsPage.noneCreated")}
+                            </pre>
+                          </div>
+
+                          {/* After state */}
+                          <div className="flex flex-col min-h-0 h-full">
+                            <div className="flex justify-between items-center bg-emerald-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-emerald-500/20">
+                              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                {t("auditLogsPage.afterState")}
+                              </span>
+                            </div>
+                            <pre className="flex-1 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.04] p-3 rounded-b-md text-xs font-mono overflow-auto border border-emerald-500/20 select-all">
+                              {activeBatchUser.after
+                                ? JSON.stringify(activeBatchUser.after, null, 2)
+                                : t("auditLogsPage.noneDeleted")}
+                            </pre>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/5 text-muted-foreground text-xs font-medium">
+                        {t("auditLogsPage.selectUserToViewDiff")}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : diffData ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Before state */}
                   <div className="space-y-1.5 flex flex-col min-h-0">

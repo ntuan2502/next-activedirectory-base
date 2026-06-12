@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -190,7 +190,6 @@ export default function UsersPage() {
   const handleBulkAction = async (action: "delete" | "disable" | "enable") => {
     if (selectedUserIds.size === 0) return;
 
-    const actionText = action === "delete" ? "Delete" : action === "disable" ? "Disable" : "Unlock";
     const result = await Swal.fire({
       title: t("common.confirm"),
       html: `${action === "delete" ? t("usersPage.deleteSelected") : action === "disable" ? t("usersPage.disableSelected") : t("usersPage.enableSelected")} <strong>${selectedUserIds.size}</strong> users?`,
@@ -247,9 +246,9 @@ export default function UsersPage() {
     setSortConfig({ key, direction });
   };
 
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = useMemo(() => {
     const q = search.toLowerCase();
-    return (
+    return users.filter((user) =>
       user.username.toLowerCase().includes(q) ||
       user.displayName.toLowerCase().includes(q) ||
       user.email.toLowerCase().includes(q) ||
@@ -257,21 +256,23 @@ export default function UsersPage() {
       (user.company || "").toLowerCase().includes(q) ||
       user.title.toLowerCase().includes(q)
     );
-  });
+  }, [users, search]);
 
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    if (!sortConfig) return 0;
-    const aValue = a[sortConfig.key];
-    const bValue = b[sortConfig.key];
-    
-    if (aValue < bValue) {
-      return sortConfig.direction === "asc" ? -1 : 1;
-    }
-    if (aValue > bValue) {
-      return sortConfig.direction === "asc" ? 1 : -1;
-    }
-    return 0;
-  });
+  const sortedUsers = useMemo(() => {
+    if (!sortConfig) return filteredUsers;
+    return [...filteredUsers].sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+      
+      if (aValue < bValue) {
+        return sortConfig.direction === "asc" ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredUsers, sortConfig]);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {

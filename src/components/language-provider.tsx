@@ -18,28 +18,32 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    // Read saved locale from localStorage or Cookie
-    const savedLocale = localStorage.getItem("NEXT_LOCALE") as Locale;
-    if (savedLocale === "en" || savedLocale === "vi") {
-      setLocale(savedLocale);
-    } else {
-      // Try to read cookie
-      const cookies = document.cookie.split(";");
-      const localeCookie = cookies.find((c) => c.trim().startsWith("NEXT_LOCALE="));
-      if (localeCookie) {
-        const val = localeCookie.split("=")[1] as Locale;
-        if (val === "en" || val === "vi") {
-          setLocale(val);
-        }
+    // Read saved locale from localStorage or Cookie asynchronously to avoid synchronous setState warning
+    const initLocale = () => {
+      const savedLocale = localStorage.getItem("NEXT_LOCALE") as Locale;
+      if (savedLocale === "en" || savedLocale === "vi") {
+        setLocale(savedLocale);
       } else {
-        // Fallback to navigator language
-        const navLang = navigator.language.split("-")[0];
-        if (navLang === "vi") {
-          setLocale("vi");
+        // Try to read cookie
+        const cookies = document.cookie.split(";");
+        const localeCookie = cookies.find((c) => c.trim().startsWith("NEXT_LOCALE="));
+        if (localeCookie) {
+          const val = localeCookie.split("=")[1] as Locale;
+          if (val === "en" || val === "vi") {
+            setLocale(val);
+          }
+        } else {
+          // Fallback to navigator language
+          const navLang = navigator.language.split("-")[0];
+          if (navLang === "vi") {
+            setLocale("vi");
+          }
         }
       }
-    }
-    setMounted(true);
+      setMounted(true);
+    };
+
+    setTimeout(initLocale, 0);
   }, []);
 
   const changeLocale = (newLocale: Locale) => {
@@ -51,17 +55,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const t = (key: string, variables?: Record<string, string | number>) => {
     const keys = key.split(".");
-    let current: any = translations[locale];
+    let current: unknown = translations[locale];
 
     for (const k of keys) {
       if (current && typeof current === "object" && k in current) {
-        current = current[k];
+        current = (current as Record<string, unknown>)[k];
       } else {
         // Fallback to English dictionary if key is missing in active locale
-        let englishFallback: any = translations["en"];
+        let englishFallback: unknown = translations["en"];
         for (const ek of keys) {
           if (englishFallback && typeof englishFallback === "object" && ek in englishFallback) {
-            englishFallback = englishFallback[ek];
+            englishFallback = (englishFallback as Record<string, unknown>)[ek];
           } else {
             englishFallback = key;
             break;

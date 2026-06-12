@@ -164,6 +164,12 @@ export const en = {
     noDetailAvailable: "No detail data available",
     viewDetails: "View details",
     detailData: "Detail Data",
+    syncedUsersList: "Synced Users",
+    searchUserPlaceholder: "Search username...",
+    badgeCreated: "Created",
+    badgeUpdated: "Updated",
+    comparingChangesFor: "Changes for:",
+    selectUserToViewDiff: "Select a user from the list to view changes",
     tableHeaders: {
       timestamp: "Timestamp",
       operator: "Operator",

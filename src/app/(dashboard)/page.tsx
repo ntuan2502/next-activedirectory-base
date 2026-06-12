@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Server, Users, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -114,9 +114,9 @@ export default function DashboardPage() {
     }
   };
 
-  const filteredPreviewUsers = previewUsers.filter((u) => {
+  const filteredPreviewUsers = useMemo(() => {
     const q = search.toLowerCase();
-    return (
+    return previewUsers.filter((u) =>
       u.username.toLowerCase().includes(q) ||
       u.displayName.toLowerCase().includes(q) ||
       (u.email || "").toLowerCase().includes(q) ||
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       (u.company || "").toLowerCase().includes(q) ||
       (u.title || "").toLowerCase().includes(q)
     );
-  });
+  }, [previewUsers, search]);
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -177,19 +177,21 @@ export default function DashboardPage() {
     setSortConfig({ key, direction });
   };
 
-  const sortedPreviewUsers = [...filteredPreviewUsers].sort((a, b) => {
-    if (!sortConfig) return 0;
-    const aValue = a[sortConfig.key] || "";
-    const bValue = b[sortConfig.key] || "";
+  const sortedPreviewUsers = useMemo(() => {
+    if (!sortConfig) return filteredPreviewUsers;
+    return [...filteredPreviewUsers].sort((a, b) => {
+      const aValue = a[sortConfig.key] || "";
+      const bValue = b[sortConfig.key] || "";
 
-    if (aValue < bValue) {
-      return sortConfig.direction === "asc" ? -1 : 1;
-    }
-    if (aValue > bValue) {
-      return sortConfig.direction === "asc" ? 1 : -1;
-    }
-    return 0;
-  });
+      if (aValue < bValue) {
+        return sortConfig.direction === "asc" ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredPreviewUsers, sortConfig]);
 
   const syncableUsersCount = filteredPreviewUsers.filter(u => isSyncableUser(u)).length;
 

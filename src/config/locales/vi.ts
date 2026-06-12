@@ -164,6 +164,12 @@ export const vi = {
     noDetailAvailable: "Không có dữ liệu chi tiết",
     viewDetails: "Xem chi tiết",
     detailData: "Dữ liệu chi tiết",
+    syncedUsersList: "Danh sách đồng bộ",
+    searchUserPlaceholder: "Tìm tài khoản...",
+    badgeCreated: "Tạo mới",
+    badgeUpdated: "Cập nhật",
+    comparingChangesFor: "Thay đổi của:",
+    selectUserToViewDiff: "Chọn tài khoản từ danh sách để xem chi tiết thay đổi",
     tableHeaders: {
       timestamp: "Thời gian",
       operator: "Người thực hiện",
