@@ -7,6 +7,7 @@ import { useTheme } from "next-themes";
 import { useSettings } from "@/components/settings-provider";
 import { LanguageToggle } from "@/components/language-toggle";
 import Swal from "sweetalert2";
+import { parseUserAgent } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -113,42 +114,7 @@ export default function AccountPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const parseUserAgent = (ua: string | null) => {
-    if (!ua) return { browser: "Unknown Browser", os: "Unknown OS", isMobile: false };
 
-    let browser = "Unknown Browser";
-    let os = "Unknown OS";
-    let isMobile = false;
-
-    // Detect OS
-    if (ua.includes("Windows")) {
-      os = "Windows";
-    } else if (ua.includes("Macintosh") || ua.includes("Mac OS X")) {
-      if (ua.includes("iPhone") || ua.includes("iPad") || ua.includes("iPod")) {
-        os = "iOS";
-        isMobile = true;
-      } else {
-        os = "macOS";
-      }
-    } else if (ua.includes("Android")) {
-      os = "Android";
-      isMobile = true;
-    } else if (ua.includes("Linux")) {
-      os = "Linux";
-    } else if (ua.includes("iPhone") || ua.includes("iPad")) {
-      os = "iOS";
-      isMobile = true;
-    }
-
-    // Detect Browser
-    if (ua.includes("Edg/")) browser = "Microsoft Edge";
-    else if (ua.includes("Chrome") && !ua.includes("Chromium")) browser = "Google Chrome";
-    else if (ua.includes("Firefox")) browser = "Mozilla Firefox";
-    else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Apple Safari";
-    else if (ua.includes("Opera") || ua.includes("OPR/")) browser = "Opera";
-
-    return { browser, os, isMobile };
-  };
 
   const handleRevokeSession = async (id: string) => {
     const result = await Swal.fire({

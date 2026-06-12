@@ -19,7 +19,14 @@ function getSecretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function createSession(payload: Omit<SessionPayload, "sessionId">): Promise<void> {
+export async function createSession(payload: Omit<SessionPayload, "sessionId">): Promise<{
+  id: string;
+  userId: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  createdAt: Date;
+  lastActiveAt: Date;
+}> {
   const headersList = await headers();
   const userAgent = headersList.get("user-agent") || null;
   const ipAddress = headersList.get("x-forwarded-for")?.split(",")[0] || headersList.get("x-real-ip") || null;
@@ -51,6 +58,8 @@ export async function createSession(payload: Omit<SessionPayload, "sessionId">):
     maxAge: SESSION_MAX_AGE,
     path: "/",
   });
+
+  return dbSession;
 }
 
 export async function getSession(): Promise<SessionPayload | null> {

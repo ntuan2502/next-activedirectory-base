@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye, ChevronDown } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
-import { getPageNumbers } from "@/lib/utils";
+import { getPageNumbers, parseUserAgent } from "@/lib/utils";
 import {
   Pagination,
   PaginationContent,
@@ -467,6 +467,27 @@ export default function AuditLogsPage() {
     }
   };
 
+  interface SessionLogDetail {
+    userId?: string;
+    sessionId?: string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    error?: string;
+  }
+
+  const parseSessionInfo = (detailsStr: string | null): SessionLogDetail | null => {
+    if (!detailsStr) return null;
+    try {
+      const parsed = JSON.parse(detailsStr);
+      if (parsed && typeof parsed === "object") {
+        return parsed as SessionLogDetail;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
 
 
   const getActionBadge = (action: string) => {
@@ -487,6 +508,9 @@ export default function AuditLogsPage() {
   const diffData = selectedLog ? parseDiff(selectedLog.details) : null;
   const batchSyncDetails = selectedLog ? parseBatchLdapSync(selectedLog) : null;
   const isBatchSync = !!batchSyncDetails && batchSyncDetails.length > 0;
+  const sessionInfo = (selectedLog && ["auth:login", "auth:login_failed", "auth:logout"].includes(selectedLog.action))
+    ? parseSessionInfo(selectedLog.details)
+    : null;
 
   const filteredBatchUsers = batchSyncDetails
     ? batchSyncDetails.filter((detail) =>
@@ -797,6 +821,70 @@ export default function AuditLogsPage() {
                 </div>
               ) : diffData ? (
                 <DiffViewer before={diffData.before} after={diffData.after} t={t} />
+              ) : sessionInfo ? (
+                <div className="space-y-4">
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-muted px-4 py-2 border-b font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                      <KeyRound className="w-4 h-4 text-primary" />
+                      {t("auditLogsPage.sessionDetails")}
+                    </div>
+                    <div className="p-4 space-y-4">
+                      {sessionInfo.error && (
+                        <div className="flex gap-2.5 items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
+                          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-semibold block">{t("auditLogsPage.loginFailedReason")}</span>
+                            <span className="text-xs font-mono">{sessionInfo.error}</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        {sessionInfo.sessionId && (
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground block">{t("auditLogsPage.sessionId")}</span>
+                            <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">{sessionInfo.sessionId}</span>
+                          </div>
+                        )}
+                        {sessionInfo.userId && (
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground block">{t("auditLogsPage.userId")}</span>
+                            <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">{sessionInfo.userId}</span>
+                          </div>
+                        )}
+                        {sessionInfo.ipAddress && (
+                          <div className="space-y-1">
+                            <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.ipAddress")}</span>
+                            <span className="font-semibold flex items-center gap-1.5 mt-1">
+                              <Globe className="w-4 h-4 text-muted-foreground/60" />
+                              {sessionInfo.ipAddress}
+                            </span>
+                          </div>
+                        )}
+                        {sessionInfo.userAgent && (() => {
+                          const { browser, os, isMobile } = parseUserAgent(sessionInfo.userAgent);
+                          const DeviceIcon = isMobile ? Smartphone : Laptop;
+                          return (
+                            <div className="space-y-3 md:col-span-2">
+                              <div className="space-y-1">
+                                <span className="text-xs text-muted-foreground block">{t("auditLogsPage.device")}</span>
+                                <span className="font-semibold flex items-center gap-1.5 mt-1 text-sm text-foreground">
+                                  <DeviceIcon className="w-4 h-4 text-muted-foreground/60 shrink-0" />
+                                  {browser} on {os}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-xs text-muted-foreground block">{t("auditLogsPage.userAgent")}</span>
+                                <span className="font-mono text-xs break-all text-muted-foreground bg-muted/20 p-2 rounded border w-full block select-all">
+                                  {sessionInfo.userAgent}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground block">{t("auditLogsPage.detailData")}</span>

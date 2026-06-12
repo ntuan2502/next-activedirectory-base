@@ -31,12 +31,20 @@ export async function POST(request: NextRequest) {
 
     const result = await authenticateUser(username, password);
 
-    await createSession({
+    const dbSession = await createSession({
       userId: result.userId,
       username: result.username,
     });
 
-    await logAction("auth:login", result.username, { userId: result.userId }, { userId: result.userId, username: result.username });
+    await logAction("auth:login", result.username, {
+      userId: result.userId,
+      sessionId: dbSession.id,
+      ipAddress: dbSession.ipAddress,
+      userAgent: dbSession.userAgent,
+    }, {
+      userId: result.userId,
+      username: result.username,
+    });
 
     return NextResponse.json({
       success: true,

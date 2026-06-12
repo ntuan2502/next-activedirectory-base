@@ -35,3 +35,40 @@ export function getPageNumbers(currentPage: number, totalPages: number): (number
   }
   return pages;
 }
+
+export function parseUserAgent(ua: string | null) {
+  if (!ua) return { browser: "Unknown Browser", os: "Unknown OS", isMobile: false };
+
+  let browser = "Unknown Browser";
+  let os = "Unknown OS";
+  let isMobile = false;
+
+  // Detect OS
+  if (ua.includes("Windows")) {
+    os = "Windows";
+  } else if (ua.includes("Macintosh") || ua.includes("Mac OS X")) {
+    if (ua.includes("iPhone") || ua.includes("iPad") || ua.includes("iPod")) {
+      os = "iOS";
+      isMobile = true;
+    } else {
+      os = "macOS";
+    }
+  } else if (ua.includes("Android")) {
+    os = "Android";
+    isMobile = true;
+  } else if (ua.includes("Linux")) {
+    os = "Linux";
+  } else if (ua.includes("iPhone") || ua.includes("iPad")) {
+    os = "iOS";
+    isMobile = true;
+  }
+
+  // Detect Browser
+  if (ua.includes("Edg/")) browser = "Microsoft Edge";
+  else if (ua.includes("Chrome") && !ua.includes("Chromium")) browser = "Google Chrome";
+  else if (ua.includes("Firefox")) browser = "Mozilla Firefox";
+  else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Apple Safari";
+  else if (ua.includes("Opera") || ua.includes("OPR/")) browser = "Opera";
+
+  return { browser, os, isMobile };
+}
