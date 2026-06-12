@@ -47,6 +47,14 @@ export default function DashboardPage() {
     if (user.permissions.includes("*")) return true;
     return user.permissions.includes(perm);
   };
+
+  const isSyncableUser = (u: LdapUserPreview) => {
+    const hasEmail = u.email && u.email.trim() !== "";
+    const isTest = u.username.toLowerCase().includes("test") ||
+                   u.displayName.toLowerCase().includes("test") ||
+                   (u.email || "").toLowerCase().includes("test");
+    return !!(hasEmail && !isTest);
+  };
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -88,8 +96,8 @@ export default function DashboardPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setPreviewUsers(data.data);
-        // Default select all VALID users only (with email)
-        const validUsers = data.data.filter((u: LdapUserPreview) => u.email && u.email.trim() !== "");
+        // Default select all VALID users only (with email, excluding test accounts)
+        const validUsers = data.data.filter((u: LdapUserPreview) => isSyncableUser(u));
         setSelectedUsernames(new Set(validUsers.map((u: LdapUserPreview) => u.username)));
       }
     } catch (error) {
@@ -119,7 +127,7 @@ export default function DashboardPage() {
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedUsernames(new Set(filteredPreviewUsers.filter(u => u.email && u.email.trim() !== "").map(u => u.username)));
+      setSelectedUsernames(new Set(filteredPreviewUsers.filter(u => isSyncableUser(u)).map(u => u.username)));
     } else {
       setSelectedUsernames(new Set());
     }
@@ -183,7 +191,7 @@ export default function DashboardPage() {
     return 0;
   });
 
-  const syncableUsersCount = filteredPreviewUsers.filter(u => u.email && u.email.trim() !== "").length;
+  const syncableUsersCount = filteredPreviewUsers.filter(u => isSyncableUser(u)).length;
 
   return (
     <div className="space-y-6">
@@ -226,7 +234,7 @@ export default function DashboardPage() {
                           )}
                         </DialogTitle>
                         <DialogDescription className="mt-1">
-                          Review the users found in LDAP. Only users with email addresses can be selected for synchronization.
+                          Review the users found in LDAP. Only users with email addresses (excluding test accounts) can be selected for synchronization.
                         </DialogDescription>
                       </div>
                       <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
@@ -299,20 +307,35 @@ export default function DashboardPage() {
                               <TableBody>
                                 {sortedPreviewUsers.map((u) => {
                                   const hasEmail = u.email && u.email.trim() !== "";
+                                  const isTest = u.username.toLowerCase().includes("test") ||
+                                                 u.displayName.toLowerCase().includes("test") ||
+                                                 (u.email || "").toLowerCase().includes("test");
+                                  const isSyncable = hasEmail && !isTest;
                                   return (
-                                    <TableRow key={u.username} className={!hasEmail ? "opacity-60 bg-muted/20" : ""}>
+                                    <TableRow key={u.username} className={!isSyncable ? "opacity-60 bg-muted/20" : ""}>
                                       <TableCell className="w-12 text-center">
                                         <Checkbox 
                                           checked={selectedUsernames.has(u.username)}
                                           onCheckedChange={(checked) => toggleSelectUser(u.username, !!checked)}
                                           aria-label={`Select ${u.username}`}
-                                          disabled={!hasEmail}
+                                          disabled={!isSyncable}
                                         />
                                       </TableCell>
                                       <TableCell className="font-medium">{u.username}</TableCell>
                                       <TableCell>{u.displayName}</TableCell>
                                       <TableCell>
-                                        {hasEmail ? u.email : <span className="text-destructive text-xs font-semibold">MISSING EMAIL</span>}
+                                        {hasEmail ? (
+                                          <div className="flex items-center gap-2">
+                                            <span>{u.email}</span>
+                                            {isTest && (
+                                              <Badge variant="outline" className="text-destructive border-destructive text-[10px] py-0 px-1.5 h-4 font-semibold">
+                                                TEST ACCOUNT
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-destructive text-xs font-semibold">MISSING EMAIL</span>
+                                        )}
                                       </TableCell>
                                       <TableCell>{u.title || "-"}</TableCell>
                                       <TableCell>{u.department || "-"}</TableCell>
