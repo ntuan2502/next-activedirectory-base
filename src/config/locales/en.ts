@@ -5,6 +5,7 @@ export const en = {
     roles: "Roles",
     auditLogs: "Audit Logs",
     logout: "Logout",
+    account: "Account",
     login: "Login",
     cancel: "Cancel",
     confirm: "Confirm",
@@ -200,6 +201,16 @@ export const en = {
       failed: "Failed",
       users: "{{count}} users",
     }
+  },
+  accountPage: {
+    description: "Manage your personal profile and account credentials.",
+    profileInfo: "Profile Information",
+    profileInfoDesc: "Basic details about your active directory account.",
+    username: "Username",
+    displayName: "Display Name",
+    email: "Email Address",
+    permissions: "Assigned Permissions",
+    noPermissions: "No permissions assigned",
   },
   permissions: {
     names: {

@@ -2,6 +2,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageToggle } from "@/components/language-toggle";
 import { ScrollToTop } from "@/components/scroll-to-top";
 
 export default function DashboardLayout({
@@ -19,7 +20,12 @@ export default function DashboardLayout({
             <Separator orientation="vertical" className="mr-2 h-4" />
             <h1 className="text-sm font-medium">Active Directory Sync</h1>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <div className="w-36">
+              <LanguageToggle />
+            </div>
+            <ThemeToggle />
+          </div>
         </header>
         <div className="flex-1 p-6">
           {children}

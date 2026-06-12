@@ -7,6 +7,9 @@ import { RefreshCw } from "lucide-react";
 type SessionUser = {
   userId: string;
   username: string;
+  displayName?: string;
+  email?: string;
+  avatarUrl?: string;
   permissions?: string[];
 };
 

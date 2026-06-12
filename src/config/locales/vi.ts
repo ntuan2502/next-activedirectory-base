@@ -5,6 +5,7 @@ export const vi = {
     roles: "Vai trò",
     auditLogs: "Nhật ký hệ thống",
     logout: "Đăng xuất",
+    account: "Tài khoản",
     login: "Đăng nhập",
     cancel: "Hủy",
     confirm: "Xác nhận",
@@ -200,6 +201,16 @@ export const vi = {
       failed: "Thất bại",
       users: "{{count}} người dùng",
     }
+  },
+  accountPage: {
+    description: "Quản lý thông tin hồ sơ và quyền hạn tài khoản cá nhân.",
+    profileInfo: "Thông tin tài khoản",
+    profileInfoDesc: "Các chi tiết cơ bản đồng bộ từ Active Directory.",
+    username: "Tên đăng nhập",
+    displayName: "Tên hiển thị",
+    email: "Địa chỉ email",
+    permissions: "Quyền hạn được gán",
+    noPermissions: "Chưa được gán quyền hạn nào",
   },
   permissions: {
     names: {
