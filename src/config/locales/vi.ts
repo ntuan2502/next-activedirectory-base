@@ -8,6 +8,8 @@ export const vi = {
     login: "Đăng nhập",
     cancel: "Hủy",
     confirm: "Xác nhận",
+    previous: "Trước",
+    next: "Sau",
     search: "Tìm kiếm",
     save: "Lưu",
     edit: "Sửa",

@@ -8,6 +8,8 @@ export const en = {
     login: "Login",
     cancel: "Cancel",
     confirm: "Confirm",
+    previous: "Previous",
+    next: "Next",
     search: "Search",
     save: "Save",
     edit: "Edit",
