@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/auth-provider";
+import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS } from "@/config/permissions";
 import { toast } from "sonner";
 
@@ -42,6 +43,7 @@ function isApiError(data: unknown): data is ApiErrorResponse {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const hasPermission = (perm: string) => {
     if (!user?.permissions) return false;
@@ -72,12 +74,12 @@ export default function DashboardPage() {
       const res = await fetch("/api/ldap/test", { method: "POST" });
       const data: TestSuccessResponse | ApiErrorResponse = await res.json();
       if (res.ok && "message" in data) {
-        toast.success(data.message);
+        toast.success(t("dashboard.successTest"));
       } else if (isApiError(data)) {
         toast.error(data.error);
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Network error";
+      const message = error instanceof Error ? error.message : t("common.networkError");
       toast.error(message);
     } finally {
       setIsTestLoading(false);
@@ -152,13 +154,13 @@ export default function DashboardPage() {
       });
       const data: SyncSuccessResponse | ApiErrorResponse = await res.json();
       if (res.ok && "syncedCount" in data) {
-        toast.success(`Successfully synced ${data.syncedCount} users to database.`);
+        toast.success(t("dashboard.successSync", { count: data.syncedCount }));
         setIsSyncDialogOpen(false);
       } else if (isApiError(data)) {
         toast.error(data.error);
       }
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Network error";
+      const message = error instanceof Error ? error.message : t("common.networkError");
       toast.error(message);
     } finally {
       setIsSyncing(false);
@@ -198,10 +200,10 @@ export default function DashboardPage() {
           <div>
             <CardTitle className="text-2xl flex items-center gap-2">
               <Server className="w-6 h-6 text-primary" />
-              Dashboard
+              {t("common.dashboard")}
             </CardTitle>
             <CardDescription className="mt-1">
-              Signed in as <span className="font-medium text-foreground">{user?.username}</span>
+              {t("dashboard.signedInAs")} <span className="font-medium text-foreground">{user?.username}</span>
             </CardDescription>
           </div>
           <div className="flex gap-3">
@@ -212,7 +214,7 @@ export default function DashboardPage() {
                 disabled={isTestLoading}
               >
                 {isTestLoading ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
-                Test Connection
+                {isTestLoading ? t("dashboard.testingConnection") : t("dashboard.testConnection")}
               </Button>
             )}
 
@@ -220,7 +222,7 @@ export default function DashboardPage() {
               <>
                 <Button onClick={() => handleOpenSyncDialog(true)}>
                   <Users className="w-4 h-4 mr-2" />
-                  Sync Data
+                  {t("dashboard.syncData")}
                 </Button>
                 <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog}>
 
@@ -228,18 +230,18 @@ export default function DashboardPage() {
                     <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>
                         <DialogTitle className="flex items-center gap-2">
-                          LDAP Sync Preview
+                          {t("dashboard.syncPreviewTitle")}
                           {!isPreviewLoading && (
-                            <Badge variant="secondary">{filteredPreviewUsers.length} users</Badge>
+                            <Badge variant="secondary">{filteredPreviewUsers.length} {t("common.users").toLowerCase()}</Badge>
                           )}
                         </DialogTitle>
                         <DialogDescription className="mt-1">
-                          Review the users found in LDAP. Only users with email addresses (excluding test accounts) can be selected for synchronization.
+                          {t("dashboard.syncPreviewDesc")}
                         </DialogDescription>
                       </div>
                       <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
                         <Input
-                          placeholder="Search users..."
+                          placeholder={t("dashboard.searchPlaceholder")}
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                           className="sm:w-64"
@@ -257,7 +259,7 @@ export default function DashboardPage() {
                         </div>
                       ) : filteredPreviewUsers.length === 0 ? (
                         <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                          {search ? "No users match your search." : "No users found in LDAP."}
+                          {search ? t("dashboard.noUsersMatch") : t("dashboard.noUsersFound")}
                         </div>
                       ) : (
                         <div className="border rounded-md flex-1 overflow-hidden flex flex-col">
@@ -274,37 +276,37 @@ export default function DashboardPage() {
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("username")}>
                                   <div className="flex items-center">
-                                    Username
+                                    {t("dashboard.tableHeaders.username")}
                                     {sortConfig?.key === "username" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                                   </div>
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("displayName")}>
                                   <div className="flex items-center">
-                                    Display Name
+                                    {t("dashboard.tableHeaders.displayName")}
                                     {sortConfig?.key === "displayName" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                                   </div>
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("email")}>
                                   <div className="flex items-center">
-                                    Email
+                                    {t("dashboard.tableHeaders.email")}
                                     {sortConfig?.key === "email" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                                   </div>
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("title")}>
                                   <div className="flex items-center">
-                                    Title / Role
+                                    {t("dashboard.tableHeaders.title")}
                                     {sortConfig?.key === "title" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                                   </div>
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("department")}>
                                   <div className="flex items-center">
-                                    Department
+                                    {t("dashboard.tableHeaders.department")}
                                     {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                                   </div>
                                 </TableHead>
                                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("company")}>
                                   <div className="flex items-center">
-                                    Company
+                                    {t("dashboard.tableHeaders.company")}
                                     {sortConfig?.key === "company" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                                   </div>
                                 </TableHead>
@@ -335,12 +337,12 @@ export default function DashboardPage() {
                                           <span>{u.email}</span>
                                           {isTest && (
                                             <Badge variant="outline" className="text-destructive border-destructive text-[10px] py-0 px-1.5 h-4 font-semibold">
-                                              TEST ACCOUNT
+                                              {t("dashboard.testAccount")}
                                             </Badge>
                                           )}
                                         </div>
                                       ) : (
-                                        <span className="text-destructive text-xs font-semibold">MISSING EMAIL</span>
+                                        <span className="text-destructive text-xs font-semibold">{t("dashboard.missingEmail")}</span>
                                       )}
                                     </TableCell>
                                     <TableCell>{u.title || "-"}</TableCell>
@@ -358,16 +360,16 @@ export default function DashboardPage() {
                     <DialogFooter className="mt-4 shrink-0">
                       <div className="flex w-full items-center justify-between">
                         <span className="text-sm text-muted-foreground">
-                          {selectedUsernames.size} of {syncableUsersCount} valid users selected
+                          {t("dashboard.validUsersSelected", { selected: selectedUsernames.size, total: syncableUsersCount })}
                         </span>
                         <div className="flex gap-2">
-                          <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>Cancel</Button>
+                          <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>{t("common.cancel")}</Button>
                           <Button
                             onClick={handleConfirmSync}
                             disabled={isSyncing || selectedUsernames.size === 0}
                           >
                             {isSyncing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                            Confirm Sync
+                            {isSyncing ? t("dashboard.syncing") : t("dashboard.confirmSync")}
                           </Button>
                         </div>
                       </div>

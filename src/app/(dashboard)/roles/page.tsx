@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
+import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS, AVAILABLE_PERMISSIONS } from "@/config/permissions";
 import Swal from "sweetalert2";
 
@@ -28,6 +29,7 @@ type RoleRecord = {
 
 export default function RolesPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const hasPermission = (perm: string) => {
     if (!user?.permissions) return false;
@@ -137,7 +139,7 @@ export default function RolesPage() {
 
   const handleSave = async () => {
     if (!formName.trim()) {
-      return Swal.fire("Error", "Role name is required.", "error");
+      return Swal.fire(t("common.error"), t("rolesPage.roleNameRequired"), "error");
     }
 
     setIsSaving(true);
@@ -160,18 +162,18 @@ export default function RolesPage() {
         await fetchRoles();
         setIsDialogOpen(false);
         Swal.fire({
-          title: "Success!",
-          text: `Role has been ${editingRole ? "updated" : "created"}.`,
+          title: t("common.success"),
+          text: editingRole ? t("rolesPage.successUpdate") : t("rolesPage.successCreate"),
           icon: "success",
           timer: 1500,
           showConfirmButton: false,
         });
       } else {
         const data = await res.json();
-        Swal.fire("Error", data.error || "Failed to save role.", "error");
+        Swal.fire(t("common.error"), data.error || t("common.failedToSave"), "error");
       }
     } catch {
-      Swal.fire("Error", "Network error. Please try again.", "error");
+      Swal.fire(t("common.error"), t("common.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -181,14 +183,14 @@ export default function RolesPage() {
     if (role.isSystem) return;
 
     const result = await Swal.fire({
-      title: "Delete role?",
-      html: `Are you sure you want to delete <strong>${role.name}</strong>?<br/>Any users assigned to this role will lose its permissions.`,
+      title: t("rolesPage.deleteConfirmTitle"),
+      html: `${t("rolesPage.deleteConfirmDesc")}<br/><br/><strong>${role.name}</strong>`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
+      confirmButtonText: t("common.yes") || "Yes",
+      cancelButtonText: t("common.cancel") || "Cancel",
     });
 
     if (!result.isConfirmed) return;
@@ -198,18 +200,18 @@ export default function RolesPage() {
       if (res.ok) {
         setRoles((prev) => prev.filter((r) => r.id !== role.id));
         Swal.fire({
-          title: "Deleted!",
-          text: `Role ${role.name} has been deleted.`,
+          title: t("common.success"),
+          text: t("rolesPage.successDelete"),
           icon: "success",
           timer: 1500,
           showConfirmButton: false,
         });
       } else {
         const data = await res.json();
-        Swal.fire("Error", data.error || "Failed to delete role.", "error");
+        Swal.fire(t("common.error"), data.error || t("common.failedToDelete"), "error");
       }
     } catch {
-      Swal.fire("Error", "Network error. Please try again.", "error");
+      Swal.fire(t("common.error"), t("common.networkError"), "error");
     }
   };
 
@@ -224,10 +226,10 @@ export default function RolesPage() {
           <div>
             <CardTitle className="text-2xl flex items-center gap-2">
               <Shield className="w-6 h-6 text-primary" />
-              Roles & Permissions
+              {t("rolesPage.title")}
             </CardTitle>
             <CardDescription>
-              Manage access control roles and assign them to users.
+              {t("rolesPage.description")}
             </CardDescription>
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
@@ -237,7 +239,7 @@ export default function RolesPage() {
             {hasPermission(PERMISSIONS.ROLES_CREATE) && (
               <Button onClick={openCreateDialog}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Role
+                {t("rolesPage.createRole")}
               </Button>
             )}
           </div>
@@ -247,11 +249,11 @@ export default function RolesPage() {
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="w-1/4">Role Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="w-24 text-center">Users</TableHead>
-                  <TableHead className="w-24 text-center">System</TableHead>
-                  <TableHead className="w-24 text-center">Action</TableHead>
+                  <TableHead className="w-1/4">{t("rolesPage.tableHeaders.name")}</TableHead>
+                  <TableHead>{t("rolesPage.tableHeaders.description")}</TableHead>
+                  <TableHead className="w-24 text-center">{t("rolesPage.tableHeaders.usersCount")}</TableHead>
+                  <TableHead className="w-24 text-center">{t("rolesPage.tableHeaders.system")}</TableHead>
+                  <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -279,9 +281,9 @@ export default function RolesPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {role.isSystem ? (
-                          <Badge variant="default" className="bg-purple-500 hover:bg-purple-600">Yes</Badge>
+                          <Badge variant="default" className="bg-purple-500 hover:bg-purple-600">{t("common.yes")}</Badge>
                         ) : (
-                          <Badge variant="outline">No</Badge>
+                          <Badge variant="outline">{t("common.no")}</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-center">
@@ -291,7 +293,7 @@ export default function RolesPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => openEditDialog(role)}
-                              title="View Role"
+                              title={t("rolesPage.viewRole")}
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -300,7 +302,7 @@ export default function RolesPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => openEditDialog(role)}
-                              title="Edit Role"
+                              title={t("rolesPage.editRole")}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -311,7 +313,7 @@ export default function RolesPage() {
                               size="icon"
                               onClick={() => handleDelete(role)}
                               disabled={role.isSystem}
-                              title={role.isSystem ? "System roles cannot be deleted" : "Delete Role"}
+                              title={role.isSystem ? t("rolesPage.cannotDeleteSystemRole") : t("common.delete")}
                               className={role.isSystem ? "opacity-50 cursor-not-allowed" : "text-destructive hover:text-destructive hover:bg-destructive/10"}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -324,7 +326,7 @@ export default function RolesPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No roles found. Create one to get started.
+                      {t("rolesPage.noRolesAvailable")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -337,31 +339,31 @@ export default function RolesPage() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-7xl max-h-[85vh] flex flex-col p-6 overflow-hidden">
           <DialogHeader className="shrink-0 mb-2">
-            <DialogTitle>{editingRole ? (isReadOnly ? "View Role" : "Edit Role") : "Create Role"}</DialogTitle>
+            <DialogTitle>{editingRole ? (isReadOnly ? t("rolesPage.viewRole") : t("rolesPage.editRole")) : t("rolesPage.createRole")}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-6 min-h-0">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Role Name <span className="text-destructive">*</span></Label>
+                <Label htmlFor="name">{t("rolesPage.roleName")} <span className="text-destructive">*</span></Label>
                 <Input
                   id="name"
-                  placeholder="e.g. HR Manager"
+                  placeholder={t("rolesPage.roleNamePlaceholder")}
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   disabled={isReadOnly}
                 />
                 {editingRole?.isSystem && (
-                  <p className="text-xs text-muted-foreground">System role details cannot be modified.</p>
+                  <p className="text-xs text-muted-foreground">{t("rolesPage.systemRoleWarning")}</p>
                 )}
                 {!editingRole?.isSystem && isReadOnly && (
-                  <p className="text-xs text-muted-foreground">You do not have permission to modify roles.</p>
+                  <p className="text-xs text-muted-foreground">{t("rolesPage.noPermissionWarning")}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t("rolesPage.roleDescription")}</Label>
                 <Input
                   id="description"
-                  placeholder="e.g. Can manage users and sync LDAP"
+                  placeholder={t("rolesPage.roleDescPlaceholder")}
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
                   disabled={isReadOnly}
@@ -370,14 +372,14 @@ export default function RolesPage() {
             </div>
 
             <div className="space-y-4">
-              <Label className="text-base font-medium">Permissions</Label>
+              <Label className="text-base font-medium">{t("rolesPage.permissionsTitle")}</Label>
               {editingRole?.isSystem ? (
                 <div className="p-4 bg-muted/50 rounded-md border text-sm text-muted-foreground">
-                  System roles inherently have all permissions or bypass checks. Modifying specific permissions here may not restrict their access.
+                  {t("rolesPage.systemRoleNotice")}
                 </div>
               ) : isReadOnly ? (
                 <div className="p-4 bg-muted/50 rounded-md border text-sm text-muted-foreground">
-                  You are viewing this role in read-only mode.
+                  {t("rolesPage.readOnlyNotice")}
                 </div>
               ) : null}
 
@@ -388,7 +390,7 @@ export default function RolesPage() {
                     <div key={groupName} className="space-y-3">
                       <div className="flex items-center justify-between border-b pb-1.5">
                         <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          {groupName}
+                          {t("permissions.groups." + groupName, { defaultValue: groupName })}
                         </h4>
                         {!isReadOnly && (
                           <Button
@@ -397,7 +399,7 @@ export default function RolesPage() {
                             className="h-auto p-0 text-xs text-primary hover:text-primary/80"
                             onClick={() => handleToggleGroupPermissions(perms)}
                           >
-                            {allChecked ? "Deselect All" : "Select All"}
+                            {allChecked ? t("rolesPage.deselectAll") : t("rolesPage.selectAll")}
                           </Button>
                         )}
                       </div>
@@ -419,8 +421,12 @@ export default function RolesPage() {
                                 )}
                               </div>
                               <div className="flex flex-col space-y-1">
-                                <span className="text-sm font-medium leading-none">{perm.name}</span>
-                                <span className="text-xs text-muted-foreground leading-normal">{perm.description}</span>
+                                <span className="text-sm font-medium leading-none">
+                                  {t("permissions.names." + perm.id, { defaultValue: perm.name })}
+                                </span>
+                                <span className="text-xs text-muted-foreground leading-normal">
+                                  {t("permissions.descriptions." + perm.id, { defaultValue: perm.description })}
+                                </span>
                               </div>
                             </div>
                           );
@@ -434,11 +440,11 @@ export default function RolesPage() {
           </div>
           <DialogFooter className="shrink-0 mt-4 border-t pt-4">
             <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
-              {isReadOnly ? "Close" : "Cancel"}
+              {isReadOnly ? t("common.close") : t("common.cancel")}
             </Button>
             {!isReadOnly && (
               <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Role"}
+                {isSaving ? t("rolesPage.saving") : t("rolesPage.saveChanges")}
               </Button>
             )}
           </DialogFooter>

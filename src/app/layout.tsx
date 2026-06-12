@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LanguageProvider } from "@/components/language-provider";
 import { AuthProvider } from "@/components/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
@@ -40,10 +41,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
-            <AuthProvider>
-              {children}
-              <Toaster position="bottom-right" />
-            </AuthProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                {children}
+                <Toaster position="bottom-right" />
+              </AuthProvider>
+            </LanguageProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

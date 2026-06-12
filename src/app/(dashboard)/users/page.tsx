@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth-provider";
+import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
 import Swal from "sweetalert2";
@@ -48,6 +49,7 @@ type ApiErrorResponse = {
 
 export default function UsersPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   
   const hasPermission = useCallback((perm: string) => {
     if (!user?.permissions) return false;
@@ -109,14 +111,14 @@ export default function UsersPage() {
 
   const handleDelete = async (user: UserRecord) => {
     const result = await Swal.fire({
-      title: "Delete user?",
-      html: `Are you sure you want to delete <strong>${user.displayName || user.username}</strong>?<br/>This action cannot be undone.`,
+      title: t("rolesPage.deleteConfirmTitle"),
+      html: `${t("rolesPage.deleteConfirmDesc")}<br/><strong>${user.displayName || user.username}</strong>`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#ef4444",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete",
-      cancelButtonText: "Cancel",
+      confirmButtonText: t("common.delete"),
+      cancelButtonText: t("common.cancel"),
     });
 
     if (!result.isConfirmed) return;
@@ -131,32 +133,32 @@ export default function UsersPage() {
           return newSet;
         });
         await Swal.fire({
-          title: "Deleted!",
-          text: `${user.displayName || user.username} has been removed.`,
+          title: t("common.success"),
+          text: t("usersPage.successBulkDelete"),
           icon: "success",
           timer: 1500,
           showConfirmButton: false,
         });
       } else {
         const data: ApiErrorResponse = await res.json();
-        await Swal.fire("Error", data.error || "Failed to delete user.", "error");
+        await Swal.fire(t("common.error"), data.error || t("usersPage.failedToDeleteUser"), "error");
       }
     } catch {
-      await Swal.fire("Error", "Network error. Please try again.", "error");
+      await Swal.fire(t("common.error"), t("common.networkError"), "error");
     }
   };
 
   const handleToggleStatus = async (user: UserRecord) => {
     const actionText = user.disabled ? "Unlock" : "Disable";
     const result = await Swal.fire({
-      title: `${actionText} user?`,
-      html: `Are you sure you want to ${actionText.toLowerCase()} <strong>${user.displayName || user.username}</strong>?`,
+      title: t("common.confirm"),
+      html: `${actionText === "Unlock" ? t("usersPage.enableSelected") : t("usersPage.disableSelected")} <strong>${user.displayName || user.username}</strong>?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: user.disabled ? "#10b981" : "#f59e0b",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: `Yes, ${actionText}`,
-      cancelButtonText: "Cancel",
+      confirmButtonText: t("common.confirm"),
+      cancelButtonText: t("common.cancel"),
     });
 
     if (!result.isConfirmed) return;
@@ -170,18 +172,18 @@ export default function UsersPage() {
       if (res.ok) {
         setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, disabled: !u.disabled } : u));
         await Swal.fire({
-          title: "Success!",
-          text: `${user.displayName || user.username} has been ${user.disabled ? "unlocked" : "disabled"}.`,
+          title: t("common.success"),
+          text: user.disabled ? t("usersPage.successBulkEnable") : t("usersPage.successBulkDisable"),
           icon: "success",
           timer: 1500,
           showConfirmButton: false,
         });
       } else {
         const data: ApiErrorResponse = await res.json();
-        await Swal.fire("Error", data.error || `Failed to ${actionText.toLowerCase()} user.`, "error");
+        await Swal.fire(t("common.error"), data.error || (user.disabled ? t("usersPage.failedToEnable") : t("usersPage.failedToDisable")), "error");
       }
     } catch {
-      await Swal.fire("Error", "Network error. Please try again.", "error");
+      await Swal.fire(t("common.error"), t("common.networkError"), "error");
     }
   };
 
@@ -190,14 +192,14 @@ export default function UsersPage() {
 
     const actionText = action === "delete" ? "Delete" : action === "disable" ? "Disable" : "Unlock";
     const result = await Swal.fire({
-      title: `${actionText} selected users?`,
-      html: `Are you sure you want to ${actionText.toLowerCase()} <strong>${selectedUserIds.size}</strong> users?${action === "delete" ? "<br/>This action cannot be undone." : ""}`,
+      title: t("common.confirm"),
+      html: `${action === "delete" ? t("usersPage.deleteSelected") : action === "disable" ? t("usersPage.disableSelected") : t("usersPage.enableSelected")} <strong>${selectedUserIds.size}</strong> users?`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: action === "delete" ? "#ef4444" : action === "disable" ? "#f59e0b" : "#10b981",
       cancelButtonColor: "#6b7280",
-      confirmButtonText: `Yes, ${actionText}`,
-      cancelButtonText: "Cancel",
+      confirmButtonText: t("common.confirm"),
+      cancelButtonText: t("common.cancel"),
     });
 
     if (!result.isConfirmed) return;
@@ -218,18 +220,18 @@ export default function UsersPage() {
         }
         setSelectedUserIds(new Set());
         await Swal.fire({
-          title: "Success!",
-          text: `Action applied to ${selectedUserIds.size} users.`,
+          title: t("common.success"),
+          text: action === "delete" ? t("usersPage.successBulkDelete") : action === "disable" ? t("usersPage.successBulkDisable") : t("usersPage.successBulkEnable"),
           icon: "success",
           timer: 1500,
           showConfirmButton: false,
         });
       } else {
         const data: ApiErrorResponse = await res.json();
-        await Swal.fire("Error", data.error || `Failed to perform bulk action.`, "error");
+        await Swal.fire(t("common.error"), data.error || t("usersPage.failedBulkAction"), "error");
       }
     } catch {
-      await Swal.fire("Error", "Network error. Please try again.", "error");
+      await Swal.fire(t("common.error"), t("common.networkError"), "error");
     } finally {
       setIsBulkLoading(false);
     }
@@ -309,14 +311,14 @@ export default function UsersPage() {
         if (data.success) {
           setUsers(prev => prev.map(u => u.id === data.data.id ? data.data : u));
           setIsRoleDialogOpen(false);
-          Swal.fire({ title: "Success", text: "Roles updated successfully.", icon: "success", timer: 1500, showConfirmButton: false });
+          Swal.fire({ title: t("common.success"), text: t("usersPage.successUpdateRoles"), icon: "success", timer: 1500, showConfirmButton: false });
         }
       } else {
         const errorData = await res.json();
-        Swal.fire("Error", errorData.error || "Failed to update roles", "error");
+        Swal.fire(t("common.error"), errorData.error || t("usersPage.failedToUpdateRoles"), "error");
       }
     } catch {
-      Swal.fire("Error", "Network error.", "error");
+      Swal.fire(t("common.error"), t("common.networkError"), "error");
     } finally {
       setIsSavingRoles(false);
     }
@@ -332,9 +334,9 @@ export default function UsersPage() {
         <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <CardTitle className="text-2xl flex items-center gap-2">
             <UsersIcon className="w-6 h-6 text-primary" />
-            Users
+            {t("common.users")}
             {!isLoading && (
-              <Badge variant="secondary">{filteredUsers.length} users</Badge>
+              <Badge variant="secondary">{filteredUsers.length} {t("common.users").toLowerCase()}</Badge>
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
@@ -342,7 +344,7 @@ export default function UsersPage() {
               <DropdownMenu>
                 <DropdownMenuTrigger render={
                   <Button variant="secondary" disabled={isBulkLoading}>
-                    Bulk Actions <ChevronDown className="ml-2 h-4 w-4" />
+                    {t("usersPage.bulkActions")} <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 } />
                 <DropdownMenuContent align="end">
@@ -350,25 +352,25 @@ export default function UsersPage() {
                     <>
                       <DropdownMenuItem onClick={() => handleBulkAction("enable")}>
                         <Unlock className="mr-2 h-4 w-4 text-emerald-500" />
-                        <span>Unlock Selected</span>
+                        <span>{t("usersPage.enableSelected")}</span>
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
                         <Lock className="mr-2 h-4 w-4 text-amber-500" />
-                        <span>Disable Selected</span>
+                        <span>{t("usersPage.disableSelected")}</span>
                       </DropdownMenuItem>
                     </>
                   )}
                   {hasPermission(PERMISSIONS.USERS_DELETE) && (
                     <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-destructive focus:text-destructive">
                       <Trash2 className="mr-2 h-4 w-4" />
-                      <span>Delete Selected</span>
+                      <span>{t("usersPage.deleteSelected")}</span>
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
             <Input
-              placeholder="Search users..."
+              placeholder={t("usersPage.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="sm:w-64"
@@ -394,49 +396,49 @@ export default function UsersPage() {
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("username")}>
                     <div className="flex items-center">
-                      Username
+                      {t("usersPage.tableHeaders.username")}
                       {sortConfig?.key === "username" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("displayName")}>
                     <div className="flex items-center">
-                      Display Name
+                      {t("usersPage.tableHeaders.displayName")}
                       {sortConfig?.key === "displayName" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("email")}>
                     <div className="flex items-center">
-                      Email
+                      {t("usersPage.tableHeaders.email")}
                       {sortConfig?.key === "email" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  <TableHead>Roles</TableHead>
+                  <TableHead>{t("common.roles")}</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
                     <div className="flex items-center">
-                      Title / Role
+                      {t("dashboard.tableHeaders.title")}
                       {sortConfig?.key === "title" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("department")}>
                     <div className="flex items-center">
-                      Department
+                      {t("dashboard.tableHeaders.department")}
                       {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("company")}>
                     <div className="flex items-center">
-                      Company
+                      {t("usersPage.tableHeaders.company")}
                       {sortConfig?.key === "company" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("disabled")}>
                     <div className="flex items-center">
-                      Status
+                      {t("usersPage.tableHeaders.status")}
                       {sortConfig?.key === "disabled" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
-                    <TableHead className="w-24 text-center">Action</TableHead>
+                    <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -475,7 +477,7 @@ export default function UsersPage() {
                               </Badge>
                             ))
                           ) : (
-                            <span className="text-muted-foreground text-xs italic">None</span>
+                            <span className="text-muted-foreground text-xs italic">{t("common.none")}</span>
                           )}
                         </div>
                       </TableCell>
@@ -484,9 +486,9 @@ export default function UsersPage() {
                       <TableCell>{user.company || "-"}</TableCell>
                       <TableCell>
                         {user.disabled ? (
-                          <Badge variant="destructive">Disabled</Badge>
+                          <Badge variant="destructive">{t("usersPage.status.disabled")}</Badge>
                         ) : (
-                          <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">Active</Badge>
+                          <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">{t("usersPage.status.active")}</Badge>
                         )}
                       </TableCell>
                       {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
@@ -498,7 +500,7 @@ export default function UsersPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openRoleDialog(user)}
-                                  title="Manage Roles"
+                                  title={t("usersPage.updateRoles")}
                                   className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                                 >
                                   <Shield className="h-4 w-4" />
@@ -507,7 +509,7 @@ export default function UsersPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleToggleStatus(user)}
-                                  title={user.disabled ? "Unlock User" : "Disable User"}
+                                  title={user.disabled ? t("usersPage.enableSelected") : t("usersPage.disableSelected")}
                                   className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"}
                                 >
                                   {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
@@ -519,7 +521,7 @@ export default function UsersPage() {
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleDelete(user)}
-                                title="Delete User"
+                                title={t("common.delete")}
                                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -533,7 +535,7 @@ export default function UsersPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                      {search ? "No users match your search." : "No users found. Sync data from the Dashboard first."}
+                      {search ? t("dashboard.noUsersMatch") : t("usersPage.noUsersFound")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -546,7 +548,7 @@ export default function UsersPage() {
       <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Manage Roles for {roleDialogUser?.displayName || roleDialogUser?.username}</DialogTitle>
+            <DialogTitle>{t("usersPage.rolesTitle")} - {roleDialogUser?.displayName || roleDialogUser?.username}</DialogTitle>
           </DialogHeader>
           <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2">
             {availableRoles.map(role => (
@@ -562,17 +564,17 @@ export default function UsersPage() {
                   }}
                 />
                 <label htmlFor={`role-${role.id}`} className="text-sm font-medium leading-none cursor-pointer">
-                  {role.name} {role.isSystem && <Badge variant="outline" className="ml-2 text-xs py-0 h-4">System</Badge>}
+                  {role.name} {role.isSystem && <Badge variant="outline" className="ml-2 text-xs py-0 h-4">{t("common.system")}</Badge>}
                 </label>
               </div>
             ))}
             {availableRoles.length === 0 && (
-              <p className="text-muted-foreground text-sm">No roles available.</p>
+              <p className="text-muted-foreground text-sm">{t("rolesPage.noRolesAvailable")}</p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)} disabled={isSavingRoles}>Cancel</Button>
-            <Button onClick={handleSaveRoles} disabled={isSavingRoles}>{isSavingRoles ? "Saving..." : "Save Roles"}</Button>
+            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)} disabled={isSavingRoles}>{t("common.cancel")}</Button>
+            <Button onClick={handleSaveRoles} disabled={isSavingRoles}>{isSavingRoles ? t("rolesPage.saving") : t("usersPage.updateRoles")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -17,17 +17,20 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/components/auth-provider";
 import { PERMISSIONS } from "@/config/permissions";
+import { useLanguage } from "@/components/language-provider";
+import { LanguageToggle } from "@/components/language-toggle";
 
 const NAV_ITEMS = [
-  { title: "Dashboard", href: "/", icon: Server },
-  { title: "Users", href: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
-  { title: "Roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_READ },
-  { title: "Audit Logs", href: "/audit-logs", icon: ClipboardList, permission: PERMISSIONS.AUDIT_LOGS_READ },
+  { titleKey: "common.dashboard", href: "/", icon: Server },
+  { titleKey: "common.users", href: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
+  { titleKey: "common.roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_READ },
+  { titleKey: "common.auditLogs", href: "/audit-logs", icon: ClipboardList, permission: PERMISSIONS.AUDIT_LOGS_READ },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <Sidebar>
@@ -47,7 +50,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>{t("common.navigation")}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.filter((item) => {
@@ -61,7 +64,7 @@ export function AppSidebar() {
                     render={<Link href={item.href} />}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <span>{t(item.titleKey)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -70,12 +73,13 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t">
+      <SidebarFooter className="border-t p-3 space-y-2">
+        <LanguageToggle />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={logout}>
               <LogOut className="h-4 w-4" />
-              <span>Logout</span>
+              <span>{t("common.logout")}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

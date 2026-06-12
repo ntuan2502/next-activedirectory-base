@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
+import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS } from "@/config/permissions";
 
 type AuditLogRecord = {
@@ -44,8 +45,28 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "role:delete": { label: "Delete Role", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
 };
 
+const getActionTranslationKey = (action: string): string => {
+  const mapping: Record<string, string> = {
+    "auth:login": "login",
+    "auth:login_failed": "loginFailed",
+    "auth:logout": "logout",
+    "ldap:test_connection": "ldapTest",
+    "ldap:sync_data": "ldapSync",
+    "user:delete": "deleteUser",
+    "user:update_roles": "updateUserRoles",
+    "users:bulk_delete": "bulkDelete",
+    "users:bulk_disable": "bulkDisable",
+    "users:bulk_enable": "bulkEnable",
+    "role:create": "createRole",
+    "role:update": "updateRole",
+    "role:delete": "deleteRole",
+  };
+  return mapping[action] ? `auditLogsPage.actions.${mapping[action]}` : "";
+};
+
 export default function AuditLogsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const hasPermission = (perm: string) => {
     if (!user?.permissions) return false;
@@ -141,9 +162,11 @@ export default function AuditLogsPage() {
 
   const getActionBadge = (action: string) => {
     const config = ACTION_LABELS[action] || { label: action, color: "bg-muted text-muted-foreground border-muted-foreground/20" };
+    const translationKey = getActionTranslationKey(action);
+    const label = translationKey ? t(translationKey) : config.label;
     return (
       <Badge variant="outline" className={`${config.color} font-medium`}>
-        {config.label}
+        {label}
       </Badge>
     );
   };
@@ -161,10 +184,10 @@ export default function AuditLogsPage() {
           <div>
             <CardTitle className="text-2xl flex items-center gap-2">
               <ClipboardList className="w-6 h-6 text-primary" />
-              Audit Logs
+              {t("auditLogsPage.title")}
             </CardTitle>
             <CardDescription>
-              Monitor the history of modification actions, user account syncs, and system configuration activities.
+              {t("auditLogsPage.description")}
             </CardDescription>
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
@@ -179,7 +202,7 @@ export default function AuditLogsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search operator, target or details..."
+                placeholder={t("auditLogsPage.searchPlaceholder")}
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-9"
@@ -189,22 +212,22 @@ export default function AuditLogsPage() {
               <select
                 value={actionFilter}
                 onChange={(e) => handleFilterChange(e.target.value)}
-                className="flex h-9 w-full sm:w-[220px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-9 w-full sm:w-[220px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="all">All Activities</option>
-                <option value="auth:login">Login Success</option>
-                <option value="auth:login_failed">Login Failed</option>
-                <option value="auth:logout">Logout</option>
-                <option value="ldap:test_connection">LDAP Connection Test</option>
-                <option value="ldap:sync_data">LDAP Sync</option>
-                <option value="user:delete">Delete User</option>
-                <option value="user:update_roles">Update User Roles</option>
-                <option value="users:bulk_delete">Bulk Delete Users</option>
-                <option value="users:bulk_disable">Bulk Disable Users</option>
-                <option value="users:bulk_enable">Bulk Enable Users</option>
-                <option value="role:create">Create Role</option>
-                <option value="role:update">Update Role</option>
-                <option value="role:delete">Delete Role</option>
+                <option value="all">{t("auditLogsPage.allActivities")}</option>
+                <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
+                <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
+                <option value="auth:logout">{t("auditLogsPage.actions.logout")}</option>
+                <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
+                <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
+                <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
+                <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
+                <option value="users:bulk_delete">{t("auditLogsPage.actions.bulkDelete")}</option>
+                <option value="users:bulk_disable">{t("auditLogsPage.actions.bulkDisable")}</option>
+                <option value="users:bulk_enable">{t("auditLogsPage.actions.bulkEnable")}</option>
+                <option value="role:create">{t("auditLogsPage.actions.createRole")}</option>
+                <option value="role:update">{t("auditLogsPage.actions.updateRole")}</option>
+                <option value="role:delete">{t("auditLogsPage.actions.deleteRole")}</option>
               </select>
 
               <select
@@ -213,12 +236,12 @@ export default function AuditLogsPage() {
                   setLimit(parseInt(e.target.value));
                   setPage(1);
                 }}
-                className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="flex h-9 w-[150px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="10">10 rows / page</option>
-                <option value="20">20 rows / page</option>
-                <option value="50">50 rows / page</option>
-                <option value="100">100 rows / page</option>
+                <option value="10">{t("auditLogsPage.rowsPerPage", { count: 10 })}</option>
+                <option value="20">{t("auditLogsPage.rowsPerPage", { count: 20 })}</option>
+                <option value="50">{t("auditLogsPage.rowsPerPage", { count: 50 })}</option>
+                <option value="100">{t("auditLogsPage.rowsPerPage", { count: 100 })}</option>
               </select>
             </div>
           </div>
@@ -228,12 +251,12 @@ export default function AuditLogsPage() {
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead className="w-[200px]">Operator</TableHead>
-                  <TableHead className="w-[200px]">Action</TableHead>
-                  <TableHead>Target</TableHead>
-                  <TableHead className="w-[140px]">IP Address</TableHead>
-                  <TableHead className="w-[100px] text-center">Details</TableHead>
+                  <TableHead className="w-[180px]">{t("auditLogsPage.tableHeaders.timestamp")}</TableHead>
+                  <TableHead className="w-[200px]">{t("auditLogsPage.tableHeaders.operator")}</TableHead>
+                  <TableHead className="w-[200px]">{t("auditLogsPage.tableHeaders.action")}</TableHead>
+                  <TableHead>{t("auditLogsPage.tableHeaders.target")}</TableHead>
+                  <TableHead className="w-[140px]">{t("auditLogsPage.tableHeaders.ipAddress")}</TableHead>
+                  <TableHead className="w-[100px] text-center">{t("auditLogsPage.tableHeaders.details")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,7 +299,7 @@ export default function AuditLogsPage() {
                           size="icon"
                           onClick={() => setSelectedLog(log)}
                           disabled={!log.details}
-                          title={log.details ? "View details" : "No detail data available"}
+                          title={log.details ? t("auditLogsPage.viewDetails") : t("auditLogsPage.noDetailAvailable")}
                         >
                           <Eye className={`h-4 w-4 ${log.details ? "text-primary" : "text-muted-foreground/30"}`} />
                         </Button>
@@ -286,7 +309,7 @@ export default function AuditLogsPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                      No audit log records found.
+                      {t("auditLogsPage.noRecords")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -298,7 +321,7 @@ export default function AuditLogsPage() {
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2">
               <span className="text-sm text-muted-foreground">
-                Showing {logs.length} of {totalCount} records
+                {t("auditLogsPage.showingRecords", { count: logs.length, total: totalCount })}
               </span>
               <div className="flex items-center gap-2">
                 <Button
@@ -310,7 +333,7 @@ export default function AuditLogsPage() {
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div className="text-sm font-medium px-2">
-                  Page {page} of {totalPages}
+                  {t("auditLogsPage.pageOf", { page, total: totalPages })}
                 </div>
                 <Button
                   variant="outline"
@@ -332,26 +355,28 @@ export default function AuditLogsPage() {
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-primary" />
-              Audit Log Details
+              {t("auditLogsPage.dialogTitle")}
             </DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-2 text-sm min-h-0">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-b pb-4">
                 <div>
-                  <span className="text-xs text-muted-foreground block">Action</span>
-                  <span className="font-semibold block mt-0.5">{ACTION_LABELS[selectedLog.action]?.label || selectedLog.action}</span>
+                  <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.action")}</span>
+                  <span className="font-semibold block mt-0.5">
+                    {getActionTranslationKey(selectedLog.action) ? t(getActionTranslationKey(selectedLog.action)) : (ACTION_LABELS[selectedLog.action]?.label || selectedLog.action)}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">Timestamp</span>
+                  <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.timestamp")}</span>
                   <span className="font-semibold block mt-0.5">{formatDateTime(selectedLog.createdAt)}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">Operator</span>
+                  <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.operator")}</span>
                   <span className="font-semibold block mt-0.5">{selectedLog.username}</span>
                 </div>
                 <div>
-                  <span className="text-xs text-muted-foreground block">IP Address</span>
+                  <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.ipAddress")}</span>
                   <span className="font-semibold block mt-0.5">{selectedLog.ipAddress || "-"}</span>
                 </div>
               </div>
@@ -361,26 +386,26 @@ export default function AuditLogsPage() {
                   {/* Before state */}
                   <div className="space-y-1.5 flex flex-col min-h-0">
                     <div className="flex justify-between items-center bg-rose-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-rose-500/20">
-                      <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">Before Changes (Original State)</span>
+                      <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">{t("auditLogsPage.beforeState")}</span>
                     </div>
                     <pre className="flex-1 bg-rose-500/[0.02] dark:bg-rose-500/[0.04] p-4 rounded-b-md text-xs font-mono overflow-auto max-h-[50vh] border border-rose-500/20 select-all">
-                      {diffData.before ? JSON.stringify(diffData.before, null, 2) : "None (New Created)"}
+                      {diffData.before ? JSON.stringify(diffData.before, null, 2) : t("auditLogsPage.noneCreated")}
                     </pre>
                   </div>
 
                   {/* After state */}
                   <div className="space-y-1.5 flex flex-col min-h-0">
                     <div className="flex justify-between items-center bg-emerald-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-emerald-500/20">
-                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">After Changes (New State)</span>
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{t("auditLogsPage.afterState")}</span>
                     </div>
                     <pre className="flex-1 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.04] p-4 rounded-b-md text-xs font-mono overflow-auto max-h-[50vh] border border-emerald-500/20 select-all">
-                      {diffData.after ? JSON.stringify(diffData.after, null, 2) : "None (Deleted)"}
+                      {diffData.after ? JSON.stringify(diffData.after, null, 2) : t("auditLogsPage.noneDeleted")}
                     </pre>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground block">Detail Data</span>
+                  <span className="text-xs text-muted-foreground block">{t("auditLogsPage.detailData")}</span>
                   <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-x-auto max-h-[50vh] border select-all">
                     {selectedLog.details}
                   </pre>
@@ -389,7 +414,7 @@ export default function AuditLogsPage() {
             </div>
           )}
           <DialogFooter className="shrink-0 border-t pt-4">
-            <Button variant="outline" onClick={() => setSelectedLog(null)}>Close</Button>
+            <Button variant="outline" onClick={() => setSelectedLog(null)}>{t("common.close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
