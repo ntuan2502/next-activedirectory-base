@@ -12,12 +12,12 @@ export async function POST() {
       // Bind is handled by withLdapClient — if we reach here, connection is OK
     });
 
-    await logAction("ldap:test_connection", "Thành công");
+    await logAction("ldap:test_connection", "success");
     return NextResponse.json({ success: true, message: "Connection successful" });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to connect to LDAP server";
     console.error("LDAP Test Connection Error:", error);
-    await logAction("ldap:test_connection", "Thất bại", { error: message });
+    await logAction("ldap:test_connection", "failed", { error: message });
     return NextResponse.json(
       { error: message },
       { status: 400 }

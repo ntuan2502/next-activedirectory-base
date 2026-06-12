@@ -195,6 +195,21 @@ export default function AuditLogsPage() {
     setLocalSearch(val);
   };
 
+  const getTargetTranslation = (target: string | null) => {
+    if (!target) return "-";
+    if (target === "success") {
+      return t("auditLogsPage.targets.success");
+    }
+    if (target === "failed") {
+      return t("auditLogsPage.targets.failed");
+    }
+    const userMatch = target.match(/^(\d+) users$/);
+    if (userMatch) {
+      return t("auditLogsPage.targets.users", { count: parseInt(userMatch[1], 10) });
+    }
+    return target;
+  };
+
   const formatDateTime = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -382,8 +397,8 @@ export default function AuditLogsPage() {
                         </div>
                       </TableCell>
                       <TableCell>{getActionBadge(log.action)}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm" title={log.target || ""}>
-                        {log.target || "-"}
+                      <TableCell className="max-w-[200px] truncate text-sm" title={log.target ? getTargetTranslation(log.target) : ""}>
+                        {getTargetTranslation(log.target)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs font-mono">
                         {log.ipAddress || "-"}

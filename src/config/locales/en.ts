@@ -194,6 +194,11 @@ export const en = {
       createRole: "Create Role",
       updateRole: "Update Role",
       deleteRole: "Delete Role",
+    },
+    targets: {
+      success: "Success",
+      failed: "Failed",
+      users: "{{count}} users",
     }
   },
   permissions: {

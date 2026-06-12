@@ -194,6 +194,11 @@ export const vi = {
       createRole: "Tạo vai trò mới",
       updateRole: "Cập nhật vai trò",
       deleteRole: "Xóa vai trò",
+    },
+    targets: {
+      success: "Thành công",
+      failed: "Thất bại",
+      users: "{{count}} người dùng",
     }
   },
   permissions: {
