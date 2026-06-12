@@ -75,6 +75,214 @@ const getActionTranslationKey = (action: string): string => {
   return mapping[action] ? `auditLogsPage.actions.${mapping[action]}` : "";
 };
 
+
+interface DiffViewerProps {
+  before: unknown;
+  after: unknown;
+  t: (key: string, variables?: Record<string, string | number>) => string;
+}
+
+function DiffViewer({ before, after, t }: DiffViewerProps) {
+  const isBeforeObj = !!before && typeof before === "object" && !Array.isArray(before);
+  const isAfterObj = !!after && typeof after === "object" && !Array.isArray(after);
+
+  if (!before && !after) {
+    return <div className="p-4 text-muted-foreground">{t("common.noData")}</div>;
+  }
+
+  // Case 1: Creation (before is null/undefined)
+  if (!before && after) {
+    const keys = typeof after === "object" ? Object.keys(after) : [];
+    const afterObj = after as Record<string, unknown>;
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+        {/* Before */}
+        <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
+          <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+            {t("auditLogsPage.beforeState")}
+          </div>
+          <div className="p-4 flex-1 font-mono text-xs text-rose-600/70 italic flex items-center justify-center min-h-[120px]">
+            {t("auditLogsPage.noneCreated")}
+          </div>
+        </div>
+        {/* After */}
+        <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
+          <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            {t("auditLogsPage.afterState")}
+          </div>
+          <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5 select-all">
+            <div className="text-muted-foreground/60">{"{"}</div>
+            {keys.map((k) => (
+              <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs">
+                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(afterObj[k])}
+              </div>
+            ))}
+            <div className="text-muted-foreground/60">{"}"}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 2: Deletion (after is null/undefined)
+  if (before && !after) {
+    const keys = typeof before === "object" ? Object.keys(before) : [];
+    const beforeObj = before as Record<string, unknown>;
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+        {/* Before */}
+        <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
+          <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+            {t("auditLogsPage.beforeState")}
+          </div>
+          <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5 select-all">
+            <div className="text-muted-foreground/60">{"{"}</div>
+            {keys.map((k) => (
+              <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs">
+                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(beforeObj[k])}
+              </div>
+            ))}
+            <div className="text-muted-foreground/60">{"}"}</div>
+          </div>
+        </div>
+        {/* After */}
+        <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
+          <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            {t("auditLogsPage.afterState")}
+          </div>
+          <div className="p-4 flex-1 font-mono text-xs text-emerald-600/70 italic flex items-center justify-center min-h-[120px]">
+            {t("auditLogsPage.noneDeleted")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 3: Both exist but are not objects (e.g. primitives, arrays)
+  if (!isBeforeObj || !isAfterObj) {
+    const beforeStr = typeof before === "string" ? before : JSON.stringify(before, null, 2);
+    const afterStr = typeof after === "string" ? after : JSON.stringify(after, null, 2);
+    const isChanged = beforeStr !== afterStr;
+
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+        {/* Before */}
+        <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
+          <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+            {t("auditLogsPage.beforeState")}
+          </div>
+          <pre className={`p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 select-all ${isChanged ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300" : "text-muted-foreground/80"}`}>
+            {beforeStr}
+          </pre>
+        </div>
+        {/* After */}
+        <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
+          <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            {t("auditLogsPage.afterState")}
+          </div>
+          <pre className={`p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 select-all ${isChanged ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground/80"}`}>
+            {afterStr}
+          </pre>
+        </div>
+      </div>
+    );
+  }
+
+  // Case 4: Both are objects, line-by-line field comparison
+  const beforeObj = before as Record<string, unknown>;
+  const afterObj = after as Record<string, unknown>;
+  const beforeKeys = Object.keys(beforeObj);
+  const afterKeys = Object.keys(afterObj);
+  const allKeys = [...beforeKeys];
+  for (const k of afterKeys) {
+    if (!allKeys.includes(k)) {
+      allKeys.push(k);
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full flex-1 min-h-0">
+      {/* Before Panel */}
+      <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden">
+        <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400 shrink-0">
+          {t("auditLogsPage.beforeState")}
+        </div>
+        <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 bg-background select-all space-y-0.5">
+          <div className="text-muted-foreground/50 font-mono text-xs">{"{"}</div>
+          {allKeys.map((k) => {
+            const hasBefore = k in beforeObj;
+            const hasAfter = k in afterObj;
+            const valBefore = beforeObj[k];
+            const valAfter = afterObj[k];
+            const isChanged = !hasAfter || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
+
+            if (!hasBefore) {
+              return (
+                <div key={k} className="px-2 py-0.5 font-mono text-xs opacity-0 select-none">
+                  &nbsp;
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={k}
+                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${
+                  isChanged
+                    ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
+                    : "text-muted-foreground/85"
+                }`}
+              >
+                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valBefore)}
+              </div>
+            );
+          })}
+          <div className="text-muted-foreground/50 font-mono text-xs">{"}"}</div>
+        </div>
+      </div>
+
+      {/* After Panel */}
+      <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden">
+        <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
+          {t("auditLogsPage.afterState")}
+        </div>
+        <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 bg-background select-all space-y-0.5">
+          <div className="text-muted-foreground/50 font-mono text-xs">{"{"}</div>
+          {allKeys.map((k) => {
+            const hasBefore = k in beforeObj;
+            const hasAfter = k in afterObj;
+            const valBefore = beforeObj[k];
+            const valAfter = afterObj[k];
+            const isChanged = !hasBefore || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
+
+            if (!hasAfter) {
+              return (
+                <div key={k} className="px-2 py-0.5 font-mono text-xs opacity-0 select-none">
+                  &nbsp;
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={k}
+                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${
+                  isChanged
+                    ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
+                    : "text-muted-foreground/85"
+                }`}
+              >
+                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valAfter)}
+              </div>
+            );
+          })}
+          <div className="text-muted-foreground/50 font-mono text-xs">{"}"}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AuditLogsPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -580,35 +788,7 @@ export default function AuditLogsPage() {
                             {activeBatchUser.username}
                           </Badge>
                         </div>
-                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-0">
-                          {/* Before state */}
-                          <div className="flex flex-col min-h-0 h-full">
-                            <div className="flex justify-between items-center bg-rose-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-rose-500/20">
-                              <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-                                {t("auditLogsPage.beforeState")}
-                              </span>
-                            </div>
-                            <pre className="flex-1 bg-rose-500/[0.02] dark:bg-rose-500/[0.04] p-3 rounded-b-md text-xs font-mono overflow-auto border border-rose-500/20 select-all">
-                              {activeBatchUser.before
-                                ? JSON.stringify(activeBatchUser.before, null, 2)
-                                : t("auditLogsPage.noneCreated")}
-                            </pre>
-                          </div>
-
-                          {/* After state */}
-                          <div className="flex flex-col min-h-0 h-full">
-                            <div className="flex justify-between items-center bg-emerald-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-emerald-500/20">
-                              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                {t("auditLogsPage.afterState")}
-                              </span>
-                            </div>
-                            <pre className="flex-1 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.04] p-3 rounded-b-md text-xs font-mono overflow-auto border border-emerald-500/20 select-all">
-                              {activeBatchUser.after
-                                ? JSON.stringify(activeBatchUser.after, null, 2)
-                                : t("auditLogsPage.noneDeleted")}
-                            </pre>
-                          </div>
-                        </div>
+                        <DiffViewer before={activeBatchUser.before} after={activeBatchUser.after} t={t} />
                       </>
                     ) : (
                       <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/5 text-muted-foreground text-xs font-medium">
@@ -618,27 +798,7 @@ export default function AuditLogsPage() {
                   </div>
                 </div>
               ) : diffData ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Before state */}
-                  <div className="space-y-1.5 flex flex-col min-h-0">
-                    <div className="flex justify-between items-center bg-rose-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-rose-500/20">
-                      <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">{t("auditLogsPage.beforeState")}</span>
-                    </div>
-                    <pre className="flex-1 bg-rose-500/[0.02] dark:bg-rose-500/[0.04] p-4 rounded-b-md text-xs font-mono overflow-auto max-h-[50vh] border border-rose-500/20 select-all">
-                      {diffData.before ? JSON.stringify(diffData.before, null, 2) : t("auditLogsPage.noneCreated")}
-                    </pre>
-                  </div>
-
-                  {/* After state */}
-                  <div className="space-y-1.5 flex flex-col min-h-0">
-                    <div className="flex justify-between items-center bg-emerald-500/10 px-3 py-1.5 rounded-t-md border border-b-0 border-emerald-500/20">
-                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">{t("auditLogsPage.afterState")}</span>
-                    </div>
-                    <pre className="flex-1 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.04] p-4 rounded-b-md text-xs font-mono overflow-auto max-h-[50vh] border border-emerald-500/20 select-all">
-                      {diffData.after ? JSON.stringify(diffData.after, null, 2) : t("auditLogsPage.noneDeleted")}
-                    </pre>
-                  </div>
-                </div>
+                <DiffViewer before={diffData.before} after={diffData.after} t={t} />
               ) : (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground block">{t("auditLogsPage.detailData")}</span>
