@@ -180,7 +180,7 @@ export default function AuditLogsPage() {
 
     const queryString = params.toString();
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
-    
+
     window.history.replaceState(null, "", newUrl);
   }, [page, limit, actionFilter, search, isReady]);
 
@@ -266,8 +266,8 @@ export default function AuditLogsPage() {
 
   const filteredBatchUsers = batchSyncDetails
     ? batchSyncDetails.filter((detail) =>
-        detail.username.toLowerCase().includes(batchUserSearch.toLowerCase())
-      )
+      detail.username.toLowerCase().includes(batchUserSearch.toLowerCase())
+    )
     : [];
 
   const activeBatchUser = filteredBatchUsers[selectedBatchUserIndex] || filteredBatchUsers[0] || null;
@@ -428,7 +428,7 @@ export default function AuditLogsPage() {
                       {t("common.previous")}
                     </PaginationPrevious>
                   </PaginationItem>
-                  
+
                   {getPageNumbers(page, totalPages).map((pageNum, index) => (
                     <PaginationItem key={index}>
                       {typeof pageNum === "string" ? (
@@ -443,7 +443,7 @@ export default function AuditLogsPage() {
                       )}
                     </PaginationItem>
                   ))}
-                  
+
                   <PaginationItem>
                     <PaginationNext
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
@@ -461,7 +461,7 @@ export default function AuditLogsPage() {
 
       {/* Details Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className={`${isBatchSync ? "lg:max-w-[1000px] md:max-w-[850px]" : "lg:max-w-[850px] md:max-w-[750px]"} sm:max-w-[600px] w-full max-h-[85vh] flex flex-col overflow-hidden`}>
+        <DialogContent className="sm:max-w-7xl w-full max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-primary" />
@@ -519,30 +519,27 @@ export default function AuditLogsPage() {
                                 const originalIndex = filteredBatchUsers.indexOf(detail);
                                 setSelectedBatchUserIndex(originalIndex !== -1 ? originalIndex : 0);
                               }}
-                              className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition-colors text-left border ${
-                                isSelected
+                              className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition-colors text-left border ${isSelected
                                   ? "bg-primary text-primary-foreground border-primary"
                                   : "bg-background hover:bg-muted text-foreground border-border"
-                              }`}
+                                }`}
                             >
                               <span className="font-mono truncate mr-2">{detail.username}</span>
                               {isCreated ? (
                                 <Badge
-                                  className={`text-[9px] px-1 py-0 h-4 border ${
-                                    isSelected
+                                  className={`text-[9px] px-1 py-0 h-4 border ${isSelected
                                       ? "bg-emerald-600 text-white border-emerald-500"
                                       : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                  }`}
+                                    }`}
                                 >
                                   {t("auditLogsPage.badgeCreated")}
                                 </Badge>
                               ) : (
                                 <Badge
-                                  className={`text-[9px] px-1 py-0 h-4 border ${
-                                    isSelected
+                                  className={`text-[9px] px-1 py-0 h-4 border ${isSelected
                                       ? "bg-blue-600 text-white border-blue-500"
                                       : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                                  }`}
+                                    }`}
                                 >
                                   {t("auditLogsPage.badgeUpdated")}
                                 </Badge>
