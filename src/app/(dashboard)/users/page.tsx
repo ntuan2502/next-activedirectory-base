@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { Users as UsersIcon, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
+import { Users as UsersIcon, Search, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
+import { RowsPerPage } from "@/components/rows-per-page";
 import Swal from "sweetalert2";
 import { getPageNumbers } from "@/lib/utils";
 import {
@@ -384,60 +385,63 @@ export default function UsersPage() {
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
-             {selectedUserIds.size > 0 && (hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger render={
-                  <Button variant="secondary" disabled={isBulkLoading}>
-                    {t("usersPage.bulkActions")} <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                } />
-                <DropdownMenuContent align="end">
-                  {hasPermission(PERMISSIONS.USERS_UPDATE) && (
-                    <>
-                      <DropdownMenuItem onClick={() => handleBulkAction("enable")}>
-                        <Unlock className="mr-2 h-4 w-4 text-emerald-500" />
-                        <span>{t("usersPage.enableSelected")}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
-                        <Lock className="mr-2 h-4 w-4 text-amber-500" />
-                        <span>{t("usersPage.disableSelected")}</span>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {hasPermission(PERMISSIONS.USERS_DELETE) && (
-                    <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-destructive focus:text-destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      <span>{t("usersPage.deleteSelected")}</span>
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-            <Input
-              placeholder={t("usersPage.searchPlaceholder")}
-              value={localSearch}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="sm:w-64"
-            />
-            <select
-              value={limit}
-              onChange={(e) => {
-                setLimit(parseInt(e.target.value, 10));
-                setPage(1);
-              }}
-              className="flex h-8 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="10">{t("auditLogsPage.rowsPerPage", { count: 10 })}</option>
-              <option value="20">{t("auditLogsPage.rowsPerPage", { count: 20 })}</option>
-              <option value="50">{t("auditLogsPage.rowsPerPage", { count: 50 })}</option>
-              <option value="100">{t("auditLogsPage.rowsPerPage", { count: 100 })}</option>
-            </select>
             <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Controls Bar */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={t("usersPage.searchPlaceholder")}
+                value={localSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-9 h-8"
+              />
+            </div>
+            <div className="flex flex-wrap sm:flex-nowrap gap-3">
+              {selectedUserIds.size > 0 && (hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={
+                    <Button variant="secondary" className="h-8" disabled={isBulkLoading}>
+                      {t("usersPage.bulkActions")} <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  } />
+                  <DropdownMenuContent align="end">
+                    {hasPermission(PERMISSIONS.USERS_UPDATE) && (
+                      <>
+                        <DropdownMenuItem onClick={() => handleBulkAction("enable")}>
+                          <Unlock className="mr-2 h-4 w-4 text-emerald-500" />
+                          <span>{t("usersPage.enableSelected")}</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleBulkAction("disable")}>
+                          <Lock className="mr-2 h-4 w-4 text-amber-500" />
+                          <span>{t("usersPage.disableSelected")}</span>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {hasPermission(PERMISSIONS.USERS_DELETE) && (
+                      <DropdownMenuItem onClick={() => handleBulkAction("delete")} className="text-destructive focus:text-destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        <span>{t("usersPage.deleteSelected")}</span>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
+              <RowsPerPage
+                value={limit}
+                onChange={(newLimit) => {
+                  setLimit(newLimit);
+                  setPage(1);
+                }}
+              />
+            </div>
+          </div>
           <div className="rounded-md border">
             <Table wrapperClassName="max-h-[calc(100vh-220px)]">
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS } from "@/config/permissions";
+import { RowsPerPage } from "@/components/rows-per-page";
 import { getPageNumbers } from "@/lib/utils";
 import {
   Pagination,
@@ -518,49 +519,46 @@ export default function AuditLogsPage() {
           {/* Controls Bar */}
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={t("auditLogsPage.searchPlaceholder")}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9"
+                className="pl-9 h-8"
               />
             </div>
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
-              <select
-                value={actionFilter}
-                onChange={(e) => handleFilterChange(e.target.value)}
-                className="flex h-9 w-full sm:w-[220px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <option value="all">{t("auditLogsPage.allActivities")}</option>
-                <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
-                <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
-                <option value="auth:logout">{t("auditLogsPage.actions.logout")}</option>
-                <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
-                <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
-                <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
-                <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
-                <option value="users:bulk_delete">{t("auditLogsPage.actions.bulkDelete")}</option>
-                <option value="users:bulk_disable">{t("auditLogsPage.actions.bulkDisable")}</option>
-                <option value="users:bulk_enable">{t("auditLogsPage.actions.bulkEnable")}</option>
-                <option value="role:create">{t("auditLogsPage.actions.createRole")}</option>
-                <option value="role:update">{t("auditLogsPage.actions.updateRole")}</option>
-                <option value="role:delete">{t("auditLogsPage.actions.deleteRole")}</option>
-              </select>
+              <div className="relative w-full sm:w-[220px]">
+                <select
+                  value={actionFilter}
+                  onChange={(e) => handleFilterChange(e.target.value)}
+                  className="w-full h-8 pl-3 pr-8 rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <option value="all">{t("auditLogsPage.allActivities")}</option>
+                  <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
+                  <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
+                  <option value="auth:logout">{t("auditLogsPage.actions.logout")}</option>
+                  <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
+                  <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
+                  <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
+                  <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
+                  <option value="users:bulk_delete">{t("auditLogsPage.actions.bulkDelete")}</option>
+                  <option value="users:bulk_disable">{t("auditLogsPage.actions.bulkDisable")}</option>
+                  <option value="users:bulk_enable">{t("auditLogsPage.actions.bulkEnable")}</option>
+                  <option value="role:create">{t("auditLogsPage.actions.createRole")}</option>
+                  <option value="role:update">{t("auditLogsPage.actions.updateRole")}</option>
+                  <option value="role:delete">{t("auditLogsPage.actions.deleteRole")}</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
+              </div>
 
-              <select
+              <RowsPerPage
                 value={limit}
-                onChange={(e) => {
-                  setLimit(parseInt(e.target.value));
+                onChange={(newLimit) => {
+                  setLimit(newLimit);
                   setPage(1);
                 }}
-                className="flex h-9 w-[150px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="10">{t("auditLogsPage.rowsPerPage", { count: 10 })}</option>
-                <option value="20">{t("auditLogsPage.rowsPerPage", { count: 20 })}</option>
-                <option value="50">{t("auditLogsPage.rowsPerPage", { count: 50 })}</option>
-                <option value="100">{t("auditLogsPage.rowsPerPage", { count: 100 })}</option>
-              </select>
+              />
             </div>
           </div>
 
