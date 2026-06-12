@@ -52,7 +52,7 @@ export default function UsersPage() {
     if (!user?.permissions) return false;
     if (user.permissions.includes("*")) return true;
     return user.permissions.includes(perm);
-  }, [user?.permissions]);
+  }, [user]);
 
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [search, setSearch] = useState("");
@@ -67,6 +67,7 @@ export default function UsersPage() {
   const [isSavingRoles, setIsSavingRoles] = useState(false);
 
   const fetchUsers = useCallback(async () => {
+    await Promise.resolve();
     setIsLoading(true);
     setSelectedUserIds(new Set());
     try {
@@ -99,8 +100,10 @@ export default function UsersPage() {
   }, []);
 
   useEffect(() => {
-    fetchUsers();
-    fetchRoles();
+    Promise.resolve().then(() => {
+      fetchUsers();
+      fetchRoles();
+    });
   }, [fetchUsers, fetchRoles]);
 
   const handleDelete = async (user: UserRecord) => {

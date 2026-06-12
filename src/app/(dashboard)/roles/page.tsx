@@ -49,6 +49,7 @@ export default function RolesPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchRoles = useCallback(async () => {
+    await Promise.resolve();
     setIsLoading(true);
     try {
       const res = await fetch("/api/roles");
@@ -66,7 +67,9 @@ export default function RolesPage() {
   }, []);
 
   useEffect(() => {
-    fetchRoles();
+    Promise.resolve().then(() => {
+      fetchRoles();
+    });
   }, [fetchRoles]);
 
   const openCreateDialog = () => {
