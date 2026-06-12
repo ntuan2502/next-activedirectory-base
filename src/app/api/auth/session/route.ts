@@ -18,7 +18,17 @@ export async function GET() {
 
   const dbUser = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { displayName: true, email: true },
+    select: {
+      displayName: true,
+      email: true,
+      createdAt: true,
+      roles: {
+        select: {
+          name: true,
+          description: true,
+        },
+      },
+    },
   });
 
   const email = dbUser?.email || "";
@@ -38,6 +48,8 @@ export async function GET() {
       displayName,
       email,
       avatarUrl,
+      createdAt: dbUser?.createdAt ? dbUser.createdAt.toISOString() : null,
+      roles: dbUser?.roles || [],
       permissions,
     },
   });

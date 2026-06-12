@@ -10,6 +10,8 @@ type SessionUser = {
   displayName?: string;
   email?: string;
   avatarUrl?: string;
+  createdAt?: string | null;
+  roles?: { name: string; description: string | null }[];
   permissions?: string[];
 };
 
