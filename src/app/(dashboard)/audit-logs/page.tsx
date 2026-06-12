@@ -84,6 +84,7 @@ export default function AuditLogsPage() {
   const [limit, setLimit] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [isReady, setIsReady] = useState(false);
 
   // Dialog details state
   const [selectedLog, setSelectedLog] = useState<AuditLogRecord | null>(null);
@@ -101,6 +102,7 @@ export default function AuditLogsPage() {
   }
 
   const fetchLogs = useCallback(async () => {
+    if (!isReady) return;
     setIsLoading(true);
     try {
       const queryParams = new URLSearchParams({
@@ -124,13 +126,47 @@ export default function AuditLogsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, actionFilter, search]);
+  }, [page, limit, actionFilter, search, isReady]);
 
+  // Load initial state from URL search params on mount
   useEffect(() => {
+    Promise.resolve().then(() => {
+      const params = new URLSearchParams(window.location.search);
+      const p = parseInt(params.get("page") || "1", 10);
+      const l = parseInt(params.get("limit") || "20", 10);
+      const a = params.get("action") || "all";
+      const s = params.get("search") || "";
+
+      setPage(p);
+      setLimit(l);
+      setActionFilter(a);
+      setSearch(s);
+      setIsReady(true);
+    });
+  }, []);
+
+  // Fetch logs when states change and page is ready
+  useEffect(() => {
+    if (!isReady) return;
     Promise.resolve().then(() => {
       fetchLogs();
     });
-  }, [fetchLogs]);
+  }, [fetchLogs, isReady]);
+
+  // Synchronize state changes to URL query string
+  useEffect(() => {
+    if (!isReady) return;
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", page.toString());
+    if (limit !== 20) params.set("limit", limit.toString());
+    if (actionFilter !== "all") params.set("action", actionFilter);
+    if (search.trim()) params.set("search", search.trim());
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
+    
+    window.history.replaceState(null, "", newUrl);
+  }, [page, limit, actionFilter, search, isReady]);
 
 
   // Reset page when filter changes
