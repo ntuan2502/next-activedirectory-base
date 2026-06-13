@@ -15,7 +15,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
-import { TopProgressBar } from "@/components/top-progress-bar";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
 import { DEFAULT_LIMIT } from "@/config/constants";
@@ -535,7 +534,6 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <TopProgressBar isLoading={isLoading} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">

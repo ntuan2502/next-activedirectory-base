@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { GlobalProgressBar } from "@/components/top-progress-bar";
 
 export default function DashboardLayout({
   children,
@@ -12,6 +13,7 @@ export default function DashboardLayout({
 }>) {
   return (
     <SidebarProvider>
+      <GlobalProgressBar />
       <AppSidebar />
       <SidebarInset className="max-h-svh overflow-auto">
         <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center justify-between border-b bg-background px-4">

@@ -260,7 +260,15 @@ export default function RolesPage() {
 
       <Card className="shadow-lg border-muted/60">
         <CardContent className="pt-6">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {isLoading && roles.length > 0 && (
+              <div className="absolute inset-0 bg-background/40 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-auto animate-in fade-in duration-200">
+                <div className="bg-background/90 p-4 rounded-xl shadow-lg border border-muted/80 flex flex-col items-center gap-2">
+                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-muted-foreground">{t("common.loading")}</span>
+                </div>
+              </div>
+            )}
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
@@ -271,8 +279,8 @@ export default function RolesPage() {
                   <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {isLoading ? (
+              <TableBody className={`transition-opacity duration-200 ${isLoading && roles.length > 0 ? "opacity-50" : ""}`}>
+                {isLoading && roles.length === 0 ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <TableRow key={i}>
                       {Array.from({ length: 5 }).map((_, j) => (

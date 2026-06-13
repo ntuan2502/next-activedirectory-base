@@ -2,21 +2,24 @@
 
 import { useState, useEffect } from "react";
 
-interface TopProgressBarProps {
-  isLoading: boolean;
-}
-
-export function TopProgressBar({ isLoading }: TopProgressBarProps) {
+export function GlobalProgressBar() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showProgress, setShowProgress] = useState(false);
 
   useEffect(() => {
+    let activeRequests = 0;
     let interval: NodeJS.Timeout;
     let timeout: NodeJS.Timeout;
     let initTimeout: NodeJS.Timeout;
     let endTimeout: NodeJS.Timeout;
+    let debounceTimeout: NodeJS.Timeout | null = null;
 
-    if (isLoading) {
+    const startLoading = () => {
+      if (interval) clearInterval(interval);
+      if (timeout) clearTimeout(timeout);
+      if (initTimeout) clearTimeout(initTimeout);
+      if (endTimeout) clearTimeout(endTimeout);
+
       initTimeout = setTimeout(() => {
         setShowProgress(true);
         setLoadingProgress(10);
@@ -31,7 +34,12 @@ export function TopProgressBar({ isLoading }: TopProgressBarProps) {
           return prev;
         });
       }, 100);
-    } else {
+    };
+
+    const stopLoading = () => {
+      if (interval) clearInterval(interval);
+      if (initTimeout) clearTimeout(initTimeout);
+      
       endTimeout = setTimeout(() => {
         setLoadingProgress(100);
       }, 0);
@@ -40,15 +48,54 @@ export function TopProgressBar({ isLoading }: TopProgressBarProps) {
         setShowProgress(false);
         setLoadingProgress(0);
       }, 250);
-    }
+    };
+
+    // Monkey-patch window.fetch to capture all HTTP calls
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const url = typeof args[0] === "string" ? args[0] : (args[0] as Request).url || "";
+      // Exclude background polling requests to prevent UI annoyance
+      const isBackground = url.includes("/sync/status") || url.includes("/ldap/sync/status");
+
+      if (!isBackground) {
+        activeRequests++;
+        if (activeRequests === 1) {
+          if (debounceTimeout) {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = null;
+          } else {
+            startLoading();
+          }
+        }
+      }
+
+      try {
+        const response = await originalFetch(...args);
+        return response;
+      } finally {
+        if (!isBackground) {
+          activeRequests--;
+          if (activeRequests === 0) {
+            if (debounceTimeout) clearTimeout(debounceTimeout);
+            
+            debounceTimeout = setTimeout(() => {
+              stopLoading();
+              debounceTimeout = null;
+            }, 180); // 180ms delay to bridge sequential requests seamlessly
+          }
+        }
+      }
+    };
 
     return () => {
+      window.fetch = originalFetch; // Restore original fetch on unmount
       if (interval) clearInterval(interval);
       if (timeout) clearTimeout(timeout);
       if (initTimeout) clearTimeout(initTimeout);
       if (endTimeout) clearTimeout(endTimeout);
+      if (debounceTimeout) clearTimeout(debounceTimeout);
     };
-  }, [isLoading]);
+  }, []);
 
   if (!showProgress) return null;
 
