@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
+import { TopProgressBar } from "@/components/top-progress-bar";
 import { useLanguage } from "@/components/language-provider";
 import { useSettings } from "@/components/settings-provider";
 import { PERMISSIONS } from "@/config/permissions";
@@ -419,6 +420,8 @@ export default function AuditLogsPage() {
     setLocalSearch(val);
   };
 
+
+
   const getTargetTranslation = (target: string | null) => {
     if (!target) return "-";
     if (target === "success") {
@@ -571,6 +574,7 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
+      <TopProgressBar isLoading={isLoading} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
@@ -643,7 +647,15 @@ export default function AuditLogsPage() {
           </div>
 
           {/* Logs Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {isLoading && logs.length > 0 && (
+              <div className="absolute inset-0 bg-background/40 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-auto animate-in fade-in duration-200">
+                <div className="bg-background/90 p-4 rounded-xl shadow-lg border border-muted/80 flex flex-col items-center gap-2">
+                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-muted-foreground">{t("common.loading")}</span>
+                </div>
+              </div>
+            )}
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
@@ -655,9 +667,9 @@ export default function AuditLogsPage() {
                   <TableHead className="w-[100px] text-center">{t("auditLogsPage.tableHeaders.details")}</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
+              <TableBody className={`transition-opacity duration-200 ${isLoading && logs.length > 0 ? "opacity-50" : ""}`}>
+                {isLoading && logs.length === 0 ? (
+                  Array.from({ length: limit || 5 }).map((_, i) => (
                     <TableRow key={i}>
                       {Array.from({ length: 6 }).map((_, j) => (
                         <TableCell key={j}>
@@ -688,51 +700,61 @@ export default function AuditLogsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">
-                          <div className="flex flex-col">
+                          <div className="flex flex-col min-h-[2.5rem] justify-center">
                             <span>{log.username}</span>
-                            {log.user?.displayName && (
-                              <span className="text-[10px] text-muted-foreground font-normal">
-                                {log.user.displayName}
-                              </span>
-                            )}
+                            <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[180px]">
+                              {log.user?.displayName || "\u00A0"}
+                            </span>
                           </div>
                         </TableCell>
-                        <TableCell>{getActionBadge(log.action)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center min-h-[2.5rem]">
+                            {getActionBadge(log.action)}
+                          </div>
+                        </TableCell>
                         <TableCell className="max-w-[200px] truncate text-sm" title={log.target ? getTargetTranslation(log.target) : ""}>
-                          <div className="flex flex-col">
-                            <span className="font-semibold">{getTargetTranslation(log.target)}</span>
+                          <div className="flex flex-col min-h-[2.5rem] justify-center">
+                            <span className="font-semibold truncate max-w-[180px]">{getTargetTranslation(log.target)}</span>
                             {(() => {
                               if (["auth:login", "auth:logout", "auth:login_failed"].includes(log.action) && log.details) {
                                 try {
                                   const detailsObj = JSON.parse(log.details);
                                   const ua = detailsObj?.userAgent;
-                                  const sessId = detailsObj?.sessionId;
                                   const { browser, os } = ua ? parseUserAgent(ua) : { browser: "", os: "" };
-                                  return (
-                                    <div className="text-[10px] text-muted-foreground font-normal space-y-0.5 mt-0.5">
-                                      {browser && <div>{browser} on {os}</div>}
-                                      {sessId && <div className="font-mono text-[9px] text-muted-foreground/75 truncate max-w-[180px]" title={sessId}>Session: {sessId.slice(0, 8)}...</div>}
-                                    </div>
-                                  );
+                                  if (browser && os) {
+                                    return (
+                                      <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[180px]" title={`${browser} on ${os}`}>
+                                        {browser} on {os}
+                                      </span>
+                                    );
+                                  }
                                 } catch { }
                               }
-                              return null;
+                              return (
+                                <span className="text-[10px] text-muted-foreground/0 font-normal select-none">
+                                  &nbsp;
+                                </span>
+                              );
                             })()}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs font-mono">
-                          {log.ipAddress || "-"}
+                          <div className="flex items-center min-h-[2.5rem]">
+                            {log.ipAddress || "-"}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setSelectedLog(log)}
-                            disabled={!log.details}
-                            title={log.details ? t("auditLogsPage.viewDetails") : t("auditLogsPage.noDetailAvailable")}
-                          >
-                            <Eye className={`h-4 w-4 ${log.details ? "text-primary" : "text-muted-foreground/30"}`} />
-                          </Button>
+                          <div className="flex items-center justify-center min-h-[2.5rem]">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setSelectedLog(log)}
+                              disabled={!log.details}
+                              title={log.details ? t("auditLogsPage.viewDetails") : t("auditLogsPage.noDetailAvailable")}
+                            >
+                              <Eye className={`h-4 w-4 ${log.details ? "text-primary" : "text-muted-foreground/30"}`} />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

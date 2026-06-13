@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
+import { TopProgressBar } from "@/components/top-progress-bar";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
 import { DEFAULT_LIMIT } from "@/config/constants";
@@ -178,6 +179,8 @@ export default function UsersPage() {
   const handleSearchChange = (val: string) => {
     setLocalSearch(val);
   };
+
+
 
   const fetchUsers = useCallback(async () => {
     if (!isReady) return;
@@ -532,13 +535,16 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
+      <TopProgressBar isLoading={isLoading} />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
             <UsersIcon className="w-8 h-8 text-primary" />
             {t("common.users")}
-            {!isLoading && (
-              <Badge variant="secondary" className="ml-2">{totalCount} {t("common.users").toLowerCase()}</Badge>
+            {(totalCount > 0 || !isLoading) && (
+              <Badge variant="secondary" className={`ml-2 transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
+                {totalCount} {t("common.users").toLowerCase()}
+              </Badge>
             )}
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -611,7 +617,15 @@ export default function UsersPage() {
               />
             </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto relative">
+            {isLoading && users.length > 0 && (
+              <div className="absolute inset-0 bg-background/40 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-auto animate-in fade-in duration-200">
+                <div className="bg-background/90 p-4 rounded-xl shadow-lg border border-muted/80 flex flex-col items-center gap-2">
+                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-xs font-medium text-muted-foreground">{t("common.loading")}</span>
+                </div>
+              </div>
+            )}
             <Table wrapperClassName="max-h-[calc(100vh-220px)]">
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
@@ -672,9 +686,9 @@ export default function UsersPage() {
                   )}
                 </TableRow>
               </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
+               <TableBody className={`transition-opacity duration-200 ${isLoading && users.length > 0 ? "opacity-50" : ""}`}>
+                {isLoading && users.length === 0 ? (
+                  Array.from({ length: limit || 5 }).map((_, i) => (
                     <TableRow key={i}>
                       {Array.from({ length: 10 }).map((_, j) => (
                         <TableCell key={j}>
