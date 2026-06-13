@@ -734,28 +734,39 @@ export default function AccountPage() {
                     {t("accountPage.themeSubtitle")}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={() => updateSetting("theme", "light")}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                    className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
                       theme === "light"
                         ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
                         : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <Sun className="h-4 w-4" />
-                    <span>Light</span>
+                    <span>{t("common.light")}</span>
                   </button>
                   <button
                     onClick={() => updateSetting("theme", "dark")}
-                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                    className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
                       theme === "dark"
                         ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
                         : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <Moon className="h-4 w-4" />
-                    <span>Dark</span>
+                    <span>{t("common.dark")}</span>
+                  </button>
+                  <button
+                    onClick={() => updateSetting("theme", "system")}
+                    className={`flex items-center justify-center gap-2 px-3 py-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                      theme === "system" || !theme
+                        ? "border-primary bg-primary/5 text-primary ring-1 ring-primary"
+                        : "border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Laptop className="h-4 w-4" />
+                    <span>{t("common.system")}</span>
                   </button>
                 </div>
               </div>

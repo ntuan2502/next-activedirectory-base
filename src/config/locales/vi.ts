@@ -38,6 +38,8 @@ export const vi = {
     navigation: "Menu điều hướng",
     none: "Không có",
     system: "Hệ thống",
+    light: "Sáng",
+    dark: "Tối",
   },
   loginPage: {
     title: "Active Directory Sync",

@@ -57,7 +57,7 @@ export default function LoginPage() {
         <div className="w-36">
           <LanguageToggle />
         </div>
-        <ThemeToggle />
+        <ThemeToggle className="w-32" />
       </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">

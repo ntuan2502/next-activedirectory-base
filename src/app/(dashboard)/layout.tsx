@@ -26,7 +26,7 @@ export default function DashboardLayout({
             <div className="w-36">
               <LanguageToggle />
             </div>
-            <ThemeToggle />
+            <ThemeToggle className="w-32" />
           </div>
         </header>
         <div className="flex-1 p-6">

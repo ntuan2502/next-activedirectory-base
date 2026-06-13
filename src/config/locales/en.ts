@@ -38,6 +38,8 @@ export const en = {
     navigation: "Navigation",
     none: "None",
     system: "System",
+    light: "Light",
+    dark: "Dark",
   },
   loginPage: {
     title: "Active Directory Sync",

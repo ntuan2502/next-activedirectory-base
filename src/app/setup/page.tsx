@@ -173,7 +173,7 @@ export default function InitialSetupPage() {
         <div className="w-36">
           <LanguageToggle />
         </div>
-        <ThemeToggle />
+        <ThemeToggle className="w-32" />
       </div>
 
       <div className="flex-1 flex flex-col justify-center max-w-xl w-full mx-auto space-y-8">
