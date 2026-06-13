@@ -365,27 +365,30 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header Info */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-          {t("accountPage.title")}
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("accountPage.subtitle")}
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            <User className="w-8 h-8 text-primary" />
+            {t("accountPage.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("accountPage.subtitle")}
+          </p>
+        </div>
       </div>
 
       {/* Main Grid Layout: Asymmetric Column Tension (7/5 split) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* LEFT COLUMN: Profiles & Passwords */}
-        <div className="lg:col-span-7 space-y-8">
+        <div className="lg:col-span-7 space-y-6">
           
           {/* PROFILE SETTINGS CARD */}
           <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-muted/5 p-6">
-              <div className="flex flex-col sm:flex-row items-center gap-6">
+            <CardHeader className="border-b bg-muted/5 pb-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
                 <UserAvatar
                   avatarUrl={user?.avatarUrl}
                   displayName={user?.displayName}
@@ -419,7 +422,7 @@ export default function AccountPage() {
             </CardHeader>
 
             <form onSubmit={handleSaveProfile}>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Username */}
                   <div className="space-y-2">
@@ -502,7 +505,7 @@ export default function AccountPage() {
 
           {/* PASSWORD CARD */}
           <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-muted/5 p-6">
+            <CardHeader className="border-b bg-muted/5 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
                   <KeyRound className="h-4 w-4" />
@@ -518,7 +521,7 @@ export default function AccountPage() {
               </div>
             </CardHeader>
             <form onSubmit={handleUpdatePassword}>
-              <CardContent className="p-6 space-y-6">
+              <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Current Password */}
                   <div className="space-y-2 sm:col-span-2">
@@ -622,7 +625,7 @@ export default function AccountPage() {
 
           {/* ROLES & PERMISSIONS CARD */}
           <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-muted/5 p-6">
+            <CardHeader className="border-b bg-muted/5 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
                   <ShieldCheck className="h-4 w-4" />
@@ -637,7 +640,7 @@ export default function AccountPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="space-y-4">
               {/* User Roles */}
               <div className="space-y-3">
                 {user?.roles && user.roles.length > 0 ? (
@@ -670,7 +673,7 @@ export default function AccountPage() {
               </div>
 
               {/* User Permissions */}
-              <div className="space-y-3 border-t pt-5">
+              <div className="space-y-3 border-t pt-4">
                 <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                   {t("accountPage.globalPermissions")}
                 </Label>
@@ -704,11 +707,11 @@ export default function AccountPage() {
         </div>
 
         {/* RIGHT COLUMN: Preferences, Roles, Active Sessions, Danger Zone */}
-        <div className="lg:col-span-5 space-y-8">
+        <div className="lg:col-span-5 space-y-6">
           
           {/* DISPLAY PREFERENCES CARD */}
           <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-muted/5 p-6">
+            <CardHeader className="border-b bg-muted/5 pb-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
                   <Sliders className="h-4 w-4" />
@@ -723,7 +726,7 @@ export default function AccountPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="space-y-4">
               {/* Theme Settings */}
               <div className="space-y-3">
                 <div>
@@ -772,7 +775,7 @@ export default function AccountPage() {
               </div>
 
               {/* Language Settings */}
-              <div className="space-y-3 border-t pt-5">
+              <div className="space-y-3 border-t pt-4">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                     {t("accountPage.language")}
@@ -785,7 +788,7 @@ export default function AccountPage() {
               </div>
 
               {/* Font Family Settings */}
-              <div className="space-y-3 border-t pt-5">
+              <div className="space-y-3 border-t pt-4">
                 <div>
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
                     {t("accountPage.fontFamily")}
@@ -816,7 +819,7 @@ export default function AccountPage() {
               </div>
 
               {/* Font Size Settings */}
-              <div className="space-y-3 border-t pt-5">
+              <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block">
@@ -852,7 +855,7 @@ export default function AccountPage() {
               </div>
 
               {/* Date & Time Format Settings */}
-              <div className="space-y-4 border-t pt-5">
+              <div className="space-y-4 border-t pt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Date Format */}
                   <div className="space-y-2">
@@ -920,7 +923,7 @@ export default function AccountPage() {
 
           {/* ACTIVE SESSIONS & SECURITY CARD */}
           <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-            <CardHeader className="border-b bg-muted/5 p-6">
+            <CardHeader className="border-b bg-muted/5 pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary border border-primary/20">
@@ -947,7 +950,7 @@ export default function AccountPage() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="space-y-4">
               {/* Sessions List */}
               <div className="space-y-4">
                 {sessionsLoading ? (
@@ -1022,7 +1025,7 @@ export default function AccountPage() {
               </div>
 
               {/* DANGER ZONE / SECURITY ACTIONS */}
-              <div className="border-t border-destructive/20 bg-destructive/5 -mx-6 -mb-6 p-6 space-y-5">
+              <div className="border-t border-destructive/20 bg-destructive/5 -mx-4 -mb-4 p-4 space-y-4">
                 <div className="flex items-center gap-2 text-destructive">
                   <LogOut className="h-4 w-4" />
                   <span className="text-xs font-bold uppercase tracking-wider">
