@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
 import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone, ShieldCheck } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -571,24 +571,25 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <ClipboardList className="w-6 h-6 text-primary" />
-              {t("auditLogsPage.title")}
-            </CardTitle>
-            <CardDescription>
-              {t("auditLogsPage.description")}
-            </CardDescription>
-          </div>
-          <div className="flex gap-3 w-full sm:w-auto">
-            <Button variant="outline" size="icon" onClick={fetchLogs} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            <ClipboardList className="w-8 h-8 text-primary" />
+            {t("auditLogsPage.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("auditLogsPage.description")}
+          </p>
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto">
+          <Button variant="outline" size="icon" onClick={fetchLogs} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      <Card className="shadow-lg border-muted/60">
+        <CardContent className="pt-6 space-y-4">
           {/* Controls Bar */}
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
@@ -642,7 +643,7 @@ export default function AuditLogsPage() {
           </div>
 
           {/* Logs Table */}
-          <div className="rounded-md border">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>

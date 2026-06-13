@@ -138,7 +138,7 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(t("dashboard.successTest"));
+        toast.success(t("settingsPage.successTest"));
       } else {
         toast.error(data.error || "Connection test failed");
       }
@@ -240,7 +240,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
           <Server className="w-8 h-8 text-primary" />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Shield, Plus, Edit, Trash2, CheckSquare, Square, RefreshCw, Eye } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -235,31 +235,32 @@ export default function RolesPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Shield className="w-6 h-6 text-primary" />
-              {t("rolesPage.title")}
-            </CardTitle>
-            <CardDescription>
-              {t("rolesPage.description")}
-            </CardDescription>
-          </div>
-          <div className="flex gap-3 w-full sm:w-auto">
-            {hasPermission(PERMISSIONS.ROLES_CREATE) && (
-              <Button onClick={openCreateDialog}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("rolesPage.createRole")}
-              </Button>
-            )}
-            <Button variant="outline" size="icon" onClick={fetchRoles} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            <Shield className="w-8 h-8 text-primary" />
+            {t("rolesPage.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("rolesPage.description")}
+          </p>
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto">
+          {hasPermission(PERMISSIONS.ROLES_CREATE) && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("rolesPage.createRole")}
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
+          )}
+          <Button variant="outline" size="icon" onClick={fetchRoles} disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      <Card className="shadow-lg border-muted/60">
+        <CardContent className="pt-6">
+          <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>

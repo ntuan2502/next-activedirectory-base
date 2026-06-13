@@ -108,7 +108,7 @@ export default function InitialSetupPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(t("dashboard.successTest") || "Kiểm tra kết nối LDAP thành công.");
+        toast.success(t("setupPage.successTest") || "Kiểm tra kết nối LDAP thành công.");
       } else {
         toast.error(data.error || t("setupPage.errorLdapTest") || "Kiểm tra kết nối thất bại");
       }

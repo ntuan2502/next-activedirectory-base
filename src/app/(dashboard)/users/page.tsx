@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
 import { Users as UsersIcon, Search, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -285,7 +285,7 @@ export default function UsersPage() {
       });
       const data: SyncSuccessResponse | ApiErrorResponse = await res.json();
       if (res.ok && "syncedCount" in data) {
-        toast.success(t("dashboard.successSync", { count: data.syncedCount }));
+        toast.success(t("usersPage.successSync", { count: data.syncedCount }));
         setIsSyncDialogOpen(false);
         // Refresh users list in Users Page directly
         fetchUsers();
@@ -532,28 +532,34 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <CardTitle className="text-2xl flex items-center gap-2">
-            <UsersIcon className="w-6 h-6 text-primary" />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            <UsersIcon className="w-8 h-8 text-primary" />
             {t("common.users")}
             {!isLoading && (
-              <Badge variant="secondary">{totalCount} {t("common.users").toLowerCase()}</Badge>
+              <Badge variant="secondary" className="ml-2">{totalCount} {t("common.users").toLowerCase()}</Badge>
             )}
-          </CardTitle>
-          <div className="flex gap-3 w-full sm:w-auto">
-            {hasPermission(PERMISSIONS.LDAP_SYNC) && (
-              <Button onClick={() => handleOpenSyncDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold">
-                <UsersIcon className="w-4 h-4 mr-2" />
-                {t("dashboard.syncData")}
-              </Button>
-            )}
-            <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("usersPage.subtitle")}
+          </p>
+        </div>
+        <div className="flex gap-3 w-full sm:w-auto">
+          {hasPermission(PERMISSIONS.LDAP_SYNC) && (
+            <Button onClick={() => handleOpenSyncDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold">
+              <UsersIcon className="w-4 h-4 mr-2" />
+              {t("usersPage.syncData")}
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          )}
+          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      <Card className="shadow-lg border-muted/60">
+        <CardContent className="pt-6 space-y-4">
           {/* Controls Bar */}
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
@@ -605,7 +611,7 @@ export default function UsersPage() {
               />
             </div>
           </div>
-          <div className="rounded-md border">
+          <div className="overflow-x-auto">
             <Table wrapperClassName="max-h-[calc(100vh-220px)]">
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
@@ -639,13 +645,13 @@ export default function UsersPage() {
                   <TableHead>{t("common.roles")}</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("title")}>
                     <div className="flex items-center">
-                      {t("dashboard.tableHeaders.title")}
+                      {t("usersPage.tableHeaders.title")}
                       {sortConfig?.key === "title" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("department")}>
                     <div className="flex items-center">
-                      {t("dashboard.tableHeaders.department")}
+                      {t("usersPage.tableHeaders.department")}
                       {sortConfig?.key === "department" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
@@ -759,7 +765,7 @@ export default function UsersPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                      {search ? t("dashboard.noUsersMatch") : t("usersPage.noUsersFound")}
+                      {search ? t("usersPage.noUsersMatch") : t("usersPage.noUsersFound")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -853,18 +859,18 @@ export default function UsersPage() {
           <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <DialogTitle className="flex items-center gap-2">
-                {t("dashboard.syncPreviewTitle")}
+                {t("usersPage.syncPreviewTitle")}
                 {!isPreviewLoading && (
                   <Badge variant="secondary">{filteredPreviewUsers.length} {t("common.users").toLowerCase()}</Badge>
                 )}
               </DialogTitle>
               <DialogDescription className="mt-1">
-                {t("dashboard.syncPreviewDesc")}
+                {t("usersPage.syncPreviewDesc")}
               </DialogDescription>
             </div>
             <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
               <Input
-                placeholder={t("dashboard.searchPlaceholder")}
+                placeholder={t("usersPage.syncSearchPlaceholder")}
                 value={syncSearch}
                 onChange={(e) => setSyncSearch(e.target.value)}
                 className="sm:w-64"
@@ -882,7 +888,7 @@ export default function UsersPage() {
               </div>
             ) : filteredPreviewUsers.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                {syncSearch ? t("dashboard.noUsersMatch") : t("dashboard.noUsersFound")}
+                {syncSearch ? t("usersPage.noUsersMatch") : t("usersPage.noLdapUsersFound")}
               </div>
             ) : (
               <div className="border rounded-md flex-1 overflow-hidden flex flex-col">
@@ -899,37 +905,37 @@ export default function UsersPage() {
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("username")}>
                         <div className="flex items-center">
-                          {t("dashboard.tableHeaders.username")}
+                          {t("usersPage.syncTableHeaders.username")}
                           {syncSortConfig?.key === "username" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("displayName")}>
                         <div className="flex items-center">
-                          {t("dashboard.tableHeaders.displayName")}
+                          {t("usersPage.syncTableHeaders.displayName")}
                           {syncSortConfig?.key === "displayName" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("email")}>
                         <div className="flex items-center">
-                          {t("dashboard.tableHeaders.email")}
+                          {t("usersPage.syncTableHeaders.email")}
                           {syncSortConfig?.key === "email" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("title")}>
                         <div className="flex items-center">
-                          {t("dashboard.tableHeaders.title")}
+                          {t("usersPage.syncTableHeaders.title")}
                           {syncSortConfig?.key === "title" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("department")}>
                         <div className="flex items-center">
-                          {t("dashboard.tableHeaders.department")}
+                          {t("usersPage.syncTableHeaders.department")}
                           {syncSortConfig?.key === "department" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                       </TableHead>
                       <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("company")}>
                         <div className="flex items-center">
-                          {t("dashboard.tableHeaders.company")}
+                          {t("usersPage.syncTableHeaders.company")}
                           {syncSortConfig?.key === "company" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
                         </div>
                       </TableHead>
@@ -958,12 +964,12 @@ export default function UsersPage() {
                                 <span>{u.email}</span>
                                 {isTest && (
                                   <Badge variant="outline" className="text-destructive border-destructive text-[10px] py-0 px-1.5 h-4 font-semibold">
-                                    {t("dashboard.testAccount")}
+                                    {t("usersPage.testAccount")}
                                   </Badge>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-destructive text-xs font-semibold">{t("dashboard.missingEmail")}</span>
+                              <span className="text-destructive text-xs font-semibold">{t("usersPage.missingEmail")}</span>
                             )}
                           </TableCell>
                           <TableCell>{u.title || "-"}</TableCell>
@@ -981,7 +987,7 @@ export default function UsersPage() {
           <DialogFooter className="mt-4 shrink-0">
             <div className="flex w-full items-center justify-between">
               <span className="text-sm text-muted-foreground font-medium">
-                {t("dashboard.validUsersSelected", { selected: selectedUsernames.size, total: syncableUsersCount })}
+                {t("usersPage.validUsersSelected", { selected: selectedUsernames.size, total: syncableUsersCount })}
               </span>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>{t("common.cancel")}</Button>
@@ -991,7 +997,7 @@ export default function UsersPage() {
                   className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold"
                 >
                   {isSyncing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                  {isSyncing ? t("dashboard.syncing") : t("dashboard.confirmSync")}
+                  {isSyncing ? t("usersPage.syncing") : t("usersPage.confirmSync")}
                 </Button>
               </div>
             </div>
