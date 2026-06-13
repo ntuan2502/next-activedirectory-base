@@ -549,21 +549,30 @@ export default function UsersPage() {
             {t("usersPage.subtitle")}
           </p>
         </div>
-        <div className="flex gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full sm:w-auto">
           {hasPermission(PERMISSIONS.LDAP_SYNC) && (
-            <Button onClick={() => handleOpenSyncDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold">
-              <UsersIcon className="w-4 h-4 mr-2" />
+            <Button
+              onClick={() => handleOpenSyncDialog(true)}
+              className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2"
+            >
+              <UsersIcon className="w-4 h-4" />
               {t("usersPage.syncData")}
             </Button>
           )}
-          <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
+          <Button
+            variant="outline"
+            onClick={fetchUsers}
+            disabled={isLoading || isBulkLoading}
+            className="w-full sm:w-auto h-10 px-4 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
+          >
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            {t("common.refresh")}
           </Button>
         </div>
       </div>
 
       <Card className="shadow-lg border-muted/60">
-        <CardContent className="pt-6 space-y-4">
+        <CardContent className="space-y-4">
           {/* Controls Bar */}
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">

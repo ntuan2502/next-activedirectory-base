@@ -21,6 +21,7 @@ export const en = {
     success: "Success",
     error: "Error",
     loading: "Loading...",
+    refresh: "Refresh",
     close: "Close",
     status: "Status",
     name: "Name",

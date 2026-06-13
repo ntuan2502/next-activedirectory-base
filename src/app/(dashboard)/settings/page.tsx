@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Server, Save, RefreshCw, Eye, EyeOff, Check, AlertCircle, Activity, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,17 +39,96 @@ type SettingsData = {
   lastSyncStatus: string;
   lastSyncMessage: string;
 };
+
+type SyncTimeCountdownProps = {
+  syncEnabled: boolean;
+  lastSyncAt: string | null;
+  syncInterval: number;
+  dateFormat: string;
+  timeFormat: string;
+  locale: string;
+};
+
+function SyncTimeCountdown({
+  syncEnabled,
+  lastSyncAt,
+  syncInterval,
+  dateFormat,
+  timeFormat,
+  locale,
+}: SyncTimeCountdownProps) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    if (!syncEnabled || !lastSyncAt) return;
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [syncEnabled, lastSyncAt]);
+
+  if (!syncEnabled) {
+    return (
+      <>
+        <div className="text-sm font-semibold text-muted-foreground">
+          {locale === "vi" ? "Tự động đồng bộ đang tắt" : "Automatic sync is disabled"}
+        </div>
+        <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+          <Clock className="w-3.5 h-3.5" />
+          {locale === "vi" ? "Bật tự động đồng bộ để lên lịch" : "Enable automatic sync to start scheduling"}
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="text-sm font-semibold text-foreground">
+        {lastSyncAt ? (
+          formatDateTimeCustom(
+            new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000),
+            dateFormat,
+            timeFormat,
+            locale as "vi" | "en"
+          )
+        ) : (
+          locale === "vi" ? "Chờ đồng bộ lần đầu" : "Pending initial sync"
+        )}
+      </div>
+      <div className="text-xs font-medium text-primary flex items-center gap-1">
+        <Clock className="w-3.5 h-3.5" />
+        {(() => {
+          if (!lastSyncAt) return locale === "vi" ? "Chưa có lịch sử đồng bộ" : "No sync history";
+          const nextSync = new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000);
+          const diff = nextSync.getTime() - now.getTime();
+          if (diff <= 0) return locale === "vi" ? "Đang xếp hàng đồng bộ..." : "Syncing shortly...";
+
+          const totalSecs = Math.max(0, Math.floor(diff / 1000));
+          const totalMins = Math.floor(totalSecs / 60);
+          const hrs = Math.floor(totalMins / 60);
+          const mins = totalMins % 60;
+          const secs = totalSecs % 60;
+
+          return locale === "vi"
+            ? `Còn khoảng ${hrs > 0 ? hrs + " giờ " : ""}${mins > 0 || hrs > 0 ? mins + " phút " : ""}${secs} giây`
+            : `Remaining ${hrs > 0 ? hrs + "h " : ""}${mins > 0 || hrs > 0 ? mins + "m " : ""}${secs}s`;
+        })()}
+      </div>
+    </>
+  );
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { locale, t } = useLanguage();
   const { dateFormat, timeFormat } = useSettings();
 
   const [isLoading, setIsLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isSimulatingSync, setIsSimulatingSync] = useState(false);
   const [showSyncConfirm, setShowSyncConfirm] = useState(false);
-  const [now, setNow] = useState(new Date());
   const [showPassword, setShowPassword] = useState(false);
 
   // Form states
@@ -75,7 +154,9 @@ export default function SettingsPage() {
   }, [user]);
 
   const loadSettings = useCallback(async () => {
-    setIsLoading(true);
+    if (!hasLoadedRef.current) {
+      setIsLoading(true);
+    }
     try {
       const res = await fetch("/api/settings");
       if (res.ok) {
@@ -95,6 +176,7 @@ export default function SettingsPage() {
           setLastSyncAt(d.lastSyncAt);
           setLastSyncStatus(d.lastSyncStatus);
           setLastSyncMessage(d.lastSyncMessage);
+          hasLoadedRef.current = true;
         }
       } else {
         toast.error(t("settingsPage.saveFailed"));
@@ -112,14 +194,6 @@ export default function SettingsPage() {
       Promise.resolve().then(() => loadSettings());
     }
   }, [user, loadSettings, hasPermission]);
-
-  useEffect(() => {
-    if (!syncEnabled || !lastSyncAt) return;
-    const interval = setInterval(() => {
-      setNow(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [syncEnabled, lastSyncAt]);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -241,17 +315,58 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <Server className="w-8 h-8 text-primary" />
-          {t("settingsPage.title")}
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {t("settingsPage.subtitle")}
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
+            <Server className="w-8 h-8 text-primary" />
+            {t("settingsPage.title")}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {t("settingsPage.subtitle")}
+          </p>
+        </div>
+        <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full sm:w-auto">
+          {hasPermission(PERMISSIONS.LDAP_TEST) && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestConnection}
+              disabled={
+                isTesting ||
+                isSaving ||
+                !ldapUrl ||
+                !ldapPort ||
+                !ldapBindDn ||
+                !ldapBaseDn ||
+                (!ldapBindPassword && !hasExistingConfig)
+              }
+              className="w-full sm:w-auto h-10 px-4 font-semibold text-sm cursor-pointer"
+            >
+              {isTesting ? (
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Server className="w-4 h-4 mr-2" />
+              )}
+              {t("settingsPage.testConnection")}
+            </Button>
+          )}
+          <Button
+            type="submit"
+            form="settings-form"
+            disabled={isSaving || isTesting}
+            className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm transition-all cursor-pointer"
+          >
+            {isSaving ? (
+              <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            {t("settingsPage.saveSettings")}
+          </Button>
+        </div>
       </div>
 
-      <form onSubmit={handleSaveSettings} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <form id="settings-form" onSubmit={handleSaveSettings} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LDAP Configuration */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="shadow-lg border-muted/60">
@@ -262,7 +377,7 @@ export default function SettingsPage() {
               </CardTitle>
               <CardDescription>{t("settingsPage.ldapCardDesc")}</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-3 space-y-2">
                   <Label htmlFor="ldapUrl" className="font-semibold">{t("settingsPage.ldapServerUrl")} <span className="text-destructive">*</span></Label>
@@ -362,7 +477,7 @@ export default function SettingsPage() {
               </CardTitle>
               <CardDescription>{t("settingsPage.syncCardDesc")}</CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-6">
+            <CardContent className="space-y-4">
               <div className="flex items-center space-x-3 bg-muted/30 p-3 rounded-lg border">
                 <Checkbox
                   id="syncEnabled"
@@ -401,52 +516,20 @@ export default function SettingsPage() {
               </div>
 
               {/* Next Sync Info & Simulate Sync Button */}
-              <div className="border-t pt-5 space-y-4">
+              <div className="border-t pt-4 space-y-4">
                 <div className="space-y-2 p-3 bg-muted/20 border rounded-lg">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
                     {locale === "vi" ? "Thời gian đồng bộ kế tiếp" : "Next sync time"}
                   </span>
                   <div className="space-y-1">
-                    {!syncEnabled ? (
-                      <>
-                        <div className="text-sm font-semibold text-muted-foreground">
-                          {locale === "vi" ? "Tự động đồng bộ đang tắt" : "Automatic sync is disabled"}
-                        </div>
-                        <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {locale === "vi" ? "Bật tự động đồng bộ để lên lịch" : "Enable automatic sync to start scheduling"}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm font-semibold text-foreground">
-                          {lastSyncAt ? (
-                            formatDateTimeCustom(new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000), dateFormat, timeFormat, locale as "vi" | "en")
-                          ) : (
-                            locale === "vi" ? "Chờ đồng bộ lần đầu" : "Pending initial sync"
-                          )}
-                        </div>
-                        <div className="text-xs font-medium text-primary flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {(() => {
-                            if (!lastSyncAt) return locale === "vi" ? "Chưa có lịch sử đồng bộ" : "No sync history";
-                            const nextSync = new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000);
-                            const diff = nextSync.getTime() - now.getTime();
-                            if (diff <= 0) return locale === "vi" ? "Đang xếp hàng đồng bộ..." : "Syncing shortly...";
-                            
-                            const totalSecs = Math.max(0, Math.floor(diff / 1000));
-                            const totalMins = Math.floor(totalSecs / 60);
-                            const hrs = Math.floor(totalMins / 60);
-                            const mins = totalMins % 60;
-                            const secs = totalSecs % 60;
-
-                            return locale === "vi" 
-                              ? `Còn khoảng ${hrs > 0 ? hrs + " giờ " : ""}${mins > 0 || hrs > 0 ? mins + " phút " : ""}${secs} giây`
-                              : `Remaining ${hrs > 0 ? hrs + "h " : ""}${mins > 0 || hrs > 0 ? mins + "m " : ""}${secs}s`;
-                          })()}
-                        </div>
-                      </>
-                    )}
+                    <SyncTimeCountdown
+                      syncEnabled={syncEnabled}
+                      lastSyncAt={lastSyncAt}
+                      syncInterval={syncInterval}
+                      dateFormat={dateFormat}
+                      timeFormat={timeFormat}
+                      locale={locale}
+                    />
                   </div>
                 </div>
 
@@ -501,7 +584,7 @@ export default function SettingsPage() {
                 {t("settingsPage.lastSyncStatus")}
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground font-medium">{t("common.status")}:</span>
                 {lastSyncStatus === "success" && (
@@ -545,38 +628,6 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="lg:col-span-3 flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
-          {hasPermission(PERMISSIONS.LDAP_TEST) && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleTestConnection}
-              disabled={
-                isTesting ||
-                isSaving ||
-                !ldapUrl ||
-                !ldapPort ||
-                !ldapBindDn ||
-                !ldapBaseDn ||
-                (!ldapBindPassword && !hasExistingConfig)
-              }
-              className="w-full sm:w-auto h-11 px-6 font-semibold"
-            >
-              {isTesting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
-              {t("settingsPage.testConnection")}
-            </Button>
-          )}
-          <Button
-            type="submit"
-            disabled={isSaving || isTesting}
-            className="w-full sm:w-auto h-11 px-6 font-semibold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm transition-all"
-          >
-            {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            {t("settingsPage.saveSettings")}
-          </Button>
         </div>
       </form>
     </div>

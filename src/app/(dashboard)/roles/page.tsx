@@ -245,21 +245,30 @@ export default function RolesPage() {
             {t("rolesPage.description")}
           </p>
         </div>
-        <div className="flex gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full sm:w-auto">
           {hasPermission(PERMISSIONS.ROLES_CREATE) && (
-            <Button onClick={openCreateDialog}>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button
+              onClick={openCreateDialog}
+              className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
               {t("rolesPage.createRole")}
             </Button>
           )}
-          <Button variant="outline" size="icon" onClick={fetchRoles} disabled={isLoading}>
+          <Button
+            variant="outline"
+            onClick={fetchRoles}
+            disabled={isLoading}
+            className="w-full sm:w-auto h-10 px-4 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
+          >
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            {t("common.refresh")}
           </Button>
         </div>
       </div>
 
       <Card className="shadow-lg border-muted/60">
-        <CardContent className="pt-6">
+        <CardContent>
           <div className="overflow-x-auto relative">
             {isLoading && roles.length > 0 && (
               <div className="absolute inset-0 bg-background/40 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-auto animate-in fade-in duration-200">

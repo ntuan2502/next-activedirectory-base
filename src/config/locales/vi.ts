@@ -21,6 +21,7 @@ export const vi = {
     success: "Thành công",
     error: "Lỗi",
     loading: "Đang tải...",
+    refresh: "Làm mới",
     close: "Đóng",
     status: "Trạng thái",
     name: "Tên",
