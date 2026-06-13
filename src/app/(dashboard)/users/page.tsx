@@ -73,6 +73,7 @@ type LdapUserPreview = {
   company: string;
   title: string;
   isSyncable?: boolean;
+  isTest?: boolean;
 };
 
 type SyncSuccessResponse = {
@@ -937,10 +938,8 @@ export default function UsersPage() {
                   <TableBody>
                     {sortedPreviewUsers.map((u: LdapUserPreview) => {
                       const hasEmail = u.email && u.email.trim() !== "";
-                      const isTest = u.username.toLowerCase().includes("test") ||
-                        u.displayName.toLowerCase().includes("test") ||
-                        (u.email || "").toLowerCase().includes("test");
-                      const isSyncable = hasEmail && !isTest;
+                      const isTest = !!u.isTest;
+                      const isSyncable = !!u.isSyncable;
                       return (
                         <TableRow key={u.username} className={!isSyncable ? "opacity-60 bg-muted/20" : ""}>
                           <TableCell className="w-12 text-center">

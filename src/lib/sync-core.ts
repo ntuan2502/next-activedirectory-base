@@ -16,6 +16,7 @@ export interface LdapUserPreview {
   manager: string;
   phone: string;
   isSyncable?: boolean;
+  isTest?: boolean;
 }
 
 export async function fetchLdapUsers(): Promise<LdapUserPreview[]> {
@@ -52,6 +53,7 @@ export async function fetchLdapUsers(): Promise<LdapUserPreview[]> {
         manager: getAttr(entry, "manager"),
         phone: getAttr(entry, "mobile"),
         isSyncable,
+        isTest,
       };
     });
   });
