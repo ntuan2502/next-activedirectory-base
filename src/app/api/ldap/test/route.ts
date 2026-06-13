@@ -1,37 +1,42 @@
-import { NextResponse } from "next/server";
-import { withLdapClient, getLdapConfig } from "@/lib/ldap";
+import { NextRequest, NextResponse } from "next/server";
+import { getLdapConfig, createLdapClient } from "@/lib/ldap";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.LDAP_TEST);
   if (authResponse) return authResponse;
 
-  let configDetails: {
-    url: string;
-    port: string;
-    username: string;
-    baseDN: string;
-    filter: string;
-  } | null = null;
-
+  let config = await getLdapConfig();
+  
   try {
-    const config = getLdapConfig();
-    configDetails = {
-      url: config.url,
-      port: config.port,
-      username: config.username,
-      baseDN: config.baseDN,
-      filter: config.filter,
-    };
+    const body = await request.json();
+    if (body && typeof body === "object") {
+      config = {
+        url: body.ldapUrl || config.url,
+        port: String(body.ldapPort || config.port),
+        username: body.ldapBindDn || config.username,
+        password: body.ldapBindPassword && body.ldapBindPassword !== "********" ? body.ldapBindPassword : config.password,
+        baseDN: body.ldapBaseDn || config.baseDN,
+        filter: body.ldapFilter || config.filter,
+      };
+    }
   } catch {
-    // Config variables could be completely missing
+    // Ignore body parsing if not provided or invalid
   }
 
+  const configDetails = {
+    url: config.url,
+    port: config.port,
+    username: config.username,
+    baseDN: config.baseDN,
+    filter: config.filter,
+  };
+
   try {
-    await withLdapClient(async () => {
-      // Bind is handled by withLdapClient — if we reach here, connection is OK
-    });
+    const client = createLdapClient(config);
+    await client.bind(config.username, config.password);
+    await client.unbind();
 
     await logAction("ldap:test_connection", "success", {
       success: true,

@@ -84,3 +84,21 @@ model Session {
   @@map("sessions")
 }
 
+model SystemSetting {
+  id               String    @id @default("default")
+  ldapUrl          String    @default("ldap://localhost")
+  ldapPort         Int       @default(389)
+  ldapBindDn       String    @default("cn=admin,dc=example,dc=org")
+  ldapBindPassword String    @default("admin")
+  ldapBaseDn       String    @default("dc=example,dc=org")
+  ldapFilter       String    @default("(objectClass=person)")
+  syncEnabled      Boolean   @default(false)
+  syncInterval     Int       @default(24) // Số giờ giữa mỗi lần đồng bộ, mặc định 24
+  lastSyncAt       DateTime?
+  lastSyncStatus   String?   @default("none")
+  lastSyncMessage  String?   @default("")
+  updatedAt        DateTime  @updatedAt
+
+  @@map("system_settings")
+}
+

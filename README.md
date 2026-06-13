@@ -1,195 +1,183 @@
 # Active Directory Sync
 
-A Next.js dashboard for synchronizing and managing user data from LDAP/Active Directory, with PostgreSQL persistence and LDAP-based authentication.
+Một ứng dụng bảng điều khiển (Dashboard) được xây dựng trên nền tảng Next.js giúp đồng bộ hóa và quản lý dữ liệu người dùng từ Active Directory / LDAP với cơ sở dữ liệu PostgreSQL, tích hợp xác thực đa nguồn và phân quyền chi tiết (RBAC).
 
-## Features
+---
 
-- **LDAP Connection Test** — Verify connectivity to your AD server
-- **User Sync** — Pull users from Active Directory and persist to PostgreSQL
-- **LDAP Authentication** — Login with corporate AD credentials
-- **Offline Auth Fallback** — Cached password hashes (bcrypt) allow login when LDAP is unreachable
-- **Session Management** — Signed JWT cookies (httpOnly, 8h expiry)
-- **Users Management** — View all synced users with search/filter
-- **Sidebar Navigation** — shadcn sidebar with collapsible menu
-- **Dark / Light Mode** — System-aware theme with manual toggle
-- **Auth Guard** — Loading screen with seamless redirect (no flash)
+## ✨ Tính năng chính
 
-## Tech Stack
+- **Trình thiết lập ban đầu (Initial Setup Wizard - `/setup`)** — Tự động chuyển hướng và hướng dẫn khởi tạo tài khoản Super Admin cục bộ đầu tiên và cấu hình kết nối LDAP khi ứng dụng khởi chạy lần đầu trên database trống.
+- **Cấu hình LDAP động** — Lưu trữ cấu hình LDAP trực tiếp trong Database, chỉnh sửa linh hoạt trên giao diện UI mà không cần khai báo tĩnh trong tệp `.env`.
+- **Xác thực đa nguồn (Local & LDAP)**:
+  - **Tài khoản AD/LDAP**: Đăng nhập bằng tài khoản doanh nghiệp trực tiếp qua Active Directory.
+  - **Tài khoản Cục bộ (Local User)**: Bypass kết nối LDAP, xác thực trực tiếp bằng mật khẩu đã băm `bcryptjs` trong database. Giúp quản trị viên luôn có thể đăng nhập ngay cả khi LDAP gặp sự cố.
+- **Lập lịch tự động đồng bộ** — Tự động đồng bộ người dùng chạy ngầm định kỳ theo chu kỳ cấu hình động (1h, 6h, 12h, 24h, v.v.).
+- **Bảng điều khiển & Biểu đồ trực quan**:
+  - **Donut Chart**: Tỷ lệ trạng thái đồng bộ người dùng.
+  - **Horizontal Bar Chart**: Thống kê số lượng nhân sự theo top 5 phòng ban.
+  - **Smooth Area Chart**: Timeline thống kê logs hoạt động trong 7 ngày gần nhất.
+- **Quản lý vai trò & Phân quyền (RBAC)** — Định nghĩa vai trò tùy chỉnh và kiểm soát quyền truy cập chi tiết (`users:read`, `roles:update`, `ldap:sync`, v.v.).
+- **Nhật ký hoạt động (Audit Logs)** — Ghi nhận mọi thao tác của hệ thống, so sánh chi tiết trạng thái trước/sau thay đổi (Before/After) của các đối tượng.
+- **Hỗ trợ đa ngôn ngữ (i18n)** — Hỗ trợ song ngữ Tiếng Việt và Tiếng Anh hoàn chỉnh.
 
-| Layer | Technology |
+---
+
+## 🛠️ Công nghệ sử dụng
+
+| Tầng | Công nghệ |
 |---|---|
 | Framework | Next.js 16 (App Router) |
-| Language | TypeScript |
-| UI | shadcn/ui + Tailwind CSS v4 |
+| Ngôn ngữ | TypeScript |
+| UI/CSS | Tailwind CSS v4 + Vanilla CSS |
 | Database | PostgreSQL 17 |
-| ORM | Prisma 7 (driver adapter) |
+| ORM | Prisma 7 |
 | LDAP Client | ldapts |
-| Auth | bcryptjs + jose (JWT) |
-| Theme | next-themes |
-| Runtime | Bun |
+| Xác thực | bcryptjs + jose (JWT Session Cookie) |
+| Đa ngôn ngữ | Custom Client/Server i18n |
 
-## Getting Started
+---
 
-### Prerequisites
+## 🚀 Hướng dẫn khởi chạy
 
-- [Bun](https://bun.sh/) installed
-- [Docker](https://www.docker.com/) installed (for PostgreSQL)
-- Access to an LDAP/Active Directory server
+### Điều kiện tiên quyết
 
-### 1. Clone and install
+- Máy tính đã cài đặt [Node.js](https://nodejs.org/) (hoặc [Bun](https://bun.sh/))
+- Đã cài đặt [Docker](https://www.docker.com/) (để chạy PostgreSQL)
+
+### 1. Cài đặt các thư viện phụ thuộc
 
 ```bash
 git clone https://github.com/ntuan2502/next-activedirectory-base.git
 cd next-activedirectory-base
-bun install
+pnpm install
 ```
 
-### 2. Configure environment
+### 2. Thiết lập biến môi trường
 
-Copy the example and fill in your values:
+Sao chép tệp cấu hình mẫu:
 
 ```bash
 cp .env.example .env
 ```
 
-Key variables:
+Cập nhật các biến cơ sở dữ liệu và session secret trong `.env` (Không cần khai báo biến LDAP):
 
 ```env
-# Required — LDAP
-LDAP_URL=ldap://your-ad-server
-LDAP_PORT=389
-LDAP_USERNAME=admin@yourdomain.com
-LDAP_PASSWORD=your_password
-
-# Optional — LDAP (has fallback defaults)
-LDAP_BASE_DN=DC=yourdomain,DC=com
-LDAP_FILTER=(&(objectCategory=person)(objectClass=user))
-
-# Required — Database
+# Database Configuration
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=activedirectory
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/activedirectory
+POSTGRES_PASSWORD=postgres_password
+POSTGRES_DB=ad_sync
+POSTGRES_PORT=5432
 
-# Required — Session
-SESSION_SECRET=change-me-to-a-random-string-at-least-32-chars
+# Connection URL for Prisma
+DATABASE_URL=postgresql://postgres:postgres_password@localhost:5432/ad_sync?schema=public
+
+# Session Security
+SESSION_SECRET=change_me_to_a_random_string_at_least_32_chars
+NODE_ENV=development
 ```
 
-### 3. Start PostgreSQL
+### 3. Khởi chạy PostgreSQL qua Docker
 
 ```bash
 docker compose up -d
 ```
 
-Adminer is available at [http://localhost:8080](http://localhost:8080).
-
-### 4. Initialize database
+### 4. Đẩy cấu trúc Schema vào Database
 
 ```bash
-bunx prisma db push
+pnpm prisma db push
 ```
 
-### 5. Run development server
+### 5. Khởi chạy Development Server
 
 ```bash
-bun dev
+pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you will be redirected to the login page.
+Mở trình duyệt truy cập [http://localhost:3000](http://localhost:3000). 
 
-## Project Structure
+> 💡 **Khởi chạy lần đầu**: Do database trống chưa có người dùng nào, hệ thống sẽ tự động chuyển hướng bạn đến `/setup` để bắt đầu đăng ký tài khoản Admin và cấu hình kết nối LDAP.
 
-```
+---
+
+## 📂 Cấu trúc thư mục dự án
+
+```plaintext
 ├── src/
 │   ├── app/
-│   │   ├── (dashboard)/                # Route group — sidebar layout
-│   │   │   ├── layout.tsx              # Sidebar + header + theme toggle
-│   │   │   ├── page.tsx                # Dashboard (test + sync)
-│   │   │   └── users/page.tsx          # Users table (search, skeleton)
-│   │   ├── login/page.tsx              # Login form (no sidebar)
-│   │   ├── api/
-│   │   │   ├── auth/
-│   │   │   │   ├── login/route.ts      # POST — LDAP auth + session
-│   │   │   │   ├── logout/route.ts     # POST — clear session
-│   │   │   │   └── session/route.ts    # GET  — check session
-│   │   │   ├── ldap/
-│   │   │   │   ├── sync/route.ts       # POST — sync LDAP → DB
-│   │   │   │   └── test/route.ts       # POST — test connection
-│   │   │   └── users/route.ts          # GET  — list users from DB
-│   │   ├── layout.tsx                  # Root: ThemeProvider + AuthProvider
-│   │   └── globals.css                 # Tailwind + shadcn theme
-│   ├── components/
-│   │   ├── ui/                         # shadcn components
-│   │   ├── app-sidebar.tsx             # Sidebar navigation
-│   │   ├── auth-provider.tsx           # Auth guard + loading screen
-│   │   ├── scroll-to-top.tsx           # Scroll to top button
-│   │   ├── theme-provider.tsx          # next-themes wrapper
-│   │   └── theme-toggle.tsx            # Dark/light mode toggle
-│   ├── hooks/
-│   │   └── use-mobile.ts              # Mobile detection hook
-│   └── lib/
-│       ├── auth.ts                     # LDAP auth + bcrypt fallback
-│       ├── db.ts                       # Prisma client singleton
-│       ├── ldap.ts                     # LDAP config + utilities
-│       ├── session.ts                  # JWT session management
-│       └── utils.ts                    # shadcn cn() utility
-├── prisma/
-│   └── schema.prisma                   # Database schema
-├── public/                             # Static assets
-├── docker-compose.yml                  # PostgreSQL + Adminer
-├── prisma.config.ts                    # Prisma CLI config
-└── .env.example                        # Environment template
+│   │   ├── (dashboard)/                # Nhóm Route sử dụng Sidebar Layout
+│   │   │   ├── audit-logs/             # Trang xem logs & so sánh thay đổi
+│   │   │   ├── roles/                  # Quản lý phân quyền RBAC
+│   │   │   ├── settings/               # Cấu hình LDAP & Chu kỳ đồng bộ
+│   │   │   ├── users/                  # Quản lý người dùng đã đồng bộ
+│   │   │   └── page.tsx                # Dashboard biểu đồ phân tích trực quan
+│   │   ├── login/                      # Trang đăng nhập
+│   │   ├── setup/                      # Setup Wizard (2 bước khởi tạo hệ thống)
+│   │   ├── api/                        # Hệ thống API endpoints
+│   │   │   ├── setup/                  # APIs phục vụ Setup Wizard
+│   │   │   ├── auth/                   # APIs đăng nhập, đăng xuất, session
+│   │   │   ├── settings/               # API lưu/tải cấu hình hệ thống
+│   │   │   └── ...
+│   │   └── layout.tsx                  # Root Layout
+│   ├── components/                     # Các UI Component dùng chung
+│   ├── config/
+│   │   ├── locales/                    # Định nghĩa bản dịch en.ts & vi.ts
+│   │   └── permissions.ts              # Danh sách định nghĩa quyền hạn
+│   ├── lib/
+│   │   ├── auth.ts                     # Logic xác thực Local & LDAP
+│   │   ├── ldap.ts                     # Kết nối LDAP client & lấy config từ DB
+│   │   ├── scheduler.ts                # Tiến trình đồng bộ tự động chạy ngầm
+│   │   └── sync-core.ts                # Hàm đồng bộ lõi đồng nhất
 ```
 
-## Authentication Flow
+---
 
+## 🔒 Luồng xác thực & Đăng nhập (Authentication Flow)
+
+```plaintext
+              Người dùng gửi yêu cầu Đăng nhập
+                             │
+                             ▼
+              Tìm kiếm User trong Database local
+                             │
+                 ┌───────────┴───────────┐
+                 ▼                       ▼
+            Tìm thấy user           Không tìm thấy
+                 │                       │
+      ┌──────────┴──────────┐            ▼
+      ▼                     ▼     Thực hiện LDAP Bind
+  dn === "" (Local)     dn !== ""  (Xác thực trực tiếp AD)
+      │               (User AD)          │
+      ▼                     │            ▼
+So khớp mật khẩu            │     ┌──────┴──────┐
+  bằng bcrypt               ▼     ▼             ▼
+      │             Thử kết nối LDAP   Thành công  Thất bại
+      │             và xác thực Bind      │             │
+      │                     │             ▼             ▼
+      │             ┌───────┴──────┐  Đồng bộ User    Lỗi
+      ▼             ▼              ▼  & Tạo Session
+Kết quả matches   Thành công    Thất bại
+      │             │              │
+      ▼             ▼              ▼
+  Tạo Session   Tạo Session       Lỗi
 ```
-User submits login form
-        │
-        ▼
-  Try LDAP bind with user credentials
-        │
-   ┌────┴────┐
-   │ Success  │  LDAP Error (connection)
-   │         │         │
-   ▼         │         ▼
-Hash password│   Find user in DB
-Store in DB  │   Compare bcrypt hash
-   │         │         │
-   ▼         │    ┌────┴────┐
-Create JWT   │    │ Match   │ No match
-session      │    │         │
-   │         │    ▼         ▼
-   ▼         │  Login OK   Error
- Login OK    │
-             │
-   LDAP Error (bad credentials)
-             │
-             ▼
-          Error: Invalid credentials
-```
 
-## Auth Guard
+---
 
-The `AuthProvider` wraps the entire app and handles route protection:
+## 📝 Danh sách lệnh chính
 
-- **Protected pages** (`/`, `/users`): Shows loading → checks session → if valid, renders page; if not, redirects to `/login`
-- **Public pages** (`/login`): Shows loading → checks session → if valid, redirects to `/`; if not, renders login form
-- **No flash**: Children are never rendered during redirect — only the loading spinner is visible
-
-## Scripts
-
-| Command | Description |
+| Lệnh | Mô tả |
 |---|---|
-| `bun dev` | Start development server |
-| `bun run build` | Production build |
-| `bun start` | Start production server |
-| `bun lint` | Run ESLint |
-| `bunx prisma db push` | Push schema to database |
-| `bunx prisma studio` | Open Prisma Studio GUI |
-| `docker compose up -d` | Start PostgreSQL + Adminer |
-| `docker compose down` | Stop containers |
+| `pnpm dev` | Khởi chạy server phát triển local |
+| `pnpm build` | Biên dịch sản phẩm Next.js |
+| `pnpm start` | Khởi chạy server sản phẩm sau khi build |
+| `pnpm lint` | Kiểm tra cú pháp & quy tắc viết mã (ESLint) |
+| `pnpm prisma db push` | Đồng bộ cấu trúc Schema trực tiếp vào Database |
+| `pnpm prisma studio` | Mở giao diện quản lý Database trực quan của Prisma |
 
-## License
+---
 
-MIT
+## 📄 Bản quyền
+
+Mã nguồn được phát hành dưới giấy phép [MIT](LICENSE).

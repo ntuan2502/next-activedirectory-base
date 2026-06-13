@@ -1,12 +1,7 @@
 import { Client } from "ldapts";
 
-const LDAP_DEFAULTS = {
-  port: "389",
-  baseDN: "DC=example,DC=com",
-  filter: "(&(objectCategory=person)(objectClass=user))",
-};
 
-type LdapConfig = {
+export type LdapConfig = {
   url: string;
   port: string;
   username: string;
@@ -15,22 +10,21 @@ type LdapConfig = {
   filter: string;
 };
 
-export function getLdapConfig(): LdapConfig {
-  const url = process.env.LDAP_URL;
-  const username = process.env.LDAP_USERNAME;
-  const password = process.env.LDAP_PASSWORD;
-
-  if (!url || !username || !password) {
-    throw new Error("Missing required LDAP configuration (LDAP_URL, LDAP_USERNAME, LDAP_PASSWORD).");
+export async function getLdapConfig(): Promise<LdapConfig> {
+  const { prisma } = await import("@/lib/db");
+  const settings = await prisma.systemSetting.findFirst();
+  
+  if (!settings || !settings.ldapUrl) {
+    throw new Error("LDAP configuration is missing. Please configure it in System Settings.");
   }
 
   return {
-    url,
-    port: process.env.LDAP_PORT || LDAP_DEFAULTS.port,
-    username,
-    password,
-    baseDN: process.env.LDAP_BASE_DN || LDAP_DEFAULTS.baseDN,
-    filter: process.env.LDAP_FILTER || LDAP_DEFAULTS.filter,
+    url: settings.ldapUrl,
+    port: String(settings.ldapPort),
+    username: settings.ldapBindDn,
+    password: settings.ldapBindPassword,
+    baseDN: settings.ldapBaseDn,
+    filter: settings.ldapFilter,
   };
 }
 
@@ -42,7 +36,7 @@ export function createLdapClient(config: LdapConfig): Client {
 export async function withLdapClient<T>(
   fn: (client: Client, config: LdapConfig) => Promise<T>
 ): Promise<T> {
-  const config = getLdapConfig();
+  const config = await getLdapConfig();
   const client = createLdapClient(config);
 
   try {

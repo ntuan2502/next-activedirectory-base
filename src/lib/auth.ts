@@ -1,8 +1,7 @@
 import { Client } from "ldapts";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { getLdapConfig, createLdapClient } from "@/lib/ldap";
-import { Prisma } from "@prisma/client";
+import { getLdapConfig, createLdapClient, type LdapConfig } from "@/lib/ldap";
 
 type AuthResult = {
   userId: string;
@@ -22,7 +21,12 @@ export async function authenticateUser(
     throw new Error("Your account has been disabled. Please contact an administrator.");
   }
 
-  const config = getLdapConfig();
+  // If local user (no DN in AD/LDAP), bypass LDAP entirely and authenticate locally
+  if (dbUser && dbUser.dn === "") {
+    return authenticateViaCachedPassword(username, password);
+  }
+
+  const config = await getLdapConfig();
 
   // Step 1: Try LDAP authentication
   try {
@@ -45,7 +49,7 @@ export async function authenticateUser(
 async function authenticateViaLdap(
   username: string,
   password: string,
-  config: ReturnType<typeof getLdapConfig>,
+  config: LdapConfig,
 ): Promise<AuthResult> {
   const client: Client = createLdapClient(config);
 
@@ -63,43 +67,17 @@ async function authenticateViaLdap(
   // Auth successful — hash and cache password in DB
   const passwordHash = await bcrypt.hash(password, 12);
 
-  // Check if this is the first user in the system
-  const userCount = await prisma.user.count();
-  const isFirstUser = userCount === 0;
-
-  // Ensure Super Admin role exists
-  let roleCheck = await prisma.role.findFirst({ where: { isSystem: true } });
-  if (!roleCheck && isFirstUser) {
-    roleCheck = await prisma.role.create({
-      data: {
-        name: "Super Admin",
-        description: "Built-in system administrator with full access",
-        permissions: '["*"]',
-        isSystem: true,
-      },
-    });
-  }
-
-  const createData: Prisma.UserCreateInput = {
-    username: username.toLowerCase(),
-    passwordHash,
-    lastLoginAt: new Date(),
-  };
-
-  // Only assign Super Admin if this is the very first user in the entire database
-  if (isFirstUser && roleCheck) {
-    createData.roles = {
-      connect: { id: roleCheck.id },
-    };
-  }
-
   const user = await prisma.user.upsert({
     where: { username: username.toLowerCase() },
     update: {
       passwordHash,
       lastLoginAt: new Date(),
     },
-    create: createData,
+    create: {
+      username: username.toLowerCase(),
+      passwordHash,
+      lastLoginAt: new Date(),
+    },
   });
 
   return {

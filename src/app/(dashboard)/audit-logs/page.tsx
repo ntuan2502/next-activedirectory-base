@@ -47,6 +47,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "auth:login": { label: "Login Success", color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
   "auth:login_failed": { label: "Login Failed", color: "bg-destructive/10 text-destructive border-destructive/20" },
   "auth:logout": { label: "Logout", color: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" },
+  "auth:initial_setup": { label: "Initial Super Admin Setup", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
   "ldap:test_connection": { label: "LDAP Connection Test", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
   "ldap:fetch_data": { label: "Fetch LDAP Data", color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20" },
   "ldap:sync_data": { label: "LDAP Sync", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
@@ -58,6 +59,9 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "role:create": { label: "Create Role", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
   "role:update": { label: "Update Role", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
   "role:delete": { label: "Delete Role", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
+  "settings:update": { label: "Update Settings", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
+  "settings:initial_setup_ldap": { label: "Setup Initial LDAP", color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
+  "settings:initial_setup_skip": { label: "Skip Initial LDAP", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
 };
 
 const getActionTranslationKey = (action: string): string => {
@@ -65,6 +69,7 @@ const getActionTranslationKey = (action: string): string => {
     "auth:login": "login",
     "auth:login_failed": "loginFailed",
     "auth:logout": "logout",
+    "auth:initial_setup": "initialSetup",
     "ldap:test_connection": "ldapTest",
     "ldap:fetch_data": "ldapFetch",
     "ldap:sync_data": "ldapSync",
@@ -76,6 +81,9 @@ const getActionTranslationKey = (action: string): string => {
     "role:create": "createRole",
     "role:update": "updateRole",
     "role:delete": "deleteRole",
+    "settings:update": "settingsUpdate",
+    "settings:initial_setup_ldap": "initialSetupLdap",
+    "settings:initial_setup_skip": "initialSetupSkip",
   };
   return mapping[action] ? `auditLogsPage.actions.${mapping[action]}` : "";
 };
@@ -599,6 +607,7 @@ export default function AuditLogsPage() {
                   <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
                   <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
                   <option value="auth:logout">{t("auditLogsPage.actions.logout")}</option>
+                  <option value="auth:initial_setup">{t("auditLogsPage.actions.initialSetup")}</option>
                   <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
                   <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
                   <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
@@ -609,6 +618,9 @@ export default function AuditLogsPage() {
                   <option value="role:create">{t("auditLogsPage.actions.createRole")}</option>
                   <option value="role:update">{t("auditLogsPage.actions.updateRole")}</option>
                   <option value="role:delete">{t("auditLogsPage.actions.deleteRole")}</option>
+                  <option value="settings:update">{t("auditLogsPage.actions.settingsUpdate")}</option>
+                  <option value="settings:initial_setup_ldap">{t("auditLogsPage.actions.initialSetupLdap")}</option>
+                  <option value="settings:initial_setup_skip">{t("auditLogsPage.actions.initialSetupSkip")}</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
               </div>

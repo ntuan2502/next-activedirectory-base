@@ -71,6 +71,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const init = async () => {
+      // 1. Fetch setup status first
+      let isSetup = true;
+      try {
+        const setupRes = await fetch("/api/setup/status");
+        if (setupRes.ok) {
+          const setupData = await setupRes.json();
+          isSetup = !!setupData.isSetup;
+        }
+      } catch (err) {
+        console.error("Failed to check setup status:", err);
+      }
+
+      if (cancelled) return;
+
+      // 2. If not setup, force redirection to /setup (unless already on /setup)
+      if (!isSetup) {
+        if (pathname !== "/setup") {
+          router.replace("/setup");
+          return;
+        }
+        setUser(null);
+        setStatus("ready");
+        return;
+      }
+
+      // 3. If already setup, block access to /setup
+      if (isSetup && pathname === "/setup") {
+        const sessionUser = await fetchSession();
+        if (cancelled) return;
+        router.replace(sessionUser ? "/" : "/login");
+        return;
+      }
+
+      // 4. Standard session checks
       const sessionUser = await fetchSession();
       if (cancelled) return;
 
@@ -97,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [pathname, router, status]);
 
-  if (status === "loading" || (!user && !PUBLIC_PATHS.includes(pathname))) {
+  if (status === "loading" || (!user && !PUBLIC_PATHS.includes(pathname) && pathname !== "/setup")) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">

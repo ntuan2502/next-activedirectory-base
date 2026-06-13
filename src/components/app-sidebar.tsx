@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState } from "react";
-import { Server, Users, Shield, LogOut, ClipboardList, User } from "lucide-react";
+import { Server, Users, Shield, LogOut, ClipboardList, User, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -33,6 +33,7 @@ const NAV_ITEMS = [
   { titleKey: "common.users", href: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
   { titleKey: "common.roles", href: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_READ },
   { titleKey: "common.auditLogs", href: "/audit-logs", icon: ClipboardList, permission: PERMISSIONS.AUDIT_LOGS_READ },
+  { titleKey: "common.settings", href: "/settings", icon: Settings, permission: PERMISSIONS.LDAP_SYNC },
 ];
 
 interface UserAvatarProps {
