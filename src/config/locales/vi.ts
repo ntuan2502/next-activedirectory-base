@@ -326,7 +326,7 @@ export const vi = {
     syncCardDesc: "Lập lịch đồng bộ định kỳ người dùng từ LDAP vào cơ sở dữ liệu.",
     syncEnabled: "Kích hoạt tự động đồng bộ",
     syncInterval: "Chu kỳ kiểm tra đồng bộ",
-    syncIntervalHelp: "Khoảng cách thời gian (số giờ) giữa mỗi lần tự động quét đồng bộ.",
+    syncIntervalHelp: "Khoảng cách thời gian giữa mỗi lần tự động quét đồng bộ.",
     hours: "giờ",
     saveSuccess: "Lưu cấu hình hệ thống thành công.",
     saveFailed: "Không thể lưu cấu hình hệ thống.",
@@ -348,6 +348,8 @@ export const vi = {
     placeholderBindDn: "cn=admin,dc=example,dc=org",
     placeholderBaseDn: "dc=example,dc=org",
     placeholderFilter: "(objectClass=person)",
+    placeholderBindPassword: "Để trống để giữ mật khẩu cũ",
+    placeholderBindPasswordNew: "Nhập mật khẩu kết nối LDAP",
   },
   dashboardCharts: {
     syncOverview: "Tổng quan trạng thái đồng bộ",

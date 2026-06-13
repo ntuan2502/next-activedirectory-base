@@ -7,22 +7,40 @@ export async function POST(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.LDAP_TEST);
   if (authResponse) return authResponse;
 
-  let config = await getLdapConfig();
-  
+  let config = {
+    url: "",
+    port: "",
+    username: "",
+    password: "",
+    baseDN: "",
+    filter: "",
+  };
+
+  const dbConfig = await getLdapConfig().catch(() => null);
+
   try {
     const body = await request.json();
     if (body && typeof body === "object") {
       config = {
-        url: body.ldapUrl || config.url,
-        port: String(body.ldapPort || config.port),
-        username: body.ldapBindDn || config.username,
-        password: body.ldapBindPassword && body.ldapBindPassword !== "********" ? body.ldapBindPassword : config.password,
-        baseDN: body.ldapBaseDn || config.baseDN,
-        filter: body.ldapFilter || config.filter,
+        url: body.ldapUrl !== undefined ? body.ldapUrl : (dbConfig?.url || ""),
+        port: body.ldapPort !== undefined ? String(body.ldapPort) : (dbConfig?.port || ""),
+        username: body.ldapBindDn !== undefined ? body.ldapBindDn : (dbConfig?.username || ""),
+        password: body.ldapBindPassword && body.ldapBindPassword !== "********" ? body.ldapBindPassword : (dbConfig?.password || ""),
+        baseDN: body.ldapBaseDn !== undefined ? body.ldapBaseDn : (dbConfig?.baseDN || ""),
+        filter: body.ldapFilter !== undefined ? body.ldapFilter : (dbConfig?.filter || ""),
       };
     }
   } catch {
-    // Ignore body parsing if not provided or invalid
+    if (dbConfig) {
+      config = {
+        url: dbConfig.url,
+        port: dbConfig.port,
+        username: dbConfig.username,
+        password: dbConfig.password,
+        baseDN: dbConfig.baseDN,
+        filter: dbConfig.filter,
+      };
+    }
   }
 
   const configDetails = {

@@ -9,7 +9,12 @@ export async function logAction(
   overrideUser?: { userId: string; username: string }
 ) {
   try {
-    const session = await getSession();
+    let session = null;
+    try {
+      session = await getSession();
+    } catch {
+      // Fallback if cookies() is called outside request scope
+    }
     let ipAddress: string | null = null;
     
     try {

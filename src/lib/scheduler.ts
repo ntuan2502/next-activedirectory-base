@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { syncLdapUsers } from "@/lib/sync-core";
+import { syncLdapUsers, logLdapSyncResult } from "@/lib/sync-core";
 
 declare global {
   var __schedulerInterval__: NodeJS.Timeout | undefined;
@@ -18,12 +18,12 @@ export function startScheduler() {
   // Run initial check after 15 seconds
   setTimeout(checkAndRunSync, 15000);
 
-  // Check every 5 minutes (300000 ms)
-  const interval = setInterval(checkAndRunSync, 300000);
+  // Check every 1 minute (60000 ms)
+  const interval = setInterval(checkAndRunSync, 60000);
   globalThis.__schedulerInterval__ = interval;
 }
 
-async function checkAndRunSync() {
+export async function checkAndRunSync() {
   if (globalThis.__schedulerRunning__) {
     console.log("[Scheduler] Sync is already running in background, skipping check.");
     return;
@@ -38,14 +38,14 @@ async function checkAndRunSync() {
 
     const now = new Date();
     // Default interval to 24 hours if null/0/negative
-    const intervalHours = Math.max(1, settings.syncInterval || 24);
+    const intervalMinutes = Math.max(1, settings.syncInterval || 1440);
     const lastSync = settings.lastSyncAt ? new Date(settings.lastSyncAt) : new Date(0);
 
     const timeDiff = now.getTime() - lastSync.getTime();
-    const intervalMs = intervalHours * 60 * 60 * 1000;
+    const intervalMs = intervalMinutes * 60 * 1000;
 
     if (timeDiff >= intervalMs) {
-      console.log(`[Scheduler] Starting scheduled sync (interval: ${intervalHours}h, last sync: ${lastSync.toISOString()})...`);
+      console.log(`[Scheduler] Starting scheduled sync (interval: ${intervalMinutes}m, last sync: ${lastSync.toISOString()})...`);
       globalThis.__schedulerRunning__ = true;
 
       try {
@@ -60,6 +60,10 @@ async function checkAndRunSync() {
             lastSyncMessage: `Successfully synchronized ${result.syncedCount} users (Created: ${result.usersCreated.length}, Updated: ${result.usersUpdated.length})`,
           },
         });
+
+        // Ghi audit log cho đồng bộ tự động thành công
+        await logLdapSyncResult(result);
+
         console.log(`[Scheduler] Sync successful: ${result.syncedCount} users.`);
       } catch (syncError: unknown) {
         const errorMsg = syncError instanceof Error ? syncError.message : "Unknown LDAP sync error";
@@ -73,6 +77,9 @@ async function checkAndRunSync() {
             lastSyncMessage: errorMsg,
           },
         });
+
+        // Ghi audit log cho đồng bộ tự động thất bại
+        await logLdapSyncResult(null, errorMsg);
       } finally {
         globalThis.__schedulerRunning__ = false;
       }

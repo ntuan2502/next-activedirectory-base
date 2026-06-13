@@ -86,14 +86,14 @@ model Session {
 
 model SystemSetting {
   id               String    @id @default("default")
-  ldapUrl          String    @default("ldap://localhost")
-  ldapPort         Int       @default(389)
-  ldapBindDn       String    @default("cn=admin,dc=example,dc=org")
-  ldapBindPassword String    @default("admin")
-  ldapBaseDn       String    @default("dc=example,dc=org")
-  ldapFilter       String    @default("(objectClass=person)")
+  ldapUrl          String?
+  ldapPort         Int?
+  ldapBindDn       String?
+  ldapBindPassword String?
+  ldapBaseDn       String?
+  ldapFilter       String?
   syncEnabled      Boolean   @default(false)
-  syncInterval     Int       @default(24) // Số giờ giữa mỗi lần đồng bộ, mặc định 24
+  syncInterval     Int       @default(1440) // Số phút giữa mỗi lần đồng bộ, mặc định 1440 phút (24h)
   lastSyncAt       DateTime?
   lastSyncStatus   String?   @default("none")
   lastSyncMessage  String?   @default("")

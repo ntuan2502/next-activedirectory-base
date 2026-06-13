@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
+import { checkAndRunSync } from "@/lib/scheduler";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +20,13 @@ export async function GET() {
         success: true,
         data: {
           ldapUrl: "",
-          ldapPort: 389,
+          ldapPort: "",
           ldapBindDn: "",
           ldapBindPassword: "", // Keep password empty
           ldapBaseDn: "",
-          ldapFilter: "(&(objectCategory=person)(objectClass=user))",
+          ldapFilter: "",
           syncEnabled: false,
-          syncInterval: 24,
+          syncInterval: 1440,
           lastSyncAt: null,
           lastSyncStatus: "none",
           lastSyncMessage: "",
@@ -36,12 +37,12 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        ldapUrl: settings.ldapUrl,
+        ldapUrl: settings.ldapUrl || "",
         ldapPort: settings.ldapPort,
-        ldapBindDn: settings.ldapBindDn,
+        ldapBindDn: settings.ldapBindDn || "",
         ldapBindPassword: "", // Do not return password to client
-        ldapBaseDn: settings.ldapBaseDn,
-        ldapFilter: settings.ldapFilter,
+        ldapBaseDn: settings.ldapBaseDn || "",
+        ldapFilter: settings.ldapFilter || "",
         syncEnabled: settings.syncEnabled,
         syncInterval: settings.syncInterval,
         lastSyncAt: settings.lastSyncAt,
@@ -78,15 +79,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required LDAP settings fields" }, { status: 400 });
     }
 
-    const portNumber = parseInt(ldapPort || "389", 10);
-    const intervalNumber = Math.max(1, parseInt(syncInterval || "24", 10));
+    const portNumber = ldapPort ? parseInt(ldapPort, 10) : null;
+    const intervalNumber = Math.max(1, parseInt(syncInterval || "1440", 10));
 
     // Retrieve existing record
     const existing = await prisma.systemSetting.findFirst();
 
     let passwordToSave = ldapBindPassword;
     if (!passwordToSave || passwordToSave === "********") {
-      passwordToSave = existing ? existing.ldapBindPassword : (process.env.LDAP_PASSWORD || "");
+      passwordToSave = existing ? (existing.ldapBindPassword || "") : (process.env.LDAP_PASSWORD || "");
     }
 
     const dataPayload = {
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       ldapBindDn,
       ldapBindPassword: passwordToSave,
       ldapBaseDn,
-      ldapFilter: ldapFilter || "(&(objectCategory=person)(objectClass=user))",
+      ldapFilter: ldapFilter || null,
       syncEnabled: !!syncEnabled,
       syncInterval: intervalNumber,
     };
@@ -142,6 +143,13 @@ export async function POST(request: NextRequest) {
       before: beforeState,
       after: afterState,
     });
+
+    // Trigger immediate background sync check if enabled
+    if (updatedSettings.syncEnabled) {
+      checkAndRunSync().catch((err) => {
+        console.error("Error triggering immediate background sync check:", err);
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -19,12 +19,12 @@ export async function getLdapConfig(): Promise<LdapConfig> {
   }
 
   return {
-    url: settings.ldapUrl,
-    port: String(settings.ldapPort),
-    username: settings.ldapBindDn,
-    password: settings.ldapBindPassword,
-    baseDN: settings.ldapBaseDn,
-    filter: settings.ldapFilter,
+    url: settings.ldapUrl ?? "",
+    port: settings.ldapPort !== null && settings.ldapPort !== undefined ? String(settings.ldapPort) : "",
+    username: settings.ldapBindDn ?? "",
+    password: settings.ldapBindPassword ?? "",
+    baseDN: settings.ldapBaseDn ?? "",
+    filter: settings.ldapFilter ?? "",
   };
 }
 

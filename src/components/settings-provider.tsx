@@ -32,7 +32,7 @@ type SettingsContextType = {
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const { theme, setTheme } = useTheme();
   const { locale, changeLocale } = useLanguage();
   const [fontSize, setFontSize] = useState(14);
@@ -137,6 +137,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ [key]: value }),
         });
+        await refreshSession();
       } catch (err) {
         console.error("Failed to sync settings with DB:", err);
       }

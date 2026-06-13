@@ -31,14 +31,14 @@ export async function POST(request: NextRequest) {
     if (skip) {
       // Create empty/inactive settings when skipping
       const skipPayload = {
-        ldapUrl: "",
-        ldapPort: 389,
-        ldapBindDn: "",
-        ldapBindPassword: "",
-        ldapBaseDn: "",
-        ldapFilter: "(&(objectCategory=person)(objectClass=user))",
+        ldapUrl: null,
+        ldapPort: null,
+        ldapBindDn: null,
+        ldapBindPassword: null,
+        ldapBaseDn: null,
+        ldapFilter: null,
         syncEnabled: false,
-        syncInterval: 24,
+        syncInterval: 1440,
       };
 
       if (existing) {
@@ -74,16 +74,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const portNumber = parseInt(ldapPort || "389", 10);
+    const portNumber = ldapPort ? parseInt(ldapPort, 10) : null;
     const dataPayload = {
       ldapUrl,
       ldapPort: portNumber,
       ldapBindDn,
-      ldapBindPassword: ldapBindPassword || "",
+      ldapBindPassword: ldapBindPassword || null,
       ldapBaseDn,
-      ldapFilter: ldapFilter || "(&(objectCategory=person)(objectClass=user))",
+      ldapFilter: ldapFilter || null,
       syncEnabled: false,
-      syncInterval: 24,
+      syncInterval: 1440,
     };
 
     if (existing) {

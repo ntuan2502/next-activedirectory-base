@@ -32,11 +32,11 @@ export default function InitialSetupPage() {
 
   // Step 2: LDAP Configuration Form States
   const [ldapUrl, setLdapUrl] = useState("");
-  const [ldapPort, setLdapPort] = useState("389");
+  const [ldapPort, setLdapPort] = useState("");
   const [ldapBindDn, setLdapBindDn] = useState("");
   const [ldapBindPassword, setLdapBindPassword] = useState("");
   const [ldapBaseDn, setLdapBaseDn] = useState("");
-  const [ldapFilter, setLdapFilter] = useState("(&(objectCategory=person)(objectClass=user))");
+  const [ldapFilter, setLdapFilter] = useState("");
 
   // Verify setup status on mount
   useEffect(() => {
@@ -350,6 +350,7 @@ export default function InitialSetupPage() {
                     type={showLdapPassword ? "text" : "password"}
                     value={ldapBindPassword}
                     onChange={(e) => setLdapBindPassword(e.target.value)}
+                    placeholder={t("settingsPage.placeholderBindPasswordNew") || "Nhập mật khẩu kết nối LDAP"}
                     className="pr-10 focus-visible:ring-primary"
                   />
                   <button

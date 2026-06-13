@@ -15,6 +15,7 @@ export interface LdapUserPreview {
   employeeId: string;
   manager: string;
   phone: string;
+  isSyncable?: boolean;
 }
 
 export async function fetchLdapUsers(): Promise<LdapUserPreview[]> {
@@ -26,35 +27,47 @@ export async function fetchLdapUsers(): Promise<LdapUserPreview[]> {
       paged: { pageSize: 1000 },
     });
 
-    return searchEntries.map((entry) => ({
-      dn: entry.dn || "",
-      username: (getAttr(entry, "sAMAccountName") || getAttr(entry, "userPrincipalName") || "").toLowerCase(),
-      firstName: getAttr(entry, "givenName"),
-      lastName: getAttr(entry, "sn"),
-      displayName: getAttr(entry, "displayName"),
-      email: getAttr(entry, "mail"),
-      title: getAttr(entry, "title"),
-      department: getAttr(entry, "department"),
-      company: getAttr(entry, "company"),
-      employeeId: getAttr(entry, "employeeID"),
-      manager: getAttr(entry, "manager"),
-      phone: getAttr(entry, "mobile"),
-    }));
+    return searchEntries.map((entry) => {
+      const email = getAttr(entry, "mail") || "";
+      const username = (getAttr(entry, "sAMAccountName") || getAttr(entry, "userPrincipalName") || "").toLowerCase();
+      const displayName = getAttr(entry, "displayName") || "";
+      
+      const hasEmail = email && email.trim() !== "";
+      const isTest = username.toLowerCase().includes("test") ||
+        displayName.toLowerCase().includes("test") ||
+        (email || "").toLowerCase().includes("test");
+      const isSyncable = !!(hasEmail && !isTest);
+
+      return {
+        dn: entry.dn || "",
+        username,
+        firstName: getAttr(entry, "givenName"),
+        lastName: getAttr(entry, "sn"),
+        displayName,
+        email,
+        title: getAttr(entry, "title"),
+        department: getAttr(entry, "department"),
+        company: getAttr(entry, "company"),
+        employeeId: getAttr(entry, "employeeID"),
+        manager: getAttr(entry, "manager"),
+        phone: getAttr(entry, "mobile"),
+        isSyncable,
+      };
+    });
   });
 }
 
 export async function syncLdapUsers(usernamesToSync?: string[]) {
   const ldapUsers = await fetchLdapUsers();
   
-  // Filter to only those requested (if specified) and those with an email
+  // Filter to only those requested (if specified) and those that are syncable
   const usersToSync = ldapUsers.filter((u) => {
-    const hasEmail = u.email && u.email.trim() !== "";
     const isTarget = usernamesToSync ? usernamesToSync.includes(u.username) : true;
-    return !!(hasEmail && isTarget && u.username);
+    return !!(u.isSyncable && isTarget && u.username);
   });
 
   if (usersToSync.length === 0) {
-    return { syncedCount: 0, usersCreated: [], usersUpdated: [] };
+    return { syncedCount: 0, usersCreated: [], usersUpdated: [], syncDetails: [] };
   }
 
   const existingUsers = await prisma.user.findMany({
@@ -179,16 +192,30 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     });
   }
 
-  if (syncedCount > 0) {
-    await logAction("ldap:sync_data", `${syncedCount} users`, {
-      usernames: usersToSync.map((u) => u.username),
-      details: syncDetails,
-    });
-  }
-
   return {
     syncedCount,
     usersCreated,
     usersUpdated,
+    syncDetails,
   };
+}
+
+export interface LdapSyncDetail {
+  username: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
+}
+
+export async function logLdapSyncResult(
+  result: { syncedCount: number; syncDetails: LdapSyncDetail[] } | null,
+  errorMsg?: string | null
+) {
+  if (errorMsg) {
+    await logAction("ldap:sync_data", "failed", { error: errorMsg });
+  } else if (result) {
+    await logAction("ldap:sync_data", `${result.syncedCount} users`, {
+      usernames: result.syncDetails.map((u) => u.username),
+      details: result.syncDetails,
+    });
+  }
 }

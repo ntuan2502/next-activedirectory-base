@@ -326,7 +326,7 @@ export const en = {
     syncCardDesc: "Schedule periodic synchronization of users from LDAP to the database.",
     syncEnabled: "Enable Automatic Sync",
     syncInterval: "Sync Interval",
-    syncIntervalHelp: "Time interval (in hours) between automatic sync scans.",
+    syncIntervalHelp: "Time interval between automatic sync scans.",
     hours: "hours",
     saveSuccess: "System settings saved successfully.",
     saveFailed: "Failed to save system settings.",
@@ -348,6 +348,8 @@ export const en = {
     placeholderBindDn: "cn=admin,dc=example,dc=org",
     placeholderBaseDn: "dc=example,dc=org",
     placeholderFilter: "(objectClass=person)",
+    placeholderBindPassword: "Leave empty to keep current password",
+    placeholderBindPasswordNew: "Enter LDAP bind password",
   },
   dashboardCharts: {
     syncOverview: "Sync Status Overview",

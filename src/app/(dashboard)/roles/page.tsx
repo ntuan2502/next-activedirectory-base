@@ -247,15 +247,15 @@ export default function RolesPage() {
             </CardDescription>
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
-            <Button variant="outline" size="icon" onClick={fetchRoles} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
             {hasPermission(PERMISSIONS.ROLES_CREATE) && (
               <Button onClick={openCreateDialog}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t("rolesPage.createRole")}
               </Button>
             )}
+            <Button variant="outline" size="icon" onClick={fetchRoles} disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>

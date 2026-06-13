@@ -9,9 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
+import { useSettings } from "@/components/settings-provider";
+import { formatDateTimeCustom } from "@/lib/utils";
 import { PERMISSIONS } from "@/config/permissions";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type SettingsData = {
   ldapUrl: string;
@@ -26,25 +39,28 @@ type SettingsData = {
   lastSyncStatus: string;
   lastSyncMessage: string;
 };
-
 export default function SettingsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { locale, t } = useLanguage();
+  const { dateFormat, timeFormat } = useSettings();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isSimulatingSync, setIsSimulatingSync] = useState(false);
+  const [showSyncConfirm, setShowSyncConfirm] = useState(false);
+  const [now, setNow] = useState(new Date());
   const [showPassword, setShowPassword] = useState(false);
 
   // Form states
   const [ldapUrl, setLdapUrl] = useState("");
-  const [ldapPort, setLdapPort] = useState("389");
+  const [ldapPort, setLdapPort] = useState("");
   const [ldapBindDn, setLdapBindDn] = useState("");
   const [ldapBindPassword, setLdapBindPassword] = useState("");
   const [ldapBaseDn, setLdapBaseDn] = useState("");
   const [ldapFilter, setLdapFilter] = useState("");
   const [syncEnabled, setSyncEnabled] = useState(false);
-  const [syncInterval, setSyncInterval] = useState(24);
+  const [syncInterval, setSyncInterval] = useState(1440);
 
   // Read-only system state (from last sync)
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
@@ -66,14 +82,14 @@ export default function SettingsPage() {
         const result = await res.json();
         if (result.success && result.data) {
           const d: SettingsData = result.data;
-          setLdapUrl(d.ldapUrl);
-          setLdapPort(String(d.ldapPort));
-          setLdapBindDn(d.ldapBindDn);
+          setLdapUrl(d.ldapUrl || "");
+          setLdapPort(d.ldapPort !== null && d.ldapPort !== undefined ? String(d.ldapPort) : "");
+          setLdapBindDn(d.ldapBindDn || "");
           const hasConfig = !!d.ldapUrl;
           setHasExistingConfig(hasConfig);
-          setLdapBindPassword(hasConfig ? "********" : "");
-          setLdapBaseDn(d.ldapBaseDn);
-          setLdapFilter(d.ldapFilter);
+          setLdapBindPassword("");
+          setLdapBaseDn(d.ldapBaseDn || "");
+          setLdapFilter(d.ldapFilter || "");
           setSyncEnabled(d.syncEnabled);
           setSyncInterval(d.syncInterval);
           setLastSyncAt(d.lastSyncAt);
@@ -96,6 +112,14 @@ export default function SettingsPage() {
       Promise.resolve().then(() => loadSettings());
     }
   }, [user, loadSettings, hasPermission]);
+
+  useEffect(() => {
+    if (!syncEnabled || !lastSyncAt) return;
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [syncEnabled, lastSyncAt]);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -123,6 +147,31 @@ export default function SettingsPage() {
       toast.error(message);
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleSimulateSync = async () => {
+    setShowSyncConfirm(false);
+    setIsSimulatingSync(true);
+    try {
+      const res = await fetch("/api/ldap/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "simulate" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(t("settingsPage.syncSuccess") || "Đồng bộ thành công!");
+        setLastSyncAt(data.lastSyncAt);
+        setLastSyncStatus(data.lastSyncStatus);
+        setLastSyncMessage(data.lastSyncMessage || "Simulated automatic sync completed.");
+      } else {
+        toast.error(data.error || "Simulated sync failed.");
+      }
+    } catch {
+      toast.error(t("common.networkError"));
+    } finally {
+      setIsSimulatingSync(false);
     }
   };
 
@@ -263,7 +312,7 @@ export default function SettingsPage() {
                     value={ldapBindPassword}
                     onChange={(e) => setLdapBindPassword(e.target.value)}
                     required={!hasExistingConfig}
-                    placeholder={hasExistingConfig ? "******** (Để trống để giữ mật khẩu cũ)" : "Nhập mật khẩu kết nối LDAP"}
+                    placeholder={hasExistingConfig ? (t("settingsPage.placeholderBindPassword") || "Để trống để giữ mật khẩu cũ") : (t("settingsPage.placeholderBindPasswordNew") || "Nhập mật khẩu kết nối LDAP")}
                     className="pr-10 focus-visible:ring-primary"
                   />
                   <button
@@ -337,17 +386,109 @@ export default function SettingsPage() {
                     onChange={(e) => setSyncInterval(parseInt(e.target.value, 10))}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value={1}>1 {t("settingsPage.hours")}</option>
-                    <option value={6}>6 {t("settingsPage.hours")}</option>
-                    <option value={12}>12 {t("settingsPage.hours")}</option>
-                    <option value={24}>24 {t("settingsPage.hours")} (1 {t("common.system") === "Hệ thống" ? "ngày" : "day"})</option>
-                    <option value={48}>48 {t("settingsPage.hours")} (2 {t("common.system") === "Hệ thống" ? "ngày" : "days"})</option>
-                    <option value={168}>168 {t("settingsPage.hours")} (1 {t("common.system") === "Hệ thống" ? "tuần" : "week"})</option>
+                    <option value={1}>1 {locale === "vi" ? "phút" : "minute"}</option>
+                    <option value={60}>1 {t("settingsPage.hours")}</option>
+                    <option value={360}>6 {t("settingsPage.hours")}</option>
+                    <option value={720}>12 {t("settingsPage.hours")}</option>
+                    <option value={1440}>24 {t("settingsPage.hours")} (1 {locale === "vi" ? "ngày" : "day"})</option>
+                    <option value={2880}>48 {t("settingsPage.hours")} (2 {locale === "vi" ? "ngày" : "days"})</option>
+                    <option value={10080}>168 {t("settingsPage.hours")} (1 {locale === "vi" ? "tuần" : "week"})</option>
                   </select>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {t("settingsPage.syncIntervalHelp")}
                 </p>
+              </div>
+
+              {/* Next Sync Info & Simulate Sync Button */}
+              <div className="border-t pt-5 space-y-4">
+                <div className="space-y-2 p-3 bg-muted/20 border rounded-lg">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                    {locale === "vi" ? "Thời gian đồng bộ kế tiếp" : "Next sync time"}
+                  </span>
+                  <div className="space-y-1">
+                    {!syncEnabled ? (
+                      <>
+                        <div className="text-sm font-semibold text-muted-foreground">
+                          {locale === "vi" ? "Tự động đồng bộ đang tắt" : "Automatic sync is disabled"}
+                        </div>
+                        <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {locale === "vi" ? "Bật tự động đồng bộ để lên lịch" : "Enable automatic sync to start scheduling"}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm font-semibold text-foreground">
+                          {lastSyncAt ? (
+                            formatDateTimeCustom(new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000), dateFormat, timeFormat, locale as "vi" | "en")
+                          ) : (
+                            locale === "vi" ? "Chờ đồng bộ lần đầu" : "Pending initial sync"
+                          )}
+                        </div>
+                        <div className="text-xs font-medium text-primary flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {(() => {
+                            if (!lastSyncAt) return locale === "vi" ? "Chưa có lịch sử đồng bộ" : "No sync history";
+                            const nextSync = new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000);
+                            const diff = nextSync.getTime() - now.getTime();
+                            if (diff <= 0) return locale === "vi" ? "Đang xếp hàng đồng bộ..." : "Syncing shortly...";
+                            
+                            const totalSecs = Math.max(0, Math.floor(diff / 1000));
+                            const totalMins = Math.floor(totalSecs / 60);
+                            const hrs = Math.floor(totalMins / 60);
+                            const mins = totalMins % 60;
+                            const secs = totalSecs % 60;
+
+                            return locale === "vi" 
+                              ? `Còn khoảng ${hrs > 0 ? hrs + " giờ " : ""}${mins > 0 || hrs > 0 ? mins + " phút " : ""}${secs} giây`
+                              : `Remaining ${hrs > 0 ? hrs + "h " : ""}${mins > 0 || hrs > 0 ? mins + "m " : ""}${secs}s`;
+                          })()}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <AlertDialog open={showSyncConfirm} onOpenChange={setShowSyncConfirm}>
+                  <AlertDialogTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={isSimulatingSync || isSaving || isTesting}
+                        className="w-full text-xs font-semibold h-10 border border-primary/25 bg-primary/5 text-primary hover:bg-primary/10 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        {isSimulatingSync ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Activity className="w-4 h-4" />
+                        )}
+                        {locale === "vi" ? "Đồng bộ ngay (Giả lập tự động)" : "Sync Now (Simulate Auto)"}
+                      </Button>
+                    }
+                  />
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {locale === "vi" ? "Xác nhận đồng bộ" : "Confirm Sync"}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {locale === "vi" 
+                          ? "Hành động này sẽ tải toàn bộ danh sách người dùng từ LDAP/Active Directory và cập nhật trực tiếp vào cơ sở dữ liệu. Quá trình này chạy giả lập tiến trình tự động và có thể mất một thời gian ngắn. Bạn có chắc muốn tiếp tục?"
+                          : "This will fetch all users from LDAP/Active Directory and sync them with the database. This simulates the automatic sync background process and may take a moment. Are you sure you want to proceed?"}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>
+                        {locale === "vi" ? "Hủy bỏ" : "Cancel"}
+                      </AlertDialogCancel>
+                      <AlertDialogAction onClick={handleSimulateSync}>
+                        {locale === "vi" ? "Đồng bộ ngay" : "Sync Now"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
           </Card>
@@ -388,7 +529,7 @@ export default function SettingsPage() {
                     {t("settingsPage.lastSyncAt")}:
                   </span>
                   <span className="text-sm font-semibold">
-                    {new Date(lastSyncAt).toLocaleString()}
+                    {formatDateTimeCustom(lastSyncAt, dateFormat, timeFormat, locale as "vi" | "en")}
                   </span>
                 </div>
               )}
@@ -413,7 +554,15 @@ export default function SettingsPage() {
               type="button"
               variant="outline"
               onClick={handleTestConnection}
-              disabled={isTesting || isSaving}
+              disabled={
+                isTesting ||
+                isSaving ||
+                !ldapUrl ||
+                !ldapPort ||
+                !ldapBindDn ||
+                !ldapBaseDn ||
+                (!ldapBindPassword && !hasExistingConfig)
+              }
               className="w-full sm:w-auto h-11 px-6 font-semibold"
             >
               {isTesting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}

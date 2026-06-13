@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
-import { fetchLdapUsers, syncLdapUsers } from "@/lib/sync-core";
+import { fetchLdapUsers, syncLdapUsers, logLdapSyncResult } from "@/lib/sync-core";
 
 export const dynamic = "force-dynamic";
 
@@ -33,20 +33,51 @@ export async function GET() {
   }
 }
 
-// POST: Sync specifically selected users
+// POST: Sync specifically selected users or trigger simulated automatic sync
 export async function POST(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.LDAP_SYNC);
   if (authResponse) return authResponse;
 
   try {
     const body = await request.json();
-    const { usernamesToSync } = body;
+    const { usernamesToSync, action } = body;
+
+    if (action === "simulate" || action === "full") {
+      const now = new Date();
+      // Run full sync (passing no argument syncs all LDAP users)
+      const result = await syncLdapUsers();
+
+      const settings = await prisma.systemSetting.findFirst();
+      if (settings) {
+        await prisma.systemSetting.update({
+          where: { id: settings.id },
+          data: {
+            lastSyncAt: now,
+            lastSyncStatus: "success",
+            lastSyncMessage: `Successfully synchronized ${result.syncedCount} users (Created: ${result.usersCreated.length}, Updated: ${result.usersUpdated.length})`,
+          },
+        });
+      }
+
+      await logLdapSyncResult(result);
+
+      return NextResponse.json({
+        success: true,
+        syncedCount: result.syncedCount,
+        lastSyncAt: now.toISOString(),
+        lastSyncStatus: "success",
+        lastSyncMessage: `Successfully synchronized ${result.syncedCount} users`,
+      });
+    }
 
     if (!usernamesToSync || !Array.isArray(usernamesToSync)) {
       return NextResponse.json({ error: "Invalid payload. Expected 'usernamesToSync' array." }, { status: 400 });
     }
 
-    const { syncedCount } = await syncLdapUsers(usernamesToSync);
+    const result = await syncLdapUsers(usernamesToSync);
+    const syncedCount = result.syncedCount;
+
+    await logLdapSyncResult(result);
 
     // Return all users from database for the UI list
     const dbUsers = await prisma.user.findMany({
@@ -78,6 +109,24 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Failed to synchronize data from LDAP";
     console.error("LDAP Sync Error:", error);
+
+    // If it was a simulated action, update SystemSetting to failed state
+    try {
+      const settings = await prisma.systemSetting.findFirst();
+      if (settings) {
+        await prisma.systemSetting.update({
+          where: { id: settings.id },
+          data: {
+            lastSyncAt: new Date(),
+            lastSyncStatus: "failed",
+            lastSyncMessage: message,
+          },
+        });
+      }
+    } catch {}
+
+    await logLdapSyncResult(null, message);
+
     return NextResponse.json(
       { error: message },
       { status: 400 },

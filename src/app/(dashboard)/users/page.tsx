@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
 import { Users as UsersIcon, Search, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
 import { AccessDenied } from "@/components/access-denied";
@@ -65,6 +65,21 @@ type ApiErrorResponse = {
   error: string;
 };
 
+type LdapUserPreview = {
+  username: string;
+  displayName: string;
+  email: string;
+  department: string;
+  company: string;
+  title: string;
+  isSyncable?: boolean;
+};
+
+type SyncSuccessResponse = {
+  success: boolean;
+  syncedCount: number;
+};
+
 export default function UsersPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -94,6 +109,15 @@ export default function UsersPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord; direction: "asc" | "desc" } | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  // LDAP Sync Preview States
+  const [isSyncDialogOpen, setIsSyncDialogOpen] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewUsers, setPreviewUsers] = useState<LdapUserPreview[]>([]);
+  const [selectedUsernames, setSelectedUsernames] = useState<Set<string>>(new Set());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncSearch, setSyncSearch] = useState("");
+  const [syncSortConfig, setSyncSortConfig] = useState<{ key: keyof LdapUserPreview; direction: "asc" | "desc" } | null>(null);
 
   // Confirmation state
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -185,6 +209,125 @@ export default function UsersPage() {
       setIsLoading(false);
     }
   }, [page, limit, search, sortConfig, isReady]);
+
+  // Helper functions for LDAP Sync
+  const isSyncableUser = useCallback((u: LdapUserPreview) => {
+    return !!u.isSyncable;
+  }, []);
+
+  const fetchPreview = useCallback(async () => {
+    setIsPreviewLoading(true);
+    setPreviewUsers([]);
+    setSelectedUsernames(new Set());
+
+    try {
+      const res = await fetch("/api/ldap/sync");
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPreviewUsers(data.data);
+        const validUsers = data.data.filter((u: LdapUserPreview) => isSyncableUser(u));
+        setSelectedUsernames(new Set(validUsers.map((u: LdapUserPreview) => u.username)));
+      }
+    } catch (error) {
+      console.error("Failed to fetch preview", error);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  }, [isSyncableUser]);
+
+  const handleOpenSyncDialog = useCallback((open: boolean) => {
+    setIsSyncDialogOpen(open);
+    if (open) {
+      fetchPreview();
+    }
+  }, [fetchPreview]);
+
+  const filteredPreviewUsers = useMemo(() => {
+    const q = syncSearch.toLowerCase();
+    return previewUsers.filter((u: LdapUserPreview) =>
+      u.username.toLowerCase().includes(q) ||
+      u.displayName.toLowerCase().includes(q) ||
+      (u.email || "").toLowerCase().includes(q) ||
+      (u.department || "").toLowerCase().includes(q) ||
+      (u.company || "").toLowerCase().includes(q) ||
+      (u.title || "").toLowerCase().includes(q)
+    );
+  }, [previewUsers, syncSearch]);
+
+  const toggleSelectAllPreview = useCallback((checked: boolean) => {
+    if (checked) {
+      setSelectedUsernames(new Set(filteredPreviewUsers.filter((u: LdapUserPreview) => isSyncableUser(u)).map((u: LdapUserPreview) => u.username)));
+    } else {
+      setSelectedUsernames(new Set());
+    }
+  }, [filteredPreviewUsers, isSyncableUser]);
+
+  const toggleSelectPreviewUser = useCallback((username: string, checked: boolean) => {
+    setSelectedUsernames((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(username);
+      } else {
+        next.delete(username);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleConfirmSync = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch("/api/ldap/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernamesToSync: Array.from(selectedUsernames) }),
+      });
+      const data: SyncSuccessResponse | ApiErrorResponse = await res.json();
+      if (res.ok && "syncedCount" in data) {
+        toast.success(t("dashboard.successSync", { count: data.syncedCount }));
+        setIsSyncDialogOpen(false);
+        // Refresh users list in Users Page directly
+        fetchUsers();
+      } else if (res.ok === false && "error" in data) {
+        toast.error(data.error);
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : t("common.networkError");
+      toast.error(message);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [selectedUsernames, t, fetchUsers]);
+
+  const handleSyncSort = useCallback((key: keyof LdapUserPreview) => {
+    setSyncSortConfig((prev) => {
+      let direction: "asc" | "desc" = "asc";
+      if (prev && prev.key === key && prev.direction === "asc") {
+        direction = "desc";
+      }
+      return { key, direction };
+    });
+  }, []);
+
+  const sortedPreviewUsers = useMemo(() => {
+    if (!syncSortConfig) return filteredPreviewUsers;
+    return [...filteredPreviewUsers].sort((a, b) => {
+      const aValue = a[syncSortConfig.key] || "";
+      const bValue = b[syncSortConfig.key] || "";
+
+      if (aValue < bValue) {
+        return syncSortConfig.direction === "asc" ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return syncSortConfig.direction === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredPreviewUsers, syncSortConfig]);
+
+  const syncableUsersCount = useMemo(() => {
+    return filteredPreviewUsers.filter((u: LdapUserPreview) => isSyncableUser(u)).length;
+  }, [filteredPreviewUsers, isSyncableUser]);
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -398,6 +541,12 @@ export default function UsersPage() {
             )}
           </CardTitle>
           <div className="flex gap-3 w-full sm:w-auto">
+            {hasPermission(PERMISSIONS.LDAP_SYNC) && (
+              <Button onClick={() => handleOpenSyncDialog(true)} className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold">
+                <UsersIcon className="w-4 h-4 mr-2" />
+                {t("dashboard.syncData")}
+              </Button>
+            )}
             <Button variant="outline" size="icon" onClick={fetchUsers} disabled={isLoading || isBulkLoading}>
               <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             </Button>
@@ -694,6 +843,159 @@ export default function UsersPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)} disabled={isSavingRoles}>{t("common.cancel")}</Button>
             <Button onClick={handleSaveRoles} disabled={isSavingRoles}>{isSavingRoles ? t("rolesPage.saving") : t("usersPage.updateRoles")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog}>
+        <DialogContent className="max-w-[90vw] sm:max-w-7xl w-full max-h-[85vh] flex flex-col p-4 md:p-6 overflow-hidden">
+          <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <DialogTitle className="flex items-center gap-2">
+                {t("dashboard.syncPreviewTitle")}
+                {!isPreviewLoading && (
+                  <Badge variant="secondary">{filteredPreviewUsers.length} {t("common.users").toLowerCase()}</Badge>
+                )}
+              </DialogTitle>
+              <DialogDescription className="mt-1">
+                {t("dashboard.syncPreviewDesc")}
+              </DialogDescription>
+            </div>
+            <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+              <Input
+                placeholder={t("dashboard.searchPlaceholder")}
+                value={syncSearch}
+                onChange={(e) => setSyncSearch(e.target.value)}
+                className="sm:w-64"
+              />
+              <Button variant="outline" size="icon" onClick={fetchPreview} disabled={isPreviewLoading}>
+                <RefreshCw className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+            {isPreviewLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredPreviewUsers.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                {syncSearch ? t("dashboard.noUsersMatch") : t("dashboard.noUsersFound")}
+              </div>
+            ) : (
+              <div className="border rounded-md flex-1 overflow-hidden flex flex-col">
+                <Table wrapperClassName="max-h-[60vh]">
+                  <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
+                    <TableRow>
+                      <TableHead className="w-12 text-center">
+                        <Checkbox
+                          checked={selectedUsernames.size === syncableUsersCount && syncableUsersCount > 0}
+                          onCheckedChange={toggleSelectAllPreview}
+                          aria-label="Select all"
+                          disabled={syncableUsersCount === 0}
+                        />
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("username")}>
+                        <div className="flex items-center">
+                          {t("dashboard.tableHeaders.username")}
+                          {syncSortConfig?.key === "username" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("displayName")}>
+                        <div className="flex items-center">
+                          {t("dashboard.tableHeaders.displayName")}
+                          {syncSortConfig?.key === "displayName" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("email")}>
+                        <div className="flex items-center">
+                          {t("dashboard.tableHeaders.email")}
+                          {syncSortConfig?.key === "email" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("title")}>
+                        <div className="flex items-center">
+                          {t("dashboard.tableHeaders.title")}
+                          {syncSortConfig?.key === "title" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("department")}>
+                        <div className="flex items-center">
+                          {t("dashboard.tableHeaders.department")}
+                          {syncSortConfig?.key === "department" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                        </div>
+                      </TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSyncSort("company")}>
+                        <div className="flex items-center">
+                          {t("dashboard.tableHeaders.company")}
+                          {syncSortConfig?.key === "company" ? (syncSortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground/50" />}
+                        </div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedPreviewUsers.map((u: LdapUserPreview) => {
+                      const hasEmail = u.email && u.email.trim() !== "";
+                      const isTest = u.username.toLowerCase().includes("test") ||
+                        u.displayName.toLowerCase().includes("test") ||
+                        (u.email || "").toLowerCase().includes("test");
+                      const isSyncable = hasEmail && !isTest;
+                      return (
+                        <TableRow key={u.username} className={!isSyncable ? "opacity-60 bg-muted/20" : ""}>
+                          <TableCell className="w-12 text-center">
+                            <Checkbox
+                              checked={selectedUsernames.has(u.username)}
+                              onCheckedChange={(checked) => toggleSelectPreviewUser(u.username, !!checked)}
+                              aria-label={`Select ${u.username}`}
+                              disabled={!isSyncable}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{u.username}</TableCell>
+                          <TableCell>{u.displayName}</TableCell>
+                          <TableCell>
+                            {hasEmail ? (
+                              <div className="flex items-center gap-2">
+                                <span>{u.email}</span>
+                                {isTest && (
+                                  <Badge variant="outline" className="text-destructive border-destructive text-[10px] py-0 px-1.5 h-4 font-semibold">
+                                    {t("dashboard.testAccount")}
+                                  </Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-destructive text-xs font-semibold">{t("dashboard.missingEmail")}</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{u.title || "-"}</TableCell>
+                          <TableCell>{u.department || "-"}</TableCell>
+                          <TableCell>{u.company || "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-4 shrink-0">
+            <div className="flex w-full items-center justify-between">
+              <span className="text-sm text-muted-foreground font-medium">
+                {t("dashboard.validUsersSelected", { selected: selectedUsernames.size, total: syncableUsersCount })}
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>{t("common.cancel")}</Button>
+                <Button
+                  onClick={handleConfirmSync}
+                  disabled={isSyncing || selectedUsernames.size === 0}
+                  className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold"
+                >
+                  {isSyncing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSyncing ? t("dashboard.syncing") : t("dashboard.confirmSync")}
+                </Button>
+              </div>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
