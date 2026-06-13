@@ -18,7 +18,17 @@ import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
 import { DEFAULT_LIMIT } from "@/config/constants";
-import Swal from "sweetalert2";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getPageNumbers } from "@/lib/utils";
 import {
   Pagination,
@@ -84,6 +94,21 @@ export default function UsersPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [sortConfig, setSortConfig] = useState<{ key: keyof UserRecord; direction: "asc" | "desc" } | null>(null);
   const [isReady, setIsReady] = useState(false);
+
+  // Confirmation state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    description: React.ReactNode;
+    actionText: string;
+    onConfirm: () => void;
+    variant?: "default" | "destructive";
+  } | null>(null);
+
+  const confirmAction = (config: typeof confirmConfig) => {
+    setConfirmConfig(config);
+    setConfirmOpen(true);
+  };
 
   // Load initial state from URL search params on mount
   useEffect(() => {
@@ -190,125 +215,112 @@ export default function UsersPage() {
   }, [fetchUsers, isReady]);
 
   const handleDelete = async (user: UserRecord) => {
-    const result = await Swal.fire({
-      title: t("rolesPage.deleteConfirmTitle"),
-      html: `${t("rolesPage.deleteConfirmDesc")}<br/><strong>${user.displayName || user.username}</strong>`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.delete"),
-      cancelButtonText: t("common.cancel"),
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setSelectedUserIds((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(user.id);
-          return newSet;
-        });
-        await Swal.fire({
-          title: t("common.success"),
-          text: t("usersPage.successBulkDelete"),
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-        fetchUsers();
-      } else {
-        const data: ApiErrorResponse = await res.json();
-        await Swal.fire(t("common.error"), data.error || t("usersPage.failedToDeleteUser"), "error");
+    confirmAction({
+      title: t("rolesPage.deleteConfirmTitle") || "Bạn có chắc chắn muốn xóa?",
+      description: (
+        <span>
+          {t("rolesPage.deleteConfirmDesc") || "Hành động này không thể hoàn tác."}
+          <br />
+          <strong>{user.displayName || user.username}</strong>
+        </span>
+      ),
+      actionText: t("common.delete") || "Xóa",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+          if (res.ok) {
+            setSelectedUserIds((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(user.id);
+              return newSet;
+            });
+            toast.success(t("usersPage.successBulkDelete"));
+            fetchUsers();
+          } else {
+            const data: ApiErrorResponse = await res.json();
+            toast.error(data.error || t("usersPage.failedToDeleteUser"));
+          }
+        } catch {
+          toast.error(t("common.networkError"));
+        }
       }
-    } catch {
-      await Swal.fire(t("common.error"), t("common.networkError"), "error");
-    }
+    });
   };
 
   const handleToggleStatus = async (user: UserRecord) => {
-    const actionText = user.disabled ? "Unlock" : "Disable";
-    const result = await Swal.fire({
-      title: t("common.confirm"),
-      html: `${actionText === "Unlock" ? t("usersPage.enableSelected") : t("usersPage.disableSelected")} <strong>${user.displayName || user.username}</strong>?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: user.disabled ? "#10b981" : "#f59e0b",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.confirm"),
-      cancelButtonText: t("common.cancel"),
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch("/api/users/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: user.disabled ? "enable" : "disable", userIds: [user.id] })
-      });
-      if (res.ok) {
-        setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, disabled: !u.disabled } : u));
-        await Swal.fire({
-          title: t("common.success"),
-          text: user.disabled ? t("usersPage.successBulkEnable") : t("usersPage.successBulkDisable"),
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
-        const data: ApiErrorResponse = await res.json();
-        await Swal.fire(t("common.error"), data.error || (user.disabled ? t("usersPage.failedToEnable") : t("usersPage.failedToDisable")), "error");
+    const actionDesc = user.disabled ? t("usersPage.enableSelected") : t("usersPage.disableSelected");
+    confirmAction({
+      title: t("common.confirm") || "Xác nhận",
+      description: (
+        <span>
+          {actionDesc} <strong>{user.displayName || user.username}</strong>?
+        </span>
+      ),
+      actionText: t("common.confirm") || "Xác nhận",
+      variant: user.disabled ? "default" : "destructive",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/users/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: user.disabled ? "enable" : "disable", userIds: [user.id] })
+          });
+          if (res.ok) {
+            setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, disabled: !u.disabled } : u));
+            toast.success(user.disabled ? t("usersPage.successBulkEnable") : t("usersPage.successBulkDisable"));
+          } else {
+            const data: ApiErrorResponse = await res.json();
+            toast.error(data.error || (user.disabled ? t("usersPage.failedToEnable") : t("usersPage.failedToDisable")));
+          }
+        } catch {
+          toast.error(t("common.networkError"));
+        }
       }
-    } catch {
-      await Swal.fire(t("common.error"), t("common.networkError"), "error");
-    }
+    });
   };
 
   const handleBulkAction = async (action: "delete" | "disable" | "enable") => {
     if (selectedUserIds.size === 0) return;
 
-    const result = await Swal.fire({
-      title: t("common.confirm"),
-      html: `${action === "delete" ? t("usersPage.deleteSelected") : action === "disable" ? t("usersPage.disableSelected") : t("usersPage.enableSelected")} <strong>${selectedUserIds.size}</strong> users?`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: action === "delete" ? "#ef4444" : action === "disable" ? "#f59e0b" : "#10b981",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.confirm"),
-      cancelButtonText: t("common.cancel"),
-    });
+    const actionDesc = action === "delete"
+      ? t("usersPage.deleteSelected")
+      : action === "disable"
+        ? t("usersPage.disableSelected")
+        : t("usersPage.enableSelected");
 
-    if (!result.isConfirmed) return;
-
-    setIsBulkLoading(true);
-    try {
-      const res = await fetch("/api/users/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, userIds: Array.from(selectedUserIds) })
-      });
-      if (res.ok) {
-        setSelectedUserIds(new Set());
-        await Swal.fire({
-          title: t("common.success"),
-          text: action === "delete" ? t("usersPage.successBulkDelete") : action === "disable" ? t("usersPage.successBulkDisable") : t("usersPage.successBulkEnable"),
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-        fetchUsers();
-      } else {
-        const data: ApiErrorResponse = await res.json();
-        await Swal.fire(t("common.error"), data.error || t("usersPage.failedBulkAction"), "error");
+    confirmAction({
+      title: t("common.confirm") || "Xác nhận",
+      description: (
+        <span>
+          {actionDesc} <strong>{selectedUserIds.size}</strong> users?
+        </span>
+      ),
+      actionText: t("common.confirm") || "Xác nhận",
+      variant: action === "delete" || action === "disable" ? "destructive" : "default",
+      onConfirm: async () => {
+        setIsBulkLoading(true);
+        try {
+          const res = await fetch("/api/users/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action, userIds: Array.from(selectedUserIds) })
+          });
+          if (res.ok) {
+            setSelectedUserIds(new Set());
+            toast.success(action === "delete" ? t("usersPage.successBulkDelete") : action === "disable" ? t("usersPage.successBulkDisable") : t("usersPage.successBulkEnable"));
+            fetchUsers();
+          } else {
+            const data: ApiErrorResponse = await res.json();
+            toast.error(data.error || t("usersPage.failedBulkAction"));
+          }
+        } catch {
+          toast.error(t("common.networkError"));
+        } finally {
+          setIsBulkLoading(false);
+        }
       }
-    } catch {
-      await Swal.fire(t("common.error"), t("common.networkError"), "error");
-    } finally {
-      setIsBulkLoading(false);
-    }
+    });
   };
 
   const handleSort = (key: keyof UserRecord) => {
@@ -357,14 +369,14 @@ export default function UsersPage() {
         if (data.success) {
           setUsers(prev => prev.map(u => u.id === data.data.id ? data.data : u));
           setIsRoleDialogOpen(false);
-          Swal.fire({ title: t("common.success"), text: t("usersPage.successUpdateRoles"), icon: "success", timer: 1500, showConfirmButton: false });
+          toast.success(t("usersPage.successUpdateRoles"));
         }
       } else {
         const errorData = await res.json();
-        Swal.fire(t("common.error"), errorData.error || t("usersPage.failedToUpdateRoles"), "error");
+        toast.error(errorData.error || t("usersPage.failedToUpdateRoles"));
       }
     } catch {
-      Swal.fire(t("common.error"), t("common.networkError"), "error");
+      toast.error(t("common.networkError"));
     } finally {
       setIsSavingRoles(false);
     }
@@ -685,6 +697,30 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmConfig?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmConfig?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmOpen === false}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmOpen === false}
+              onClick={() => {
+                confirmConfig?.onConfirm();
+                setConfirmOpen(false);
+              }}
+              variant={confirmConfig?.variant === "destructive" ? "destructive" : "default"}
+            >
+              {confirmConfig?.actionText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

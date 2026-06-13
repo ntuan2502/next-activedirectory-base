@@ -53,6 +53,8 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "ldap:sync_data": { label: "LDAP Sync", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
   "user:delete": { label: "Delete User", color: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
   "user:update_roles": { label: "Update User Roles", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
+  "user:update_profile": { label: "Update Profile", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
+  "user:change_password": { label: "Change Password", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
   "users:bulk_delete": { label: "Bulk Delete Users", color: "bg-red-500/10 text-red-500 border-red-500/20" },
   "users:bulk_disable": { label: "Bulk Disable Users", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
   "users:bulk_enable": { label: "Bulk Enable Users", color: "bg-green-500/10 text-green-500 border-green-500/20" },
@@ -75,6 +77,8 @@ const getActionTranslationKey = (action: string): string => {
     "ldap:sync_data": "ldapSync",
     "user:delete": "deleteUser",
     "user:update_roles": "updateUserRoles",
+    "user:update_profile": "updateProfile",
+    "user:change_password": "changePassword",
     "users:bulk_delete": "bulkDelete",
     "users:bulk_disable": "bulkDisable",
     "users:bulk_enable": "bulkEnable",
@@ -612,6 +616,8 @@ export default function AuditLogsPage() {
                   <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
                   <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
                   <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
+                  <option value="user:update_profile">{t("auditLogsPage.actions.updateProfile")}</option>
+                  <option value="user:change_password">{t("auditLogsPage.actions.changePassword")}</option>
                   <option value="users:bulk_delete">{t("auditLogsPage.actions.bulkDelete")}</option>
                   <option value="users:bulk_disable">{t("auditLogsPage.actions.bulkDisable")}</option>
                   <option value="users:bulk_enable">{t("auditLogsPage.actions.bulkEnable")}</option>

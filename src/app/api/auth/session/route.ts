@@ -19,6 +19,7 @@ export async function GET() {
   const dbUser = await prisma.user.findUnique({
     where: { id: session.userId },
     select: {
+      dn: true,
       displayName: true,
       email: true,
       createdAt: true,
@@ -54,6 +55,7 @@ export async function GET() {
       displayName,
       email,
       avatarUrl,
+      isLocal: dbUser?.dn === "" || !dbUser?.dn,
       createdAt: dbUser?.createdAt ? dbUser.createdAt.toISOString() : null,
       roles: dbUser?.roles || [],
       permissions,

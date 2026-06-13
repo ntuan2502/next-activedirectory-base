@@ -14,7 +14,17 @@ import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
 import { PERMISSIONS, AVAILABLE_PERMISSIONS } from "@/config/permissions";
-import Swal from "sweetalert2";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type RoleRecord = {
   id: string;
@@ -49,6 +59,21 @@ export default function RolesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formPermissions, setFormPermissions] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
+
+  // Confirmation state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    description: React.ReactNode;
+    actionText: string;
+    onConfirm: () => void;
+    variant?: "default" | "destructive";
+  } | null>(null);
+
+  const confirmAction = (config: typeof confirmConfig) => {
+    setConfirmConfig(config);
+    setConfirmOpen(true);
+  };
 
   const isReadOnly = editingRole ? (editingRole.isSystem || !hasPermission(PERMISSIONS.ROLES_UPDATE)) : false;
 
@@ -139,7 +164,7 @@ export default function RolesPage() {
 
   const handleSave = async () => {
     if (!formName.trim()) {
-      return Swal.fire(t("common.error"), t("rolesPage.roleNameRequired"), "error");
+      return toast.error(t("rolesPage.roleNameRequired"));
     }
 
     setIsSaving(true);
@@ -161,19 +186,13 @@ export default function RolesPage() {
       if (res.ok) {
         await fetchRoles();
         setIsDialogOpen(false);
-        Swal.fire({
-          title: t("common.success"),
-          text: editingRole ? t("rolesPage.successUpdate") : t("rolesPage.successCreate"),
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
+        toast.success(editingRole ? t("rolesPage.successUpdate") : t("rolesPage.successCreate"));
       } else {
         const data = await res.json();
-        Swal.fire(t("common.error"), data.error || t("common.failedToSave"), "error");
+        toast.error(data.error || t("common.failedToSave"));
       }
     } catch {
-      Swal.fire(t("common.error"), t("common.networkError"), "error");
+      toast.error(t("common.networkError"));
     } finally {
       setIsSaving(false);
     }
@@ -182,37 +201,32 @@ export default function RolesPage() {
   const handleDelete = async (role: RoleRecord) => {
     if (role.isSystem) return;
 
-    const result = await Swal.fire({
-      title: t("rolesPage.deleteConfirmTitle"),
-      html: `${t("rolesPage.deleteConfirmDesc")}<br/><br/><strong>${role.name}</strong>`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.yes") || "Yes",
-      cancelButtonText: t("common.cancel") || "Cancel",
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch(`/api/roles/${role.id}`, { method: "DELETE" });
-      if (res.ok) {
-        setRoles((prev) => prev.filter((r) => r.id !== role.id));
-        Swal.fire({
-          title: t("common.success"),
-          text: t("rolesPage.successDelete"),
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
-        const data = await res.json();
-        Swal.fire(t("common.error"), data.error || t("common.failedToDelete"), "error");
+    confirmAction({
+      title: t("rolesPage.deleteConfirmTitle") || "Bạn có chắc chắn muốn xóa?",
+      description: (
+        <span>
+          {t("rolesPage.deleteConfirmDesc") || "Hành động này không thể hoàn tác."}
+          <br />
+          <strong>{role.name}</strong>
+        </span>
+      ),
+      actionText: t("common.delete") || "Xóa",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/roles/${role.id}`, { method: "DELETE" });
+          if (res.ok) {
+            setRoles((prev) => prev.filter((r) => r.id !== role.id));
+            toast.success(t("rolesPage.successDelete"));
+          } else {
+            const data = await res.json();
+            toast.error(data.error || t("common.failedToDelete"));
+          }
+        } catch {
+          toast.error(t("common.networkError"));
+        }
       }
-    } catch {
-      Swal.fire(t("common.error"), t("common.networkError"), "error");
-    }
+    });
   };
 
   if (!hasPermission(PERMISSIONS.ROLES_READ)) {
@@ -450,6 +464,30 @@ export default function RolesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmConfig?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmConfig?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmOpen === false}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmOpen === false}
+              onClick={() => {
+                confirmConfig?.onConfirm();
+                setConfirmOpen(false);
+              }}
+              variant={confirmConfig?.variant === "destructive" ? "destructive" : "default"}
+            >
+              {confirmConfig?.actionText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

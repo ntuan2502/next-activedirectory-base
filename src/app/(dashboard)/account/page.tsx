@@ -6,7 +6,17 @@ import { useLanguage } from "@/components/language-provider";
 import { useTheme } from "next-themes";
 import { useSettings } from "@/components/settings-provider";
 import { LanguageToggle } from "@/components/language-toggle";
-import Swal from "sweetalert2";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { parseUserAgent, formatDateTimeCustom } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +39,8 @@ import {
   Trash2,
   RefreshCw,
   ChevronDown,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface UserAvatarProps {
@@ -85,13 +97,143 @@ type ActiveSession = {
 };
 
 export default function AccountPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshSession } = useAuth();
   const { locale, t } = useLanguage();
   const { theme } = useTheme();
   const { fontSize, fontFamily, dateFormat, timeFormat, updateSetting } = useSettings();
   const [mounted, setMounted] = useState(false);
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+
+  // Local user profile state
+  const [profileDisplayName, setProfileDisplayName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+
+  // Local user password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+
+  // Mật khẩu show/hide state
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const isLocal = !!user?.isLocal;
+
+  const isProfileChanged =
+    profileDisplayName.trim() !== (user?.displayName || "") ||
+    profileEmail.trim().toLowerCase() !== (user?.email || "").toLowerCase();
+
+  const isPasswordFilled =
+    currentPassword.length > 0 &&
+    newPassword.length > 0 &&
+    confirmNewPassword.length > 0;
+
+  // Confirmation state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    description: React.ReactNode;
+    actionText: string;
+    onConfirm: () => void;
+    variant?: "default" | "destructive";
+  } | null>(null);
+
+  const confirmAction = (config: typeof confirmConfig) => {
+    setConfirmConfig(config);
+    setConfirmOpen(true);
+  };
+
+  useEffect(() => {
+    if (user) {
+      const timer = setTimeout(() => {
+        setProfileDisplayName(user.displayName || "");
+        setProfileEmail(user.email || "");
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileDisplayName.trim() || !profileEmail.trim()) {
+      toast.error(t("setupPage.errorRequiredFields") || "Please fill in all required fields.");
+      return;
+    }
+
+    setIsProfileSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "profile",
+          displayName: profileDisplayName,
+          email: profileEmail,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(t("accountPage.profileUpdated") || "Profile updated successfully.");
+        await refreshSession();
+      } else {
+        toast.error(data.error || t("common.failedToSave") || "Failed to save.");
+      }
+    } catch {
+      toast.error(t("common.networkError") || "Network error.");
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      toast.error(t("setupPage.errorRequiredFields") || "Please fill in all required fields.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast.error(t("setupPage.errorPasswordMismatch") || "Passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error(t("accountPage.passwordMinLength") || "New password must be at least 8 characters long.");
+      return;
+    }
+
+    setIsPasswordSaving(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "password",
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(t("accountPage.passwordUpdated") || "Password updated successfully.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+      } else {
+        toast.error(data.error || t("common.failedToSave") || "Failed to save.");
+      }
+    } catch {
+      toast.error(t("common.networkError") || "Network error.");
+    } finally {
+      setIsPasswordSaving(false);
+    }
+  };
 
   const fetchSessions = async () => {
     try {
@@ -115,103 +257,74 @@ export default function AccountPage() {
     return () => clearTimeout(timer);
   }, []);
 
-
-
   const handleRevokeSession = async (id: string) => {
-    const result = await Swal.fire({
-      title: t("common.confirm"),
-      text: t("accountPage.revokeSessionConfirm"),
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.confirm"),
-      cancelButtonText: t("common.cancel"),
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch(`/api/auth/sessions?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.loggedOutCurrent) {
-          logout();
-        } else {
-          Swal.fire({
-            title: t("common.success"),
-            text: t("accountPage.signOutOtherSuccessText"),
-            icon: "success",
-            timer: 1500,
-            showConfirmButton: false,
-          });
-          fetchSessions();
+    confirmAction({
+      title: t("common.confirm") || "Confirm",
+      description: t("accountPage.revokeSessionConfirm") || "Are you sure you want to sign out this active session?",
+      actionText: t("common.confirm") || "Confirm",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const res = await fetch(`/api/auth/sessions?id=${id}`, { method: "DELETE" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.loggedOutCurrent) {
+              logout();
+            } else {
+              toast.success(t("accountPage.signOutOtherSuccessText") || "Session successfully signed out.");
+              fetchSessions();
+            }
+          } else {
+            toast.error(t("common.failedToDelete") || "Failed to delete.");
+          }
+        } catch {
+          toast.error(t("common.networkError") || "Network error.");
         }
-      } else {
-        Swal.fire(t("common.error"), t("common.failedToDelete"), "error");
       }
-    } catch {
-      Swal.fire(t("common.error"), t("common.networkError"), "error");
-    }
+    });
   };
 
   const handleRevokeOtherSessions = async () => {
-    const result = await Swal.fire({
-      title: t("accountPage.signOutOtherSessions"),
-      text: t("accountPage.signOutOtherSessionsDesc"),
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.confirm"),
-      cancelButtonText: t("common.cancel"),
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch("/api/auth/sessions?action=other", { method: "DELETE" });
-      if (res.ok) {
-        Swal.fire({
-          title: t("common.success"),
-          text: t("accountPage.signOutOtherSuccessText"),
-          icon: "success",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-        fetchSessions();
-      } else {
-        Swal.fire(t("common.error"), t("common.failedToDelete"), "error");
+    confirmAction({
+      title: t("accountPage.signOutOtherSessions") || "Sign out other sessions",
+      description: t("accountPage.signOutOtherSessionsDesc") || "Revoke all other active sessions except this one?",
+      actionText: t("accountPage.signOutOtherSessionsButton") || "Sign out other devices",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/auth/sessions?action=other", { method: "DELETE" });
+          if (res.ok) {
+            toast.success(t("accountPage.signOutOtherSuccessText") || "Other sessions terminated.");
+            fetchSessions();
+          } else {
+            toast.error(t("common.failedToDelete") || "Failed to delete.");
+          }
+        } catch {
+          toast.error(t("common.networkError") || "Network error.");
+        }
       }
-    } catch {
-      Swal.fire(t("common.error"), t("common.networkError"), "error");
-    }
+    });
   };
 
   const handleRevokeAllSessions = async () => {
-    const result = await Swal.fire({
-      title: t("accountPage.signOutAllSessions"),
-      text: t("accountPage.signOutAllSessionsDesc"),
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#ef4444",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: t("common.confirm"),
-      cancelButtonText: t("common.cancel"),
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      const res = await fetch("/api/auth/sessions?action=all", { method: "DELETE" });
-      if (res.ok) {
-        logout();
-      } else {
-        Swal.fire(t("common.error"), t("common.failedToDelete"), "error");
+    confirmAction({
+      title: t("accountPage.signOutAllSessions") || "Sign out all sessions",
+      description: t("accountPage.signOutAllSessionsDesc") || "Sign out all devices including this current device?",
+      actionText: t("accountPage.signOutAllSessionsButton") || "Sign out all devices",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const res = await fetch("/api/auth/sessions?action=all", { method: "DELETE" });
+          if (res.ok) {
+            logout();
+          } else {
+            toast.error(t("common.failedToDelete") || "Failed to delete.");
+          }
+        } catch {
+          toast.error(t("common.networkError") || "Network error.");
+        }
       }
-    } catch {
-      Swal.fire(t("common.error"), t("common.networkError"), "error");
-    }
+    });
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -283,10 +396,17 @@ export default function AccountPage() {
                     <span className="text-2xl font-bold text-foreground tracking-tight">
                       {user?.displayName || user?.username}
                     </span>
-                    <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider py-0.5 rounded-md">
-                      <ShieldCheck className="h-3 w-3" />
-                      {t("accountPage.syncedFromAD")}
-                    </Badge>
+                    {isLocal ? (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px] font-bold uppercase tracking-wider py-0.5 rounded-md">
+                        <User className="h-3 w-3" />
+                        {t("accountPage.localAccount") || "Local Account"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider py-0.5 rounded-md">
+                        <ShieldCheck className="h-3 w-3" />
+                        {t("accountPage.syncedFromAD")}
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground space-y-1">
                     <div className="font-mono text-muted-foreground/80">@{user?.username}</div>
@@ -298,63 +418,86 @@ export default function AccountPage() {
               </div>
             </CardHeader>
 
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Username */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("loginPage.username")}
-                  </Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                    <Input
-                      type="text"
-                      value={user?.username || ""}
-                      disabled
-                      className="pl-10 bg-muted/40 font-mono text-muted-foreground border-border cursor-not-allowed select-none"
-                    />
+            <form onSubmit={handleSaveProfile}>
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Username */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {t("loginPage.username")}
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      <Input
+                        type="text"
+                        value={user?.username || ""}
+                        disabled
+                        className="pl-10 bg-muted/40 font-mono text-muted-foreground border-border cursor-not-allowed select-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Display Name */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {t("accountPage.displayName")}
+                    </Label>
+                    <div className="relative">
+                      {isLocal ? (
+                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      ) : (
+                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      )}
+                      <Input
+                        type="text"
+                        value={isLocal ? profileDisplayName : (user?.displayName || "")}
+                        onChange={(e) => isLocal && setProfileDisplayName(e.target.value)}
+                        disabled={!isLocal}
+                        className={isLocal ? "pl-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {t("accountPage.email")}
+                    </Label>
+                    <div className="relative">
+                      {isLocal ? (
+                        <Sliders className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      ) : (
+                        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      )}
+                      <Input
+                        type="email"
+                        value={isLocal ? profileEmail : (user?.email || "")}
+                        onChange={(e) => isLocal && setProfileEmail(e.target.value)}
+                        disabled={!isLocal}
+                        className={isLocal ? "pl-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Display Name */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("accountPage.displayName")}
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                    <Input
-                      type="text"
-                      value={user?.displayName || ""}
-                      disabled
-                      className="pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"
-                    />
+                {isLocal ? (
+                  <div className="flex justify-end pt-2">
+                    <Button type="submit" disabled={isProfileSaving || !isProfileChanged} className="font-semibold h-9 px-5">
+                      {isProfileSaving && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                      {t("accountPage.btnSave") || "Lưu thay đổi"}
+                    </Button>
                   </div>
-                </div>
-
-                {/* Email */}
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("accountPage.email")}
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                    <Input
-                      type="email"
-                      value={user?.email || ""}
-                      disabled
-                      className="pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"
-                    />
+                ) : (
+                  /* Lock Warning Notice */
+                  <div className="flex gap-3 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400 text-xs leading-relaxed">
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <div>{t("accountPage.profileLockedNotice")}</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Lock Warning Notice */}
-              <div className="flex gap-3 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400 text-xs leading-relaxed">
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                <div>{t("accountPage.profileLockedNotice")}</div>
-              </div>
-            </CardContent>
+                )}
+              </CardContent>
+            </form>
           </Card>
 
           {/* PASSWORD CARD */}
@@ -374,63 +517,107 @@ export default function AccountPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Current Password */}
-                <div className="space-y-2 sm:col-span-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("accountPage.currentPassword")}
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                    <Input
-                      type="password"
-                      value="••••••••••••"
-                      disabled
-                      className="pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"
-                    />
+            <form onSubmit={handleUpdatePassword}>
+              <CardContent className="p-6 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Current Password */}
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {t("accountPage.currentPassword")}
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      <Input
+                        type={showCurrentPassword && isLocal ? "text" : "password"}
+                        value={isLocal ? currentPassword : "••••••••••••"}
+                        onChange={(e) => isLocal && setCurrentPassword(e.target.value)}
+                        disabled={!isLocal}
+                        className={isLocal ? "pl-10 pr-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        required={isLocal}
+                      />
+                      {isLocal && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground focus:outline-none cursor-pointer"
+                        >
+                          {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* New Password */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {t("accountPage.newPassword")}
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      <Input
+                        type={showNewPassword && isLocal ? "text" : "password"}
+                        value={isLocal ? newPassword : "••••••••••••"}
+                        onChange={(e) => isLocal && setNewPassword(e.target.value)}
+                        disabled={!isLocal}
+                        className={isLocal ? "pl-10 pr-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        required={isLocal}
+                      />
+                      {isLocal && (
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground focus:outline-none cursor-pointer"
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      {t("accountPage.confirmNewPassword")}
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
+                      <Input
+                        type={showConfirmPassword && isLocal ? "text" : "password"}
+                        value={isLocal ? confirmNewPassword : "••••••••••••"}
+                        onChange={(e) => isLocal && setConfirmNewPassword(e.target.value)}
+                        disabled={!isLocal}
+                        className={isLocal ? "pl-10 pr-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        required={isLocal}
+                      />
+                      {isLocal && (
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground focus:outline-none cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* New Password */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("accountPage.newPassword")}
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                    <Input
-                      type="password"
-                      value="••••••••••••"
-                      disabled
-                      className="pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"
-                    />
+                {isLocal ? (
+                  <div className="flex justify-end pt-2">
+                    <Button type="submit" disabled={isPasswordSaving || !isPasswordFilled} className="font-semibold h-9 px-5">
+                      {isPasswordSaving && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
+                      {t("accountPage.updatePassword") || "Cập nhật mật khẩu"}
+                    </Button>
                   </div>
-                </div>
-
-                {/* Confirm Password */}
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    {t("accountPage.confirmNewPassword")}
-                  </Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/45" />
-                    <Input
-                      type="password"
-                      value="••••••••••••"
-                      disabled
-                      className="pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"
-                    />
+                ) : (
+                  /* Password Lock Notice */
+                  <div className="flex gap-3 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400 text-xs leading-relaxed">
+                    <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <div>{t("accountPage.passwordLockedNotice")}</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Password Lock Notice */}
-              <div className="flex gap-3 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400 text-xs leading-relaxed">
-                <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-                <div>{t("accountPage.passwordLockedNotice")}</div>
-              </div>
-            </CardContent>
+                )}
+              </CardContent>
+            </form>
           </Card>
 
           {/* ROLES & PERMISSIONS CARD */}
@@ -897,6 +1084,29 @@ export default function AccountPage() {
           
         </div>
       </div>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmConfig?.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmConfig?.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmOpen === false}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmOpen === false}
+              onClick={() => {
+                confirmConfig?.onConfirm();
+                setConfirmOpen(false);
+              }}
+              variant={confirmConfig?.variant === "destructive" ? "destructive" : "default"}
+            >
+              {confirmConfig?.actionText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
