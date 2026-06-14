@@ -119,6 +119,12 @@ export const vi = {
   rolesPage: {
     title: "Vai trò & Phân quyền",
     description: "Định nghĩa vai trò người dùng và phân quyền truy cập tính năng hệ thống.",
+    searchPlaceholder: "Tìm kiếm vai trò hoặc mô tả...",
+    filters: {
+      all: "Tất cả vai trò",
+      system: "Vai trò hệ thống",
+      custom: "Vai trò tùy chỉnh",
+    },
     createRole: "Tạo vai trò",
     editRole: "Sửa vai trò",
     viewRole: "Xem chi tiết",
@@ -146,9 +152,12 @@ export const vi = {
     readOnlyNotice: "Bạn đang xem vai trò này ở chế độ chỉ đọc.",
     roleNamePlaceholder: "Ví dụ: Quản lý Nhân sự",
     roleDescPlaceholder: "Ví dụ: Có thể quản lý người dùng và đồng bộ LDAP",
+    noRolesMatch: "Không tìm thấy vai trò nào phù hợp.",
+    showingRecords: "Hiển thị {{count}} trên tổng số {{total}} vai trò",
     tableHeaders: {
       name: "Tên vai trò",
       description: "Mô tả",
+      permissions: "Quyền hạn",
       permissionsCount: "Số lượng quyền",
       usersCount: "Người dùng được gán",
       system: "Hệ thống",

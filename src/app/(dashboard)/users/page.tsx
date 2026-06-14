@@ -8,12 +8,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
+import { LoadingOverlay, LoadingSpinner } from "@/components/loading-overlay";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
@@ -540,7 +540,7 @@ export default function UsersPage() {
             <UsersIcon className="w-8 h-8 text-primary" />
             {t("common.users")}
             {(totalCount > 0 || !isLoading) && (
-              <Badge variant="secondary" className={`ml-2 transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
+              <Badge variant="secondary" className={`ml-2 translate-y-[2px] transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
                 {totalCount} {t("common.users").toLowerCase()}
               </Badge>
             )}
@@ -624,16 +624,9 @@ export default function UsersPage() {
               />
             </div>
           </div>
-          <div className="overflow-x-auto relative">
-            {isLoading && users.length > 0 && (
-              <div className="absolute inset-0 bg-background/40 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-auto animate-in fade-in duration-200">
-                <div className="bg-background/90 p-4 rounded-xl shadow-lg border border-muted/80 flex flex-col items-center gap-2">
-                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                  <span className="text-xs font-medium text-muted-foreground">{t("common.loading")}</span>
-                </div>
-              </div>
-            )}
-            <Table wrapperClassName="max-h-[calc(100vh-220px)]">
+          <div className="overflow-x-auto relative mb-0">
+            <LoadingOverlay show={isLoading} variant="table" />
+            <Table wrapperClassName="mb-0" className="mb-0">
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
                   <TableHead className="w-12 text-center">
@@ -693,18 +686,8 @@ export default function UsersPage() {
                   )}
                 </TableRow>
               </TableHeader>
-               <TableBody className={`transition-opacity duration-200 ${isLoading && users.length > 0 ? "opacity-50" : ""}`}>
-                {isLoading && users.length === 0 ? (
-                  Array.from({ length: limit || 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 10 }).map((_, j) => (
-                        <TableCell key={j}>
-                          <Skeleton className="h-4 w-full" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : users.length > 0 ? (
+              <TableBody className={`transition-opacity duration-200 ${isLoading && users.length > 0 ? "opacity-50" : ""}`}>
+                {users.length > 0 ? (
                   users.map((user) => (
                     <TableRow key={user.id} className={user.disabled ? "opacity-60 bg-muted/30" : ""}>
                       <TableCell className="text-center">
@@ -786,7 +769,7 @@ export default function UsersPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={10} className="h-24 text-center text-muted-foreground">
-                      {search ? t("usersPage.noUsersMatch") : t("usersPage.noUsersFound")}
+                      {!isLoading && (search ? t("usersPage.noUsersMatch") : t("usersPage.noUsersFound"))}
                     </TableCell>
                   </TableRow>
                 )}
@@ -796,7 +779,7 @@ export default function UsersPage() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-4 border-t mt-4">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t mt-2">
               <span className="text-sm text-muted-foreground">
                 {t("usersPage.showingRecords", { count: users.length, total: totalCount })}
               </span>
@@ -902,10 +885,10 @@ export default function UsersPage() {
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0 relative">
             {isPreviewLoading ? (
-              <div className="flex-1 flex items-center justify-center">
-                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+              <div className="flex-1 flex items-center justify-center min-h-[300px]">
+                <LoadingSpinner />
               </div>
             ) : filteredPreviewUsers.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-muted-foreground">

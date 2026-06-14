@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingOverlay } from "@/components/loading-overlay";
 import {
   User,
   Lock,
@@ -365,7 +366,7 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6">
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -950,22 +951,11 @@ export default function AccountPage() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 relative min-h-[160px]">
+              <LoadingOverlay show={sessionsLoading} variant="card" />
               {/* Sessions List */}
               <div className="space-y-4">
-                {sessionsLoading ? (
-                  <div className="space-y-3 animate-pulse">
-                    {[1, 2].map((i) => (
-                      <div key={i} className="flex items-center gap-3 p-3 border rounded-lg">
-                        <div className="h-10 w-10 bg-muted rounded-lg" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-muted rounded w-2/3" />
-                          <div className="h-3 bg-muted rounded w-1/2" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : sessions.length > 0 ? (
+                {sessions.length > 0 ? (
                   <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
                     {sessions.map((session) => {
                       const { browser, os, isMobile } = parseUserAgent(session.userAgent);
@@ -1017,11 +1007,11 @@ export default function AccountPage() {
                       );
                     })}
                   </div>
-                ) : (
+                ) : !sessionsLoading ? (
                   <p className="text-xs text-muted-foreground italic text-center py-2">
                     No active sessions found.
                   </p>
-                )}
+                ) : null}
               </div>
 
               {/* DANGER ZONE / SECURITY ACTIONS */}

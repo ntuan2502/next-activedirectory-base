@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import { LoadingOverlay } from "@/components/loading-overlay";
 
 type SessionUser = {
   userId: string;
@@ -133,14 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [pathname, router, status]);
 
   if (status === "loading" || (!user && !PUBLIC_PATHS.includes(pathname) && pathname !== "/setup")) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingOverlay show={true} variant="full" />;
   }
 
   return (

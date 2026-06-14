@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || DEFAULT_LIMIT.toString())));
     const action = searchParams.get("action") || "";
     const search = searchParams.get("search") || "";
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortOrder = searchParams.get("sortOrder") || "desc";
 
     const offset = (page - 1) * limit;
 
@@ -39,12 +41,21 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Determine sorting
+    const allowedSortFields = ["createdAt", "username", "action", "target", "ipAddress"];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    const sortDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const orderBy: Prisma.AuditLogOrderByWithRelationInput = {
+      [sortField]: sortDirection,
+    };
+
     // Execute parallel queries for count and data
     const [total, auditLogs] = await Promise.all([
       prisma.auditLog.count({ where }),
       prisma.auditLog.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip: offset,
         take: limit,
         include: {

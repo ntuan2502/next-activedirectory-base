@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Server, UserCheck, KeyRound, Eye, EyeOff, ArrowRight, RefreshCw, CheckCircle2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingOverlay } from "@/components/loading-overlay";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -159,11 +160,7 @@ export default function InitialSetupPage() {
   };
 
   if (!isReady) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingOverlay show={true} variant="full" />;
   }
 
   return (

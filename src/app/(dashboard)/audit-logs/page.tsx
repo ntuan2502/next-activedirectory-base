@@ -2,17 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone, ShieldCheck } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
+import { LoadingOverlay } from "@/components/loading-overlay";
 import { useSettings } from "@/components/settings-provider";
 import { PERMISSIONS } from "@/config/permissions";
 import { RowsPerPage } from "@/components/rows-per-page";
@@ -312,7 +312,7 @@ export default function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filters and Pagination State
+  // Filters, Sorting and Pagination State
   const [search, setSearch] = useState("");
   const [localSearch, setLocalSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
@@ -320,6 +320,7 @@ export default function AuditLogsPage() {
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
   const [isReady, setIsReady] = useState(false);
 
   // Dialog details state
@@ -347,6 +348,10 @@ export default function AuditLogsPage() {
         action: actionFilter,
         search: search.trim(),
       });
+      if (sortConfig) {
+        queryParams.set("sortBy", sortConfig.key);
+        queryParams.set("sortOrder", sortConfig.direction);
+      }
 
       const res = await fetch(`/api/audit-logs?${queryParams.toString()}`);
       if (res.ok) {
@@ -362,7 +367,7 @@ export default function AuditLogsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, actionFilter, search, isReady]);
+  }, [page, limit, actionFilter, search, sortConfig, isReady]);
 
   // Load initial state from URL search params on mount
   useEffect(() => {
@@ -372,12 +377,15 @@ export default function AuditLogsPage() {
       const l = parseInt(params.get("limit") || DEFAULT_LIMIT.toString(), 10);
       const a = params.get("action") || "all";
       const s = params.get("search") || "";
+      const sb = params.get("sortBy") || "createdAt";
+      const so = params.get("sortOrder") || "desc";
 
       setPage(p);
       setLimit(l);
       setActionFilter(a);
       setLocalSearch(s);
       setSearch(s);
+      setSortConfig({ key: sb, direction: so as "asc" | "desc" });
       setIsReady(true);
     });
   }, []);
@@ -401,13 +409,16 @@ export default function AuditLogsPage() {
     if (limit !== DEFAULT_LIMIT) params.set("limit", limit.toString());
     if (actionFilter !== "all") params.set("action", actionFilter);
     if (search.trim()) params.set("search", search.trim());
+    if (sortConfig) {
+      params.set("sortBy", sortConfig.key);
+      params.set("sortOrder", sortConfig.direction);
+    }
 
     const queryString = params.toString();
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
 
     window.history.replaceState(null, "", newUrl);
-  }, [page, limit, actionFilter, search, isReady]);
-
+  }, [page, limit, actionFilter, search, sortConfig, isReady]);
 
   // Reset page when filter changes
   const handleFilterChange = (val: string) => {
@@ -417,6 +428,16 @@ export default function AuditLogsPage() {
 
   const handleSearchChange = (val: string) => {
     setLocalSearch(val);
+  };
+
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => {
+      if (prev?.key === key) {
+        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
+      }
+      return { key, direction: "desc" }; // default desc for audit logs (newest first)
+    });
+    setPage(1);
   };
 
 
@@ -578,6 +599,11 @@ export default function AuditLogsPage() {
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
             <ClipboardList className="w-8 h-8 text-primary" />
             {t("auditLogsPage.title")}
+            {(totalCount > 0 || !isLoading) && (
+              <Badge variant="secondary" className={`ml-2 translate-y-[2px] transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
+                {totalCount} {t("common.auditLogs").toLowerCase()}
+              </Badge>
+            )}
           </h1>
           <p className="text-muted-foreground mt-1">
             {t("auditLogsPage.description")}
@@ -651,38 +677,46 @@ export default function AuditLogsPage() {
           </div>
 
           {/* Logs Table */}
-          <div className="overflow-x-auto relative">
-            {isLoading && logs.length > 0 && (
-              <div className="absolute inset-0 bg-background/40 backdrop-blur-[0.5px] z-20 flex items-center justify-center pointer-events-auto animate-in fade-in duration-200">
-                <div className="bg-background/90 p-4 rounded-xl shadow-lg border border-muted/80 flex flex-col items-center gap-2">
-                  <RefreshCw className="h-6 w-6 animate-spin text-primary" />
-                  <span className="text-xs font-medium text-muted-foreground">{t("common.loading")}</span>
-                </div>
-              </div>
-            )}
-            <Table>
+          <div className="overflow-x-auto relative mb-0">
+            <LoadingOverlay show={isLoading} variant="table" />
+            <Table wrapperClassName="mb-0" className="mb-0">
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="w-[180px]">{t("auditLogsPage.tableHeaders.timestamp")}</TableHead>
-                  <TableHead className="w-[200px]">{t("auditLogsPage.tableHeaders.operator")}</TableHead>
-                  <TableHead className="w-[200px]">{t("auditLogsPage.tableHeaders.action")}</TableHead>
-                  <TableHead>{t("auditLogsPage.tableHeaders.target")}</TableHead>
-                  <TableHead className="w-[140px]">{t("auditLogsPage.tableHeaders.ipAddress")}</TableHead>
+                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort("createdAt")}>
+                    <div className="flex items-center">
+                      {t("auditLogsPage.tableHeaders.timestamp")}
+                      {sortConfig?.key === "createdAt" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort("username")}>
+                    <div className="flex items-center">
+                      {t("auditLogsPage.tableHeaders.operator")}
+                      {sortConfig?.key === "username" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[200px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort("action")}>
+                    <div className="flex items-center">
+                      {t("auditLogsPage.tableHeaders.action")}
+                      {sortConfig?.key === "action" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("target")}>
+                    <div className="flex items-center">
+                      {t("auditLogsPage.tableHeaders.target")}
+                      {sortConfig?.key === "target" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="w-[140px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort("ipAddress")}>
+                    <div className="flex items-center">
+                      {t("auditLogsPage.tableHeaders.ipAddress")}
+                      {sortConfig?.key === "ipAddress" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
                   <TableHead className="w-[100px] text-center">{t("auditLogsPage.tableHeaders.details")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className={`transition-opacity duration-200 ${isLoading && logs.length > 0 ? "opacity-50" : ""}`}>
-                {isLoading && logs.length === 0 ? (
-                  Array.from({ length: limit || 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 6 }).map((_, j) => (
-                        <TableCell key={j}>
-                          <Skeleton className="h-5 w-full" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : logs.length > 0 ? (
+                {logs.length > 0 ? (
                   logs.map((log) => {
                     const isFailed = log.action.includes("failed") || log.target === "failed";
                     return (
@@ -694,7 +728,7 @@ export default function AuditLogsPage() {
                         }
                       >
                         <TableCell className="text-muted-foreground text-xs">
-                          <div className="flex flex-col font-mono">
+                          <div className="flex flex-col font-mono min-h-[2.5rem] justify-center">
                             <span className="font-semibold text-foreground">
                               {formatRelativeTime(log.createdAt, locale)}
                             </span>
@@ -706,9 +740,11 @@ export default function AuditLogsPage() {
                         <TableCell className="font-medium">
                           <div className="flex flex-col min-h-[2.5rem] justify-center">
                             <span>{log.username}</span>
-                            <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[180px]">
-                              {log.user?.displayName || "\u00A0"}
-                            </span>
+                            {log.user?.displayName && (
+                              <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[180px]">
+                                {log.user.displayName}
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -734,11 +770,7 @@ export default function AuditLogsPage() {
                                   }
                                 } catch { }
                               }
-                              return (
-                                <span className="text-[10px] text-muted-foreground/0 font-normal select-none">
-                                  &nbsp;
-                                </span>
-                              );
+                              return null;
                             })()}
                           </div>
                         </TableCell>
@@ -766,7 +798,7 @@ export default function AuditLogsPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                      {t("auditLogsPage.noRecords")}
+                      {!isLoading && t("auditLogsPage.noRecords")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -776,7 +808,7 @@ export default function AuditLogsPage() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t mt-2">
               <span className="text-sm text-muted-foreground">
                 {t("auditLogsPage.showingRecords", { count: logs.length, total: totalCount })}
               </span>

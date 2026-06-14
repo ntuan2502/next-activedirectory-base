@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from "react";
 import {
   Server,
   Users,
-  RefreshCw,
   UserCheck,
   UserX,
   User,
@@ -15,6 +14,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
+import { LoadingSpinner } from "@/components/loading-overlay";
 
 type DashboardStats = {
   syncOverview: {
@@ -212,7 +212,7 @@ export default function DashboardPage() {
             <CardContent className="pt-6">
               {isStatsLoading ? (
                 <div className="flex items-center justify-center h-64">
-                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <LoadingSpinner />
                 </div>
               ) : donutSegments.length === 0 ? (
                 <div className="flex items-center justify-center h-64 text-muted-foreground font-medium">
@@ -273,7 +273,7 @@ export default function DashboardPage() {
             <CardContent className="pt-6">
               {isStatsLoading ? (
                 <div className="flex items-center justify-center h-64">
-                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <LoadingSpinner />
                 </div>
               ) : stats?.departments.length === 0 ? (
                 <div className="flex items-center justify-center h-64 text-muted-foreground font-medium">
@@ -314,7 +314,7 @@ export default function DashboardPage() {
             <CardContent className="pt-6">
               {isStatsLoading ? (
                 <div className="flex items-center justify-center h-52">
-                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <LoadingSpinner />
                 </div>
               ) : stats?.activity.length === 0 ? (
                 <div className="flex items-center justify-center h-52 text-muted-foreground font-medium">

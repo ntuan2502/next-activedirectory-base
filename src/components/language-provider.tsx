@@ -92,13 +92,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Suppress hydration warning glitches by rendering children after mount
-  if (!mounted) {
-    return <div style={{ visibility: "hidden" }}>{children}</div>;
-  }
-
   return (
     <LanguageContext.Provider value={{ locale, t, changeLocale }}>
-      {children}
+      {mounted ? (
+        children
+      ) : (
+        <div style={{ visibility: "hidden" }}>{children}</div>
+      )}
     </LanguageContext.Provider>
   );
 }

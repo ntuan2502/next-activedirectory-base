@@ -119,6 +119,12 @@ export const en = {
   rolesPage: {
     title: "Roles & Permissions",
     description: "Define user roles and restrict system feature access.",
+    searchPlaceholder: "Search roles or description...",
+    filters: {
+      all: "All Roles",
+      system: "System Roles",
+      custom: "Custom Roles",
+    },
     createRole: "Create Role",
     editRole: "Edit Role",
     viewRole: "View Role",
@@ -146,9 +152,12 @@ export const en = {
     readOnlyNotice: "You are viewing this role in read-only mode.",
     roleNamePlaceholder: "e.g. HR Manager",
     roleDescPlaceholder: "e.g. Can manage users and sync LDAP",
+    noRolesMatch: "No roles match your search.",
+    showingRecords: "Showing {{count}} of {{total}} roles",
     tableHeaders: {
       name: "Role Name",
       description: "Description",
+      permissions: "Permissions",
       permissionsCount: "Permissions Count",
       usersCount: "Assigned Users",
       system: "System",
