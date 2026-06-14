@@ -397,6 +397,9 @@ export const th = {
     disabledUsers: "ปิดใช้งาน",
     activityCount: "กิจกรรม",
     noData: "ไม่มีข้อมูลที่จะแสดง",
+    horizontalBar: "แผนภูมิแท่งแนวนอน",
+    verticalBar: "แผนภูมิแท่งแนวตั้ง",
+    pieChart: "แผนภูมิวงกลม",
   },
   permissions: {
     names: {

@@ -30,7 +30,7 @@ export async function GET() {
       },
     });
 
-    // 2. Department Breakdown (Top 5)
+    // 2. Department Breakdown
     const deptGroup = await prisma.user.groupBy({
       by: ["department"],
       _count: {
@@ -44,57 +44,12 @@ export async function GET() {
           id: "desc",
         },
       },
-      take: 5,
     });
 
     const departmentStats = deptGroup.map((d) => ({
       name: d.department,
       count: d._count.id,
     }));
-
-    // 3. Activity Timeline (Last 7 Days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // Include today
-
-    const logs = await prisma.auditLog.findMany({
-      where: {
-        createdAt: {
-          gte: sevenDaysAgo,
-        },
-      },
-      select: {
-        createdAt: true,
-      },
-    });
-
-    // Initialize map of last 7 days
-    const activityMap: Record<string, number> = {};
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(sevenDaysAgo);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
-      activityMap[dateStr] = 0;
-    }
-
-    // Populate activity count
-    logs.forEach((log) => {
-      const dateStr = log.createdAt.toISOString().split("T")[0];
-      if (dateStr in activityMap) {
-        activityMap[dateStr]++;
-      }
-    });
-
-    const activityStats = Object.keys(activityMap).sort().map((date) => {
-      // Format to simple dd/MM
-      const parts = date.split("-");
-      const label = `${parts[2]}/${parts[1]}`;
-      return {
-        date,
-        label,
-        count: activityMap[date],
-      };
-    });
 
     return NextResponse.json({
       success: true,
@@ -106,7 +61,7 @@ export async function GET() {
           local: localUsers,
         },
         departments: departmentStats,
-        activity: activityStats,
+        activity: [],
       },
     });
   } catch (error: unknown) {

@@ -397,6 +397,9 @@ export const vi = {
     disabledUsers: "Vô hiệu hóa",
     activityCount: "Hoạt động",
     noData: "Không có dữ liệu hiển thị",
+    horizontalBar: "Biểu đồ cột ngang",
+    verticalBar: "Biểu đồ cột dọc",
+    pieChart: "Biểu đồ tròn",
   },
   permissions: {
     names: {

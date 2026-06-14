@@ -397,6 +397,9 @@ export const en = {
     disabledUsers: "Disabled",
     activityCount: "Activities",
     noData: "No data available",
+    horizontalBar: "Horizontal Bar",
+    verticalBar: "Vertical Bar",
+    pieChart: "Pie Chart",
   },
   permissions: {
     names: {
