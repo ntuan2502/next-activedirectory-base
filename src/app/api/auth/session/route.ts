@@ -3,13 +3,16 @@ import { getSession } from "@/lib/session";
 import { getUserPermissions } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import crypto from "crypto";
+import { sseManager } from "@/lib/sse";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function GET() {
   const session = await getSession();
+  const { t } = await getServerTranslator();
 
   if (!session) {
     return NextResponse.json(
-      { error: "Not authenticated" },
+      { error: t("errors.notAuthenticated") },
       { status: 401 },
     );
   }
@@ -71,10 +74,11 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   const session = await getSession();
+  const { t } = await getServerTranslator();
 
   if (!session) {
     return NextResponse.json(
-      { error: "Not authenticated" },
+      { error: t("errors.notAuthenticated") },
       { status: 401 },
     );
   }
@@ -99,12 +103,26 @@ export async function PATCH(request: Request) {
     if (timeFormat !== undefined) updateData.timeFormat = timeFormat;
 
     if (Object.keys(updateData).length === 0) {
-      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+      return NextResponse.json({ error: t("errors.noFieldsToUpdate") }, { status: 400 });
     }
 
     const updatedUser = await prisma.user.update({
       where: { id: session.userId },
       data: updateData,
+    });
+
+    sseManager.publish({
+      userId: session.userId,
+      sessionId: session.sessionId,
+      type: "SETTINGS_UPDATED",
+      payload: {
+        theme: updatedUser.theme,
+        locale: updatedUser.locale,
+        fontSize: updatedUser.fontSize,
+        fontFamily: updatedUser.fontFamily,
+        dateFormat: updatedUser.dateFormat,
+        timeFormat: updatedUser.timeFormat,
+      },
     });
 
     return NextResponse.json({
@@ -119,7 +137,8 @@ export async function PATCH(request: Request) {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to update settings";
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = t("errors.failedToUpdateSettings", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

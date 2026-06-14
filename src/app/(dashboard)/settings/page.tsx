@@ -59,6 +59,7 @@ function SyncTimeCountdown({
   locale,
 }: SyncTimeCountdownProps) {
   const [now, setNow] = useState(new Date());
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!syncEnabled || !lastSyncAt) return;
@@ -72,11 +73,11 @@ function SyncTimeCountdown({
     return (
       <>
         <div className="text-sm font-semibold text-muted-foreground">
-          {locale === "vi" ? "Tự động đồng bộ đang tắt" : "Automatic sync is disabled"}
+          {t("settingsPage.autoSyncDisabled")}
         </div>
         <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" />
-          {locale === "vi" ? "Bật tự động đồng bộ để lên lịch" : "Enable automatic sync to start scheduling"}
+          {t("settingsPage.enableAutoSyncToStart")}
         </div>
       </>
     );
@@ -90,19 +91,19 @@ function SyncTimeCountdown({
             new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000),
             dateFormat,
             timeFormat,
-            locale as "vi" | "en"
+            locale
           )
         ) : (
-          locale === "vi" ? "Chờ đồng bộ lần đầu" : "Pending initial sync"
+          t("settingsPage.pendingInitialSync")
         )}
       </div>
       <div className="text-xs font-medium text-primary flex items-center gap-1">
         <Clock className="w-3.5 h-3.5" />
         {(() => {
-          if (!lastSyncAt) return locale === "vi" ? "Chưa có lịch sử đồng bộ" : "No sync history";
+          if (!lastSyncAt) return t("settingsPage.noSyncHistory");
           const nextSync = new Date(new Date(lastSyncAt).getTime() + syncInterval * 60 * 1000);
           const diff = nextSync.getTime() - now.getTime();
-          if (diff <= 0) return locale === "vi" ? "Đang xếp hàng đồng bộ..." : "Syncing shortly...";
+          if (diff <= 0) return t("settingsPage.syncingShortly");
 
           const totalSecs = Math.max(0, Math.floor(diff / 1000));
           const totalMins = Math.floor(totalSecs / 60);
@@ -110,9 +111,11 @@ function SyncTimeCountdown({
           const mins = totalMins % 60;
           const secs = totalSecs % 60;
 
-          return locale === "vi"
-            ? `Còn khoảng ${hrs > 0 ? hrs + " giờ " : ""}${mins > 0 || hrs > 0 ? mins + " phút " : ""}${secs} giây`
-            : `Remaining ${hrs > 0 ? hrs + "h " : ""}${mins > 0 || hrs > 0 ? mins + "m " : ""}${secs}s`;
+          const timeStr = `${hrs > 0 ? hrs + t("settingsPage.timeUnits.hour") : ""}${
+            mins > 0 || hrs > 0 ? mins + t("settingsPage.timeUnits.minute") : ""
+          }${secs}${t("settingsPage.timeUnits.second")}`;
+
+          return t("settingsPage.syncRemaining", { time: timeStr });
         })()}
       </div>
     </>
@@ -502,13 +505,13 @@ export default function SettingsPage() {
                     onChange={(e) => setSyncInterval(parseInt(e.target.value, 10))}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value={1}>1 {locale === "vi" ? "phút" : "minute"}</option>
+                    <option value={1}>1 {t("settingsPage.minute")}</option>
                     <option value={60}>1 {t("settingsPage.hours")}</option>
                     <option value={360}>6 {t("settingsPage.hours")}</option>
                     <option value={720}>12 {t("settingsPage.hours")}</option>
-                    <option value={1440}>24 {t("settingsPage.hours")} (1 {locale === "vi" ? "ngày" : "day"})</option>
-                    <option value={2880}>48 {t("settingsPage.hours")} (2 {locale === "vi" ? "ngày" : "days"})</option>
-                    <option value={10080}>168 {t("settingsPage.hours")} (1 {locale === "vi" ? "tuần" : "week"})</option>
+                    <option value={1440}>24 {t("settingsPage.hours")} (1 {t("settingsPage.day")})</option>
+                    <option value={2880}>48 {t("settingsPage.hours")} (2 {t("settingsPage.days")})</option>
+                    <option value={10080}>168 {t("settingsPage.hours")} (1 {t("settingsPage.week")})</option>
                   </select>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -520,7 +523,7 @@ export default function SettingsPage() {
               <div className="border-t pt-4 space-y-4">
                 <div className="space-y-2 p-3 bg-muted/20 border rounded-lg">
                   <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
-                    {locale === "vi" ? "Thời gian đồng bộ kế tiếp" : "Next sync time"}
+                    {t("settingsPage.nextSyncTime")}
                   </span>
                   <div className="space-y-1">
                     <SyncTimeCountdown
@@ -548,27 +551,25 @@ export default function SettingsPage() {
                         ) : (
                           <Activity className="w-4 h-4" />
                         )}
-                        {locale === "vi" ? "Đồng bộ ngay (Giả lập tự động)" : "Sync Now (Simulate Auto)"}
+                        {t("settingsPage.syncNowSimulate")}
                       </Button>
                     }
                   />
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
-                        {locale === "vi" ? "Xác nhận đồng bộ" : "Confirm Sync"}
+                        {t("usersPage.confirmSync")}
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        {locale === "vi" 
-                          ? "Hành động này sẽ tải toàn bộ danh sách người dùng từ LDAP/Active Directory và cập nhật trực tiếp vào cơ sở dữ liệu. Quá trình này chạy giả lập tiến trình tự động và có thể mất một thời gian ngắn. Bạn có chắc muốn tiếp tục?"
-                          : "This will fetch all users from LDAP/Active Directory and sync them with the database. This simulates the automatic sync background process and may take a moment. Are you sure you want to proceed?"}
+                        {t("settingsPage.confirmSyncDesc")}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>
-                        {locale === "vi" ? "Hủy bỏ" : "Cancel"}
+                        {t("common.cancel")}
                       </AlertDialogCancel>
                       <AlertDialogAction onClick={handleSimulateSync}>
-                        {locale === "vi" ? "Đồng bộ ngay" : "Sync Now"}
+                        {t("settingsPage.syncNow")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

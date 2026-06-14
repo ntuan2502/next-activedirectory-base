@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
+import { sseManager } from "@/lib/sse";
+import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 // GET /api/auth/sessions - Fetch all active sessions of the current user
 export async function GET() {
   const session = await getSession();
+  const { t } = await getServerTranslator();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: t("errors.unauthorized") }, { status: 401 });
   }
 
   try {
@@ -27,7 +31,8 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to fetch sessions";
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = t("errors.failedToFetchSessions", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -35,8 +40,9 @@ export async function GET() {
 // DELETE /api/auth/sessions - Revoke active sessions (specific session ID, all other sessions, or all sessions)
 export async function DELETE(request: NextRequest) {
   const session = await getSession();
+  const { t } = await getServerTranslator();
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: t("errors.unauthorized") }, { status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -52,7 +58,17 @@ export async function DELETE(request: NextRequest) {
         where: { userId: session.userId },
       });
 
+      await logAction("session:revoke_all", session.username, {
+        message: t("logs.sessionRevokedAll", { username: session.username })
+      });
+
       cookieStore.delete("session");
+
+      // Notify all devices to log out
+      sseManager.publish({
+        userId: session.userId,
+        type: "FORCE_LOGOUT",
+      });
 
       return NextResponse.json({ success: true, loggedOutCurrent: true });
     }
@@ -64,6 +80,17 @@ export async function DELETE(request: NextRequest) {
           userId: session.userId,
           id: { not: session.sessionId },
         },
+      });
+
+      await logAction("session:revoke_other", session.username, {
+        message: t("logs.sessionRevokedOther", { username: session.username })
+      });
+
+      // Notify all other sessions to log out
+      sseManager.publish({
+        userId: session.userId,
+        type: "SESSION_REVOKED",
+        payload: { exclude: session.sessionId },
       });
 
       return NextResponse.json({ success: true });
@@ -79,11 +106,25 @@ export async function DELETE(request: NextRequest) {
       });
 
       if (!targetSession) {
-        return NextResponse.json({ error: "Session not found or unauthorized" }, { status: 404 });
+        return NextResponse.json({ error: t("errors.sessionNotFound") }, { status: 404 });
       }
 
       await prisma.session.delete({
         where: { id: id },
+      });
+
+      await logAction("session:revoke_specific", id, {
+        targetSessionId: id,
+        ipAddress: targetSession.ipAddress,
+        userAgent: targetSession.userAgent,
+        message: t("logs.sessionRevokedSpecific", { id, username: session.username })
+      });
+
+      // Notify target session to log out
+      sseManager.publish({
+        userId: session.userId,
+        type: "SESSION_REVOKED",
+        sessionId: id,
       });
 
       const isCurrent = id === session.sessionId;
@@ -94,9 +135,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: true, loggedOutCurrent: isCurrent });
     }
 
-    return NextResponse.json({ error: "Invalid action or parameters" }, { status: 400 });
+    return NextResponse.json({ error: t("errors.invalidAction") }, { status: 400 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to delete sessions";
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = t("errors.failedToDeleteSessions", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

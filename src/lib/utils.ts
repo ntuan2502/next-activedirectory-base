@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { SUPPORTED_LOCALES } from "@/config/translations"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -73,7 +74,7 @@ export function parseUserAgent(ua: string | null) {
   return { browser, os, isMobile };
 }
 
-export function formatRelativeTime(date: Date | string | number, locale: "en" | "vi" = "vi"): string {
+export function formatRelativeTime(date: Date | string | number, locale: string = "vi"): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "";
 
@@ -91,11 +92,13 @@ export function formatRelativeTime(date: Date | string | number, locale: "en" | 
     { unit: "second", ms: 1 }
   ];
 
-  const rtf = new Intl.RelativeTimeFormat(locale === "vi" ? "vi" : "en", { numeric: "always" });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
 
-  // If less than 10 seconds ago/from now, show "just now" / "vừa xong"
+  const localeConfig = SUPPORTED_LOCALES.find((l) => l.code === locale) || SUPPORTED_LOCALES[0];
+
+  // If less than 10 seconds ago/from now, show "just now" / "vừa xong" / "เมื่อครู่"
   if (Math.abs(elapsedSec) < 10) {
-    return locale === "vi" ? "vừa xong" : "just now";
+    return localeConfig.justNow;
   }
 
   for (const { unit, ms } of units) {
@@ -112,7 +115,7 @@ export function formatDateTimeCustom(
   date: Date | string | number,
   dateFormat: string = "YYYY-MM-DD",
   timeFormat: string = "24h",
-  locale: "en" | "vi" = "vi"
+  locale: string = "vi"
 ): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
   if (isNaN(d.getTime())) return "";
@@ -126,6 +129,8 @@ export function formatDateTimeCustom(
 
   const pad = (n: number) => String(n).padStart(2, "0");
 
+  const localeConfig = SUPPORTED_LOCALES.find((l) => l.code === locale) || SUPPORTED_LOCALES[0];
+
   // Format Date Part
   let dateStr = "";
   if (dateFormat === "DD/MM/YYYY") {
@@ -133,7 +138,7 @@ export function formatDateTimeCustom(
   } else if (dateFormat === "MM/DD/YYYY") {
     dateStr = `${pad(monthNum)}/${pad(dateNum)}/${year}`;
   } else if (dateFormat === "medium") {
-    dateStr = d.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
+    dateStr = d.toLocaleDateString(localeConfig.localeStr, {
       day: "numeric",
       month: "short",
       year: "numeric"
@@ -146,7 +151,7 @@ export function formatDateTimeCustom(
   // Format Time Part
   let timeStr = "";
   if (timeFormat === "12h") {
-    const period = hours >= 12 ? (locale === "vi" ? "CH" : "PM") : (locale === "vi" ? "SA" : "AM");
+    const period = hours >= 12 ? localeConfig.pm : localeConfig.am;
     const hour12 = hours % 12 || 12;
     timeStr = `${pad(hour12)}:${pad(minutes)}:${pad(seconds)} ${period}`;
   } else {

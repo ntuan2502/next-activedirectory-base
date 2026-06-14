@@ -1,50 +1,52 @@
 # Active Directory Sync
 
-Một ứng dụng bảng điều khiển (Dashboard) được xây dựng trên nền tảng Next.js giúp đồng bộ hóa và quản lý dữ liệu người dùng từ Active Directory / LDAP với cơ sở dữ liệu PostgreSQL, tích hợp xác thực đa nguồn và phân quyền chi tiết (RBAC).
+🌐 [Tiếng Việt (Vietnamese)](README.vi.md) | **English**
+
+A Dashboard application built on the Next.js framework that synchronizes and manages user data from Active Directory / LDAP with a PostgreSQL database. It integrates multi-source authentication and fine-grained Role-Based Access Control (RBAC).
 
 ---
 
-## ✨ Tính năng chính
+## ✨ Key Features
 
-- **Trình thiết lập ban đầu (Initial Setup Wizard - `/setup`)** — Tự động chuyển hướng và hướng dẫn khởi tạo tài khoản Super Admin cục bộ đầu tiên và cấu hình kết nối LDAP khi ứng dụng khởi chạy lần đầu trên database trống.
-- **Cấu hình LDAP động** — Lưu trữ cấu hình LDAP trực tiếp trong Database, chỉnh sửa linh hoạt trên giao diện UI mà không cần khai báo tĩnh trong tệp `.env`.
-- **Xác thực đa nguồn (Local & LDAP)**:
-  - **Tài khoản AD/LDAP**: Đăng nhập bằng tài khoản doanh nghiệp trực tiếp qua Active Directory.
-  - **Tài khoản Cục bộ (Local User)**: Bypass kết nối LDAP, xác thực trực tiếp bằng mật khẩu đã băm `bcryptjs` trong database. Giúp quản trị viên luôn có thể đăng nhập ngay cả khi LDAP gặp sự cố.
-- **Lập lịch tự động đồng bộ** — Tự động đồng bộ người dùng chạy ngầm định kỳ theo chu kỳ cấu hình động (1h, 6h, 12h, 24h, v.v.).
-- **Bảng điều khiển & Biểu đồ trực quan**:
-  - **Donut Chart**: Tỷ lệ trạng thái đồng bộ người dùng.
-  - **Horizontal Bar Chart**: Thống kê số lượng nhân sự theo top 5 phòng ban.
-  - **Smooth Area Chart**: Timeline thống kê logs hoạt động trong 7 ngày gần nhất.
-- **Quản lý vai trò & Phân quyền (RBAC)** — Định nghĩa vai trò tùy chỉnh và kiểm soát quyền truy cập chi tiết (`users:read`, `roles:update`, `ldap:sync`, v.v.).
-- **Nhật ký hoạt động (Audit Logs)** — Ghi nhận mọi thao tác của hệ thống, so sánh chi tiết trạng thái trước/sau thay đổi (Before/After) của các đối tượng.
-- **Hỗ trợ đa ngôn ngữ (i18n)** — Hỗ trợ song ngữ Tiếng Việt và Tiếng Anh hoàn chỉnh.
+- **Initial Setup Wizard (`/setup`)** — Automatically redirects and guides you through initializing the first local Super Admin account and configuring LDAP connections when the application runs on an empty database.
+- **Dynamic LDAP Configuration** — Stores LDAP configurations directly in the database, allowing flexible updates via the UI without static declarations in `.env` files.
+- **Multi-Source Authentication (Local & LDAP)**:
+  - **AD/LDAP Account**: Login using corporate credentials verified directly against Active Directory.
+  - **Local Account (Local User)**: Bypasses LDAP check, authenticating with hashed `bcryptjs` passwords in the database. This ensures administrators can always log in even when the LDAP server is offline.
+- **Automated Sync Scheduler** — Automatically syncs users in the background periodically based on dynamically configured intervals (1h, 6h, 12h, 24h, etc.).
+- **Visual Analytics Dashboard**:
+  - **Donut Chart**: Shows the distribution of user sync status.
+  - **Horizontal Bar Chart**: Shows personnel counts across the top 5 departments.
+  - **Smooth Area Chart**: Timeline of activity logs over the last 7 days.
+- **Role Management & Permissions (RBAC)** — Define custom roles and control detailed permissions (`users:read`, `roles:update`, `ldap:sync`, etc.).
+- **Audit Logs** — Records all system operations, showing detailed before/after comparison logs.
+- **Centralized Multilingual Support (i18n)** — Supports 4 languages: **English**, **Vietnamese**, **Thai**, and **Japanese** powered by a highly extensible centralized Locale Registry.
 
 ---
 
-## 🛠️ Công nghệ sử dụng
+## 🛠️ Technology Stack
 
-| Tầng | Công nghệ |
+| Layer | Technology |
 |---|---|
-| Framework | Next.js 16 (App Router) |
-| Ngôn ngữ | TypeScript |
+| Framework | Next.js 15+ (App Router) |
+| Language | TypeScript |
 | UI/CSS | Tailwind CSS v4 + Vanilla CSS |
 | Database | PostgreSQL 17 |
 | ORM | Prisma 7 |
 | LDAP Client | ldapts |
-| Xác thực | bcryptjs + jose (JWT Session Cookie) |
-| Đa ngôn ngữ | Custom Client/Server i18n |
+| Authentication | bcryptjs + jose (JWT Session Cookie) |
+| Multilingual | Custom Client/Server i18n |
 
 ---
 
-## 🚀 Hướng dẫn khởi chạy
+## 🚀 Getting Started
 
-### Điều kiện tiên quyết
+### Prerequisites
 
-- Máy tính đã cài đặt [Node.js](https://nodejs.org/) (hoặc [Bun](https://bun.sh/))
-- Đã cài đặt [Docker](https://www.docker.com/) (để chạy PostgreSQL)
+- [Node.js](https://nodejs.org/) (or [Bun](https://bun.sh/)) installed
+- [Docker](https://www.docker.com/) installed (to run PostgreSQL)
 
-### 1. Cài đặt các thư viện phụ thuộc
+### 1. Clone & Install Dependencies
 
 ```bash
 git clone https://github.com/ntuan2502/next-activedirectory-base.git
@@ -52,15 +54,15 @@ cd next-activedirectory-base
 pnpm install
 ```
 
-### 2. Thiết lập biến môi trường
+### 2. Environment Variables Setup
 
-Sao chép tệp cấu hình mẫu:
+Copy the sample environment variables file:
 
 ```bash
 cp .env.example .env
 ```
 
-Cập nhật các biến cơ sở dữ liệu và session secret trong `.env` (Không cần khai báo biến LDAP):
+Update your database credentials and session secrets in `.env` (no LDAP variables needed here):
 
 ```env
 # Database Configuration
@@ -77,107 +79,149 @@ SESSION_SECRET=change_me_to_a_random_string_at_least_32_chars
 NODE_ENV=development
 ```
 
-### 3. Khởi chạy PostgreSQL qua Docker
+### 3. Run PostgreSQL via Docker
 
 ```bash
 docker compose up -d
 ```
 
-### 4. Đẩy cấu trúc Schema vào Database
+### 4. Push Schema to Database
 
 ```bash
 pnpm prisma db push
 ```
 
-### 5. Khởi chạy Development Server
+### 5. Launch Development Server
 
 ```bash
 pnpm dev
 ```
 
-Mở trình duyệt truy cập [http://localhost:3000](http://localhost:3000). 
+Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-> 💡 **Khởi chạy lần đầu**: Do database trống chưa có người dùng nào, hệ thống sẽ tự động chuyển hướng bạn đến `/setup` để bắt đầu đăng ký tài khoản Admin và cấu hình kết nối LDAP.
+> 💡 **First-time Setup**: If the database is empty, the application will automatically redirect you to `/setup` to create your initial Admin account and configure the LDAP connection.
 
 ---
 
-## 📂 Cấu trúc thư mục dự án
+## 📂 Project Directory Structure
 
 ```plaintext
 ├── src/
 │   ├── app/
-│   │   ├── (dashboard)/                # Nhóm Route sử dụng Sidebar Layout
-│   │   │   ├── audit-logs/             # Trang xem logs & so sánh thay đổi
-│   │   │   ├── roles/                  # Quản lý phân quyền RBAC
-│   │   │   ├── settings/               # Cấu hình LDAP & Chu kỳ đồng bộ
-│   │   │   ├── users/                  # Quản lý người dùng đã đồng bộ
-│   │   │   └── page.tsx                # Dashboard biểu đồ phân tích trực quan
-│   │   ├── login/                      # Trang đăng nhập
-│   │   ├── setup/                      # Setup Wizard (2 bước khởi tạo hệ thống)
-│   │   ├── api/                        # Hệ thống API endpoints
-│   │   │   ├── setup/                  # APIs phục vụ Setup Wizard
-│   │   │   ├── auth/                   # APIs đăng nhập, đăng xuất, session
-│   │   │   ├── settings/               # API lưu/tải cấu hình hệ thống
+│   │   ├── (dashboard)/                # Group routes sharing the Sidebar Layout
+│   │   │   ├── audit-logs/             # Audit logs comparison view
+│   │   │   ├── roles/                  # Role-Based Access Control management
+│   │   │   ├── settings/               # LDAP and Sync scheduling configuration
+│   │   │   ├── users/                  # Synced users management
+│   │   │   └── page.tsx                # Interactive charts dashboard
+│   │   ├── login/                      # Login portal
+│   │   ├── setup/                      # Setup Wizard (System initialization)
+│   │   ├── api/                        # API routes
+│   │   │   ├── setup/                  # Setup Wizard APIs
+│   │   │   ├── auth/                   # Authentication & Session APIs
+│   │   │   ├── settings/               # LDAP & system configuration APIs
 │   │   │   └── ...
-│   │   └── layout.tsx                  # Root Layout
-│   ├── components/                     # Các UI Component dùng chung
+│   │   └── layout.tsx                  # Root layout
+│   ├── components/                     # Reusable UI components
 │   ├── config/
-│   │   ├── locales/                    # Định nghĩa bản dịch en.ts & vi.ts
-│   │   └── permissions.ts              # Danh sách định nghĩa quyền hạn
+│   │   ├── locales/                    # i18n translation bundles: en.ts, vi.ts, th.ts, ja.ts
+│   │   │   ├── index.ts                # Centralized Locale Registry
+│   │   │   └── ...
+│   │   └── permissions.ts              # System permission definitions
 │   ├── lib/
-│   │   ├── auth.ts                     # Logic xác thực Local & LDAP
-│   │   ├── ldap.ts                     # Kết nối LDAP client & lấy config từ DB
-│   │   ├── scheduler.ts                # Tiến trình đồng bộ tự động chạy ngầm
-│   │   └── sync-core.ts                # Hàm đồng bộ lõi đồng nhất
+│   │   ├── auth.ts                     # Local & LDAP authentication logic
+│   │   ├── ldap.ts                     # LDAP client & DB config integration
+│   │   ├── scheduler.ts                # Background synchronization cron job
+│   │   └── sync-core.ts                # Unified core user sync logic
 ```
 
 ---
 
-## 🔒 Luồng xác thực & Đăng nhập (Authentication Flow)
+## 🔒 Authentication Flow
 
 ```plaintext
-              Người dùng gửi yêu cầu Đăng nhập
-                             │
-                             ▼
-              Tìm kiếm User trong Database local
-                             │
-                 ┌───────────┴───────────┐
-                 ▼                       ▼
-            Tìm thấy user           Không tìm thấy
-                 │                       │
-      ┌──────────┴──────────┐            ▼
-      ▼                     ▼     Thực hiện LDAP Bind
-  dn === "" (Local)     dn !== ""  (Xác thực trực tiếp AD)
-      │               (User AD)          │
-      ▼                     │            ▼
-So khớp mật khẩu            │     ┌──────┴──────┐
-  bằng bcrypt               ▼     ▼             ▼
-      │             Thử kết nối LDAP   Thành công  Thất bại
-      │             và xác thực Bind      │             │
-      │                     │             ▼             ▼
-      │             ┌───────┴──────┐  Đồng bộ User    Lỗi
-      ▼             ▼              ▼  & Tạo Session
-Kết quả matches   Thành công    Thất bại
-      │             │              │
-      ▼             ▼              ▼
-  Tạo Session   Tạo Session       Lỗi
+                   User submits login request
+                               │
+                               ▼
+                   Lookup user in local database
+                               │
+                 ┌─────────────┴─────────────┐
+                 ▼                           ▼
+            User found                 User not found
+                 │                           │
+       ┌─────────┴─────────┐                 ▼
+       ▼                   ▼          Perform LDAP Bind
+   dn === "" (Local)   dn !== ""   (Verify against corporate AD)
+       │              (AD User)              │
+       ▼                   │                 ▼
+Compare password           │          ┌──────┴──────┐
+  using bcrypt             ▼          ▼             ▼
+       │            Attempt LDAP Bind   Success       Failure
+       │               connection            │             │
+       │                   │                 ▼             ▼
+       │            ┌──────┴──────┐      Sync User        Error
+       ▼            ▼             ▼   & Create Session
+Compare result   Success       Failure
+       │            │             │
+       ▼            ▼             ▼
+Create Session  Create Session  Error
 ```
 
 ---
 
-## 📝 Danh sách lệnh chính
+## ⚡ Real-Time Sync via Server-Sent Events (SSE)
 
-| Lệnh | Mô tả |
-|---|---|
-| `pnpm dev` | Khởi chạy server phát triển local |
-| `pnpm build` | Biên dịch sản phẩm Next.js |
-| `pnpm start` | Khởi chạy server sản phẩm sau khi build |
-| `pnpm lint` | Kiểm tra cú pháp & quy tắc viết mã (ESLint) |
-| `pnpm prisma db push` | Đồng bộ cấu trúc Schema trực tiếp vào Database |
-| `pnpm prisma studio` | Mở giao diện quản lý Database trực quan của Prisma |
+The application uses **Server-Sent Events (SSE)** for one-way, real-time event streaming from the server to client to synchronize system state:
+- **Display Configurations**: Changing visual settings (theme, language, font size, etc.) on one device immediately syncs across all other active sessions of the same account.
+- **Permissions**: Updating a user's roles or permissions refreshes their client-side access levels instantly without reloading the page.
+- **Session Revocation (Kicked Overlay)**: When an active session is revoked remotely, the client immediately locks with a "Session Terminated" overlay (similar to multiplayer game lockouts) and redirects to the login screen.
+
+### 📐 Architecture Design & Scaling Guide
+
+The project currently uses **Option A** for single-instance setups, and is designed to easily scale out to **Option B** for clustered deployments.
+
+#### Option A: In-Memory Global EventEmitter (Current)
+- **Mechanism**: A global Node.js `EventEmitter` (`SseManager`) routes events between API routes and active client HTTP connections.
+- **Pros**:
+  - Requires no third-party infrastructure.
+  - Zero latency on a single-node deployment.
+  - Utilizes a global reference registry (`globalRef`) to prevent losing event handles during Hot Module Replacement (HMR) in development.
+- **Cons**: Does not support horizontal scaling across multiple servers since memory states are isolated.
+
+#### Option B: Scaled-Out Message Broker (Redis Pub/Sub or PostgreSQL LISTEN/NOTIFY)
+When deploying the app in a load-balanced cluster (Kubernetes / Multi-Server), use a messaging broker to share events:
+
+1. **PostgreSQL `LISTEN/NOTIFY` (Recommended to avoid Redis overhead)**:
+   - **How it works**:
+     - On state change, write:
+       ```sql
+       NOTIFY sse_channel, '{"userId": "123", "type": "SETTINGS_UPDATED", "payload": {...}}';
+       ```
+     - In the `/api/auth/sse` route, maintain a dedicated PostgreSQL client executing `LISTEN sse_channel` and forward incoming `pg.on('notification')` events directly to the client's HTTP stream.
+   - **Pros**: Leverages the existing PostgreSQL database without adding extra services.
+
+2. **Redis Pub/Sub (Best for massive load)**:
+   - **How it works**:
+     - Connect via Redis clients (e.g., `ioredis`).
+     - Publish events using `redisPublishClient.publish("user:sse:channel", JSON.stringify(event))`.
+     - In `/api/auth/sse`, subscribe using `redisSubscribeClient.subscribe("user:sse:channel")` and pipe payload strings into client connections.
+   - **Pros**: Extremely low latency, sub-millisecond response, scales to millions of concurrent sessions easily.
 
 ---
 
-## 📄 Bản quyền
+## 📝 Common Commands
 
-Mã nguồn được phát hành dưới giấy phép [MIT](LICENSE).
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start the local development server |
+| `pnpm build` | Compile the Next.js production build |
+| `pnpm start` | Run the compiled production build |
+| `pnpm lint` | Analyze code quality and styling (ESLint) |
+| `pnpm prisma db push` | Push Prisma schema changes directly to the database |
+| `pnpm prisma studio` | Launch a visual browser GUI to manage database records |
+
+---
+
+## 📄 License
+
+This project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).

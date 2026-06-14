@@ -1,9 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { translations } from "@/config/translations";
-
-type Locale = "en" | "vi";
+import { translations, SUPPORTED_LOCALES, type Locale } from "@/config/translations";
 
 type LanguageContextProps = {
   locale: Locale;
@@ -21,7 +19,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     // Read saved locale from localStorage or Cookie asynchronously to avoid synchronous setState warning
     const initLocale = () => {
       const savedLocale = localStorage.getItem("NEXT_LOCALE") as Locale;
-      if (savedLocale === "en" || savedLocale === "vi") {
+      if (SUPPORTED_LOCALES.some((l) => l.code === savedLocale)) {
         setLocale(savedLocale);
       } else {
         // Try to read cookie
@@ -29,14 +27,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         const localeCookie = cookies.find((c) => c.trim().startsWith("NEXT_LOCALE="));
         if (localeCookie) {
           const val = localeCookie.split("=")[1] as Locale;
-          if (val === "en" || val === "vi") {
+          if (SUPPORTED_LOCALES.some((l) => l.code === val)) {
             setLocale(val);
           }
         } else {
           // Fallback to navigator language
           const navLang = navigator.language.split("-")[0];
-          if (navLang === "vi") {
-            setLocale("vi");
+          const matchedLocale = SUPPORTED_LOCALES.find((l) => l.code === navLang);
+          if (matchedLocale) {
+            setLocale(matchedLocale.code);
           }
         }
       }

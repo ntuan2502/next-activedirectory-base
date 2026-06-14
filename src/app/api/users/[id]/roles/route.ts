@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
+import { sseManager } from "@/lib/sse";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function PUT(
   request: NextRequest,
@@ -10,13 +12,15 @@ export async function PUT(
   const authResponse = await requirePermission(PERMISSIONS.USERS_UPDATE);
   if (authResponse) return authResponse;
 
+  const { t } = await getServerTranslator();
+
   try {
     const { id } = await params;
     const body = await request.json();
     const { roleIds } = body;
 
     if (!Array.isArray(roleIds)) {
-      return NextResponse.json({ error: "roleIds must be an array" }, { status: 400 });
+      return NextResponse.json({ error: t("errors.roleIdsMustBeArray") }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({
@@ -25,7 +29,7 @@ export async function PUT(
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found." }, { status: 404 });
+      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
     }
 
     // Protect super admin role from being removed from the last super admin user if needed,
@@ -54,9 +58,15 @@ export async function PUT(
       },
     });
 
+    sseManager.publish({
+      userId: updatedUser.id,
+      type: "PERMISSIONS_UPDATED",
+    });
+
     return NextResponse.json({ success: true, data: updatedUser });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to update user roles.";
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = t("errors.failedToUpdateUserRoles", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

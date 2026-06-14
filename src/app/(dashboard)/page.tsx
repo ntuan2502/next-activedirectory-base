@@ -141,7 +141,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <div className="text-3xl font-extrabold tracking-tight">{stats?.syncOverview.total}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Tổng tài khoản trong hệ thống</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("dashboard.totalUsersDesc")}</p>
                 </>
               )}
             </CardContent>
@@ -158,7 +158,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <div className="text-3xl font-extrabold tracking-tight text-emerald-500">{stats?.syncOverview.active}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Tài khoản Active Directory đang hoạt động</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("dashboard.activeAdUsersDesc")}</p>
                 </>
               )}
             </CardContent>
@@ -175,7 +175,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <div className="text-3xl font-extrabold tracking-tight text-rose-500">{stats?.syncOverview.disabled}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Tài khoản Active Directory bị vô hiệu hóa</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("dashboard.disabledAdUsersDesc")}</p>
                 </>
               )}
             </CardContent>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   <div className="text-3xl font-extrabold tracking-tight text-amber-500">{stats?.syncOverview.local}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Tài khoản quản trị tạo trực tiếp cục bộ</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t("dashboard.localUsersDesc")}</p>
                 </>
               )}
             </CardContent>

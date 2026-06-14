@@ -6,6 +6,7 @@ import { useLanguage } from "@/components/language-provider";
 import { useTheme } from "next-themes";
 import { useSettings } from "@/components/settings-provider";
 import { LanguageToggle } from "@/components/language-toggle";
+import { SUPPORTED_LOCALES } from "@/config/translations";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -255,7 +256,17 @@ export default function AccountPage() {
       setMounted(true);
       fetchSessions();
     }, 0);
-    return () => clearTimeout(timer);
+
+    const handleSessionRevoked = () => {
+      fetchSessions();
+    };
+
+    window.addEventListener("session_revoked_event", handleSessionRevoked);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("session_revoked_event", handleSessionRevoked);
+    };
   }, []);
 
   const handleRevokeSession = async (id: string) => {
@@ -349,8 +360,9 @@ export default function AccountPage() {
     return translated !== `permissions.names.${perm}` ? translated : perm;
   };
 
+  const localeConfig = SUPPORTED_LOCALES.find((l) => l.code === locale) || SUPPORTED_LOCALES[0];
   const memberSinceDate = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", {
+    ? new Date(user.createdAt).toLocaleDateString(localeConfig.localeStr, {
         year: "numeric",
         month: "long",
         day: "numeric",

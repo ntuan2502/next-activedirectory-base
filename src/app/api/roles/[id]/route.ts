@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
+import { sseManager } from "@/lib/sse";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function PUT(
   request: NextRequest,
@@ -9,6 +11,8 @@ export async function PUT(
 ) {
   const authResponse = await requirePermission(PERMISSIONS.ROLES_UPDATE);
   if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
 
   try {
     const { id } = await params;
@@ -20,11 +24,11 @@ export async function PUT(
     });
 
     if (!existingRole) {
-      return NextResponse.json({ error: "Role not found." }, { status: 404 });
+      return NextResponse.json({ error: t("errors.roleNotFound") }, { status: 404 });
     }
 
     if (existingRole.isSystem) {
-      return NextResponse.json({ error: "System roles cannot be modified." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.systemRoleNotModified") }, { status: 400 });
     }
 
     const updateData: { name?: string; description?: string | null; permissions?: string } = {
@@ -51,9 +55,28 @@ export async function PUT(
       },
     });
 
+    const roleWithUsers = await prisma.role.findUnique({
+      where: { id },
+      select: {
+        users: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (roleWithUsers?.users) {
+      for (const u of roleWithUsers.users) {
+        sseManager.publish({
+          userId: u.id,
+          type: "PERMISSIONS_UPDATED",
+        });
+      }
+    }
+
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to update role.";
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = t("errors.failedToUpdateRole", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -65,6 +88,8 @@ export async function DELETE(
   const authResponse = await requirePermission(PERMISSIONS.ROLES_DELETE);
   if (authResponse) return authResponse;
 
+  const { t } = await getServerTranslator();
+
   try {
     const { id } = await params;
 
@@ -73,11 +98,11 @@ export async function DELETE(
     });
 
     if (!existingRole) {
-      return NextResponse.json({ error: "Role not found." }, { status: 404 });
+      return NextResponse.json({ error: t("errors.roleNotFound") }, { status: 404 });
     }
 
     if (existingRole.isSystem) {
-      return NextResponse.json({ error: "System roles cannot be deleted." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.systemRoleNotDeleted") }, { status: 400 });
     }
 
     await logAction("role:delete", existingRole.name, {
@@ -95,7 +120,8 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to delete role.";
+    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const message = t("errors.failedToDeleteRole", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

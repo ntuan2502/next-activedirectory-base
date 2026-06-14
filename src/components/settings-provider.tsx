@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useAuth } from "./auth-provider";
 import { useLanguage } from "./language-provider";
 import { useTheme } from "next-themes";
+import { type Locale } from "@/config/translations";
 
 const FONT_FAMILIES = [
   { id: "sans", value: 'GeistSans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
@@ -13,7 +14,7 @@ const FONT_FAMILIES = [
 
 type Settings = {
   theme: string;
-  locale: "en" | "vi";
+  locale: Locale;
   fontSize: number;
   fontFamily: string;
   dateFormat: string;
@@ -60,7 +61,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           setTheme(user.theme);
         }
         if (user.locale && user.locale !== locale) {
-          changeLocale(user.locale as "en" | "vi");
+          changeLocale(user.locale as Locale);
         }
         if (user.fontSize) {
           setFontSize(user.fontSize);
@@ -113,7 +114,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (key === "theme") {
       setTheme(value as string);
     } else if (key === "locale") {
-      changeLocale(value as "en" | "vi");
+      changeLocale(value as Locale);
     } else if (key === "fontSize") {
       setFontSize(Number(value));
       localStorage.setItem("sys_font_size", String(value));
