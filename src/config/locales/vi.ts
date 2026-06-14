@@ -397,6 +397,8 @@ export const vi = {
     disabledUsers: "Vô hiệu hóa",
     activityCount: "Hoạt động",
     noData: "Không có dữ liệu hiển thị",
+    noDeptData: "Không có dữ liệu phòng ban",
+    totalUsers: "Tổng User",
     horizontalBar: "Biểu đồ cột ngang",
     verticalBar: "Biểu đồ cột dọc",
     pieChart: "Biểu đồ tròn",

@@ -397,6 +397,8 @@ export const ja = {
     disabledUsers: "無効",
     activityCount: "アクティビティ数",
     noData: "表示可能なデータはありません",
+    noDeptData: "部署データはありません",
+    totalUsers: "合計ユーザー",
     horizontalBar: "横棒グラフ",
     verticalBar: "縦棒グラフ",
     pieChart: "円グラフ",

@@ -251,7 +251,7 @@ export default function DashboardPage() {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-2 pointer-events-none select-none">
                       <span className="text-4xl font-extrabold">{stats?.syncOverview.total}</span>
-                      <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-0.5">Tổng User</span>
+                      <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider mt-0.5">{t("dashboardCharts.totalUsers")}</span>
                     </div>
                     {tooltipData && (
                       <div
@@ -485,7 +485,7 @@ export default function DashboardPage() {
                     if (visibleDepts.length === 0) {
                       return (
                         <div className="text-xs text-muted-foreground italic text-center">
-                          Không có dữ liệu phòng ban.
+                          {t("dashboardCharts.noDeptData")}
                         </div>
                       );
                     }

@@ -397,6 +397,8 @@ export const en = {
     disabledUsers: "Disabled",
     activityCount: "Activities",
     noData: "No data available",
+    noDeptData: "No department data available",
+    totalUsers: "Total Users",
     horizontalBar: "Horizontal Bar",
     verticalBar: "Vertical Bar",
     pieChart: "Pie Chart",
