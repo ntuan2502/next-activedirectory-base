@@ -98,6 +98,29 @@ type ActiveSession = {
   isCurrent: boolean;
 };
 
+type DateTimePreviewProps = {
+  dateFormat: string;
+  timeFormat: string;
+  locale: string;
+};
+
+function DateTimePreview({ dateFormat, timeFormat, locale }: DateTimePreviewProps) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <span className="text-sm font-mono font-semibold text-primary transition-all duration-200">
+      {formatDateTimeCustom(now, dateFormat, timeFormat, locale)}
+    </span>
+  );
+}
+
 export default function AccountPage() {
   const { user, logout, refreshSession } = useAuth();
   const { locale, t } = useLanguage();
@@ -925,9 +948,7 @@ export default function AccountPage() {
                     {t("accountPage.dateTimePreview")}
                   </span>
                   <div className="p-3 border rounded-lg bg-muted/15 flex items-center justify-center min-h-[48px]">
-                    <span className="text-sm font-mono font-semibold text-primary transition-all duration-200">
-                      {formatDateTimeCustom(new Date(), dateFormat, timeFormat, locale)}
-                    </span>
+                    <DateTimePreview dateFormat={dateFormat} timeFormat={timeFormat} locale={locale} />
                   </div>
                 </div>
               </div>
