@@ -127,10 +127,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             {t("auditLogsPage.afterState")}
           </div>
-          <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5 select-all">
+          <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5 select-all">
             <div className="text-muted-foreground/60">{"{"}</div>
             {keys.map((k) => (
-              <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs">
+              <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs break-all whitespace-pre-wrap">
                 &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(afterObj[k])}
               </div>
             ))}
@@ -152,10 +152,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
             {t("auditLogsPage.beforeState")}
           </div>
-          <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5 select-all">
+          <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5 select-all">
             <div className="text-muted-foreground/60">{"{"}</div>
             {keys.map((k) => (
-              <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs">
+              <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs break-all whitespace-pre-wrap">
                 &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(beforeObj[k])}
               </div>
             ))}
@@ -188,7 +188,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
             {t("auditLogsPage.beforeState")}
           </div>
-          <pre className={`p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 select-all ${isChanged ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300" : "text-muted-foreground/80"}`}>
+          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 select-all whitespace-pre-wrap break-all ${isChanged ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300" : "text-muted-foreground/80"}`}>
             {beforeStr}
           </pre>
         </div>
@@ -197,7 +197,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             {t("auditLogsPage.afterState")}
           </div>
-          <pre className={`p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 select-all ${isChanged ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground/80"}`}>
+          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 select-all whitespace-pre-wrap break-all ${isChanged ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground/80"}`}>
             {afterStr}
           </pre>
         </div>
@@ -218,80 +218,76 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full flex-1 min-h-0">
-      {/* Before Panel */}
-      <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden">
-        <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400 shrink-0">
+    <div className="flex flex-col border border-muted/50 rounded-lg overflow-hidden flex-1 min-h-0 bg-background w-full">
+      {/* Split Header */}
+      <div className="grid grid-cols-2 text-xs font-semibold shrink-0 border-b border-muted/30">
+        <div className="bg-rose-500/10 px-3 py-1.5 text-rose-600 dark:text-rose-400 border-r border-muted/30">
           {t("auditLogsPage.beforeState")}
         </div>
-        <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 bg-background select-all space-y-0.5">
-          <div className="text-muted-foreground/50 font-mono text-xs">{"{"}</div>
-          {allKeys.map((k) => {
-            const hasBefore = k in beforeObj;
-            const hasAfter = k in afterObj;
-            const valBefore = beforeObj[k];
-            const valAfter = afterObj[k];
-            const isChanged = !hasAfter || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
-
-            if (!hasBefore) {
-              return (
-                <div key={k} className="px-2 py-0.5 font-mono text-xs opacity-0 select-none">
-                  &nbsp;
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={k}
-                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${isChanged
-                    ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
-                    : "text-muted-foreground/85"
-                  }`}
-              >
-                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valBefore)}
-              </div>
-            );
-          })}
-          <div className="text-muted-foreground/50 font-mono text-xs">{"}"}</div>
+        <div className="bg-emerald-500/10 px-3 py-1.5 text-emerald-600 dark:text-emerald-400">
+          {t("auditLogsPage.afterState")}
         </div>
       </div>
 
-      {/* After Panel */}
-      <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden">
-        <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400 shrink-0">
-          {t("auditLogsPage.afterState")}
+      {/* Split Content Body */}
+      <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 select-all space-y-0.5 bg-background">
+        {/* Open bracket row */}
+        <div className="grid grid-cols-2 gap-4 border-b border-muted/20 pb-1 mb-1 text-muted-foreground/50 select-none">
+          <div className="border-r border-muted/20 pr-2">{"{"}</div>
+          <div className="pl-2">{"{"}</div>
         </div>
-        <div className="p-4 font-mono text-xs overflow-auto max-h-[50vh] flex-1 bg-background select-all space-y-0.5">
-          <div className="text-muted-foreground/50 font-mono text-xs">{"{"}</div>
-          {allKeys.map((k) => {
-            const hasBefore = k in beforeObj;
-            const hasAfter = k in afterObj;
-            const valBefore = beforeObj[k];
-            const valAfter = afterObj[k];
-            const isChanged = !hasBefore || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
 
-            if (!hasAfter) {
-              return (
-                <div key={k} className="px-2 py-0.5 font-mono text-xs opacity-0 select-none">
-                  &nbsp;
-                </div>
-              );
-            }
+        {/* Diff lines */}
+        {allKeys.map((k) => {
+          const hasBefore = k in beforeObj;
+          const hasAfter = k in afterObj;
+          const valBefore = beforeObj[k];
+          const valAfter = afterObj[k];
+          const isChanged = !hasBefore || !hasAfter || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
 
-            return (
-              <div
-                key={k}
-                className={`px-2 py-0.5 rounded transition-colors font-mono text-xs ${isChanged
-                    ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
-                    : "text-muted-foreground/85"
-                  }`}
-              >
-                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valAfter)}
+          return (
+            <div key={k} className="grid grid-cols-2 gap-4 items-stretch">
+              {/* Before Column Cell */}
+              <div className="border-r border-muted/20 pr-2 flex flex-col justify-stretch">
+                {!hasBefore ? (
+                  <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
+                ) : (
+                  <div
+                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
+                      isChanged
+                        ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
+                        : "text-muted-foreground/85"
+                    }`}
+                  >
+                    &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valBefore)}
+                  </div>
+                )}
               </div>
-            );
-          })}
-          <div className="text-muted-foreground/50 font-mono text-xs">{"}"}</div>
+
+              {/* After Column Cell */}
+              <div className="pl-2 flex flex-col justify-stretch">
+                {!hasAfter ? (
+                  <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
+                ) : (
+                  <div
+                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
+                      isChanged
+                        ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
+                        : "text-muted-foreground/85"
+                    }`}
+                  >
+                    &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valAfter)}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Close bracket row */}
+        <div className="grid grid-cols-2 gap-4 border-t border-muted/20 pt-1 mt-1 text-muted-foreground/50 select-none">
+          <div className="border-r border-muted/20 pr-2">{"}"}</div>
+          <div className="pl-2">{"}"}</div>
         </div>
       </div>
     </div>
