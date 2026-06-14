@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.systemSetting.findFirst();
 
     let passwordToSave = ldapBindPassword;
-    if (!passwordToSave || passwordToSave === "********") {
+    if (!passwordToSave) {
       passwordToSave = existing ? (existing.ldapBindPassword || "") : (process.env.LDAP_PASSWORD || "");
     }
 

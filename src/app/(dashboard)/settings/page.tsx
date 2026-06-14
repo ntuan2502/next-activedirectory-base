@@ -280,7 +280,7 @@ export default function SettingsPage() {
       if (res.ok && result.success) {
         toast.success(t("settingsPage.saveSuccess"));
         setHasExistingConfig(true);
-        setLdapBindPassword("********");
+        setLdapBindPassword("");
         // Update local sync status if changed
         if (result.data) {
           const d: SettingsData = result.data;

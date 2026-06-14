@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         url: body.ldapUrl !== undefined ? body.ldapUrl : (dbConfig?.url || ""),
         port: body.ldapPort !== undefined ? String(body.ldapPort) : (dbConfig?.port || ""),
         username: body.ldapBindDn !== undefined ? body.ldapBindDn : (dbConfig?.username || ""),
-        password: body.ldapBindPassword && body.ldapBindPassword !== "********" ? body.ldapBindPassword : (dbConfig?.password || ""),
+        password: body.ldapBindPassword ? body.ldapBindPassword : (dbConfig?.password || ""),
         baseDN: body.ldapBaseDn !== undefined ? body.ldapBaseDn : (dbConfig?.baseDN || ""),
         filter: body.ldapFilter !== undefined ? body.ldapFilter : (dbConfig?.filter || ""),
       };
