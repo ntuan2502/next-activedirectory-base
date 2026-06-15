@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
 import { LanguageToggle } from "@/components/language-toggle";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,13 +20,11 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setError(null);
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -42,10 +40,10 @@ export default function LoginPage() {
         router.push("/");
         router.refresh();
       } else {
-        setError(data.error ? t("loginPage.invalidCredentials") : t("loginPage.invalidCredentials"));
+        toast.error(data.error || t("loginPage.invalidCredentials"));
       }
     } catch {
-      setError(t("common.error"));
+      toast.error(t("common.error"));
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +88,6 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -113,11 +110,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (

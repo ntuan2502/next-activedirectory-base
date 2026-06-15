@@ -162,6 +162,13 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
     );
   };
 
+  const renderValue = (val: unknown) => {
+    if (typeof val === "string" && val.includes(".") && !val.includes(" ")) {
+      return JSON.stringify(t(val));
+    }
+    return JSON.stringify(val);
+  };
+
   if (!before && !after) {
     return <div className="p-4 text-muted-foreground">{t("common.noData")}</div>;
   }
@@ -196,7 +203,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
               <div className="text-muted-foreground/60">{"{"}</div>
               {keys.map((k) => (
                 <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs break-all whitespace-pre-wrap">
-                  &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(afterObj[k])}
+                  &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(afterObj[k])}
                 </div>
               ))}
               <div className="text-muted-foreground/60">{"}"}</div>
@@ -228,7 +235,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
               <div className="text-muted-foreground/60">{"{"}</div>
               {keys.map((k) => (
                 <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs break-all whitespace-pre-wrap">
-                  &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(beforeObj[k])}
+                  &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(beforeObj[k])}
                 </div>
               ))}
               <div className="text-muted-foreground/60">{"}"}</div>
@@ -250,8 +257,12 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
 
   // Case 3: Both exist but are not objects (e.g. primitives, arrays)
   if (!isBeforeObj || !isAfterObj) {
-    const beforeStr = typeof before === "string" ? before : JSON.stringify(before, null, 2);
-    const afterStr = typeof after === "string" ? after : JSON.stringify(after, null, 2);
+    const beforeStr = typeof before === "string"
+      ? (before.includes(".") && !before.includes(" ") ? t(before) : before)
+      : JSON.stringify(before, null, 2);
+    const afterStr = typeof after === "string"
+      ? (after.includes(".") && !after.includes(" ") ? t(after) : after)
+      : JSON.stringify(after, null, 2);
     const isChanged = beforeStr !== afterStr;
 
     return (
@@ -332,7 +343,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                         : "text-muted-foreground/85"
                     }`}
                   >
-                    &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valBefore)}
+                    &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valBefore)}
                   </div>
                 )}
               </div>
@@ -349,7 +360,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                         : "text-muted-foreground/85"
                     }`}
                   >
-                    &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(valAfter)}
+                    &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valAfter)}
                   </div>
                 )}
               </div>

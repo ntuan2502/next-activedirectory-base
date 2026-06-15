@@ -574,6 +574,8 @@ export const vi = {
     usernamePasswordRequired: "Tài khoản và mật khẩu là bắt buộc.",
     useUsernameOnly: "Vui lòng chỉ sử dụng tên đăng nhập, không sử dụng địa chỉ email.",
     authenticationFailed: "Đăng nhập thất bại.",
+    accountDisabled: "Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với quản trị viên.",
+    ldapUnreachable: "Không thể kết nối đến máy chủ LDAP và không có thông tin xác thực được lưu bộ nhớ đệm.",
     invalidPayload: "Dữ liệu yêu cầu không hợp lệ.",
     noUsersSelected: "Chưa chọn người dùng nào.",
     initialSetupAlreadyCompleted: "Thiết lập ban đầu đã được hoàn thành. Đăng ký bị khóa.",
@@ -608,6 +610,7 @@ export const vi = {
     sessionRevokedAll: "Đã thu hồi toàn bộ các phiên làm việc của user {{username}}",
     sessionRevokedOther: "Đã thu hồi toàn bộ các phiên làm việc khác của user {{username}}",
     sessionRevokedSpecific: "Đã thu hồi phiên làm việc {{id}} của user {{username}}",
+    ldapFallbackToCache: "Không thể kết nối đến máy chủ LDAP, chuyển sang sử dụng thông tin xác thực lưu trong bộ nhớ đệm.",
   },
 };
 

@@ -574,6 +574,8 @@ export const th = {
     usernamePasswordRequired: "จำเป็นต้องระบุชื่อผู้ใช้และรหัสผ่าน",
     useUsernameOnly: "โปรดใช้ชื่อผู้ใช้ของคุณเท่านั้น ไม่ใช่ที่อยู่อีเมล",
     authenticationFailed: "การรับรองความถูกต้องล้มเหลว",
+    accountDisabled: "บัญชีของคุณถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ",
+    ldapUnreachable: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ LDAP ได้ และไม่พบข้อมูลการเข้ารหัสที่บันทึกไว้ในแคช",
     invalidPayload: "ข้อมูลคำขอไม่ถูกต้อง",
     noUsersSelected: "ไม่ได้เลือกผู้ใช้",
     initialSetupAlreadyCompleted: "การตั้งค่าเริ่มต้นเสร็จสิ้นแล้ว การลงทะเบียนถูกบล็อก",
@@ -608,5 +610,6 @@ export const th = {
     sessionRevokedAll: "ยกเลิกเซสชันทั้งหมดของผู้ใช้ {{username}}",
     sessionRevokedOther: "ยกเลิกเซสชันอื่นทั้งหมดของผู้ใช้ {{username}}",
     sessionRevokedSpecific: "ยกเลิกเซสชัน {{id}} ของผู้ใช้ {{username}}",
+    ldapFallbackToCache: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ LDAP ได้ จะใช้ข้อมูลการเข้ารหัสที่บันทึกไว้ในแคชแทน",
   },
 };

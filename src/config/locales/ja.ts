@@ -574,6 +574,8 @@ export const ja = {
     usernamePasswordRequired: "ユーザー名とパスワードは必須です。",
     useUsernameOnly: "電子メールアドレスではなく、ユーザー名のみを使用してください。",
     authenticationFailed: "認証に失敗しました。",
+    accountDisabled: "アカウントが無効化されています。管理者に連絡してください。",
+    ldapUnreachable: "LDAPサーバーに接続できず、キャッシュされた資格情報も見つかりません。",
     invalidPayload: "無効なペイロードです。",
     noUsersSelected: "ユーザーが選択されていません。",
     initialSetupAlreadyCompleted: "初期設定は既に完了しています。登録はブロックされました。",
@@ -608,5 +610,6 @@ export const ja = {
     sessionRevokedAll: "ユーザー {{username}} のすべてのセッションを取り消しました",
     sessionRevokedOther: "ユーザー {{username}} の他のセッションを取り消しました",
     sessionRevokedSpecific: "ユーザー {{username}} のセッション {{id}} を取り消しました",
+    ldapFallbackToCache: "LDAPサーバーに接続できません。キャッシュされた資格情報を使用します。",
   },
 };

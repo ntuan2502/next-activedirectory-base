@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser } from "@/lib/auth";
+import { authenticateUser, AuthError } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { logAction } from "@/lib/audit";
 import { getServerTranslator } from "@/lib/i18n";
@@ -55,15 +55,23 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : t("errors.authenticationFailed");
+    let errorKey = "errors.authenticationFailed";
+    if (error instanceof AuthError) {
+      errorKey = error.message;
+    } else if (error instanceof Error) {
+      errorKey = error.message;
+    }
+
+    const clientMessage = errorKey.includes(".") && !errorKey.includes(" ") ? t(errorKey) : errorKey;
+
     if (requestUsername) {
       await logAction("auth:login_failed", requestUsername, {
         before: null,
-        after: { error: message },
+        after: { error: errorKey },
       });
     }
     return NextResponse.json(
-      { error: message },
+      { error: clientMessage },
       { status: 401 },
     );
   }

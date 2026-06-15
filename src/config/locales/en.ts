@@ -574,6 +574,8 @@ export const en = {
     usernamePasswordRequired: "Username and password are required.",
     useUsernameOnly: "Please use your username only, not email address.",
     authenticationFailed: "Authentication failed.",
+    accountDisabled: "Your account has been disabled. Please contact an administrator.",
+    ldapUnreachable: "LDAP server is unreachable and no cached credentials found.",
     invalidPayload: "Invalid payload.",
     noUsersSelected: "No users selected.",
     initialSetupAlreadyCompleted: "Initial setup has already been completed. Registration blocked.",
@@ -608,6 +610,7 @@ export const en = {
     sessionRevokedAll: "Revoked all sessions of user {{username}}",
     sessionRevokedOther: "Revoked other sessions of user {{username}}",
     sessionRevokedSpecific: "Revoked session {{id}} of user {{username}}",
+    ldapFallbackToCache: "LDAP server is unreachable, falling back to cached credentials.",
   },
 };
 

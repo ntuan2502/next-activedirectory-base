@@ -2,12 +2,20 @@ import { Client } from "ldapts";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { getLdapConfig, createLdapClient, type LdapConfig } from "@/lib/ldap";
+import { getServerTranslator } from "@/lib/i18n";
 
 type AuthResult = {
   userId: string;
   username: string;
   displayName: string;
 };
+
+export class AuthError extends Error {
+  constructor(key: string) {
+    super(key);
+    this.name = "AuthError";
+  }
+}
 
 export async function authenticateUser(
   username: string,
@@ -18,7 +26,7 @@ export async function authenticateUser(
   });
 
   if (dbUser?.disabled) {
-    throw new Error("Your account has been disabled. Please contact an administrator.");
+    throw new AuthError("errors.accountDisabled");
   }
 
   // If local user (no DN in AD/LDAP), bypass LDAP entirely and authenticate locally
@@ -37,11 +45,16 @@ export async function authenticateUser(
 
     if (!isConnectionError) {
       // LDAP responded but credentials are invalid
-      throw new Error("Invalid username or password.");
+      throw new AuthError("loginPage.invalidCredentials");
     }
 
     // Step 2: LDAP unreachable — fallback to cached password
-    console.warn("LDAP unreachable, falling back to cached credentials.");
+    try {
+      const { t } = await getServerTranslator();
+      console.warn(t("logs.ldapFallbackToCache"));
+    } catch {
+      console.warn("LDAP server is unreachable, falling back to cached credentials.");
+    }
     return authenticateViaCachedPassword(username, password);
   }
 }
@@ -96,12 +109,12 @@ async function authenticateViaCachedPassword(
   });
 
   if (!user || !user.passwordHash) {
-    throw new Error("LDAP server is unreachable and no cached credentials found.");
+    throw new AuthError("errors.ldapUnreachable");
   }
 
   const isValid = await bcrypt.compare(password, user.passwordHash);
   if (!isValid) {
-    throw new Error("Invalid username or password.");
+    throw new AuthError("loginPage.invalidCredentials");
   }
 
   // Update last login
