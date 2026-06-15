@@ -57,9 +57,12 @@ export async function POST(request: NextRequest) {
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { ldapBindPassword: _, ...settingsWithoutPassword } = updatedSettings;
-      await logAction("settings:initial_setup_skip", "system", {
-        before: null,
-        after: settingsWithoutPassword,
+      await logAction("settings:initial_setup_skip", null, {
+        status: "success",
+        message: "auditLogsPage.messages.initialSetupSkipSuccess",
+        data: {
+          after: settingsWithoutPassword,
+        },
       });
 
       return NextResponse.json({
@@ -104,9 +107,12 @@ export async function POST(request: NextRequest) {
     // Log the action
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { ldapBindPassword: _, ...settingsWithoutPassword } = updatedSettings;
-    await logAction("settings:initial_setup_ldap", "system", {
-      before: null,
-      after: settingsWithoutPassword,
+    await logAction("settings:initial_setup_ldap", null, {
+      status: "success",
+      message: "auditLogsPage.messages.initialSetupLdapSuccess",
+      data: {
+        after: settingsWithoutPassword,
+      },
     });
 
     return NextResponse.json({

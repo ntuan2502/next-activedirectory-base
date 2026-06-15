@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Globe, ShieldAlert, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -44,13 +44,13 @@ type AuditLogRecord = {
 };
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  "auth:login": { label: "Login Success", color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" },
-  "auth:login_failed": { label: "Login Failed", color: "bg-destructive/10 text-destructive border-destructive/20" },
+  "auth:login": { label: "Login", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
   "auth:logout": { label: "Logout", color: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" },
   "auth:initial_setup": { label: "Initial Super Admin Setup", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
   "ldap:test_connection": { label: "LDAP Connection Test", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
   "ldap:fetch_data": { label: "Fetch LDAP Data", color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20" },
-  "ldap:sync_data": { label: "LDAP Sync", color: "bg-purple-500/10 text-purple-500 border-purple-500/20" },
+  "ldap:sync_users": { label: "LDAP User Sync", color: "bg-sky-500/10 text-sky-600 border-sky-500/20" },
+  "ldap:sync_companies": { label: "LDAP Company Sync", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
   "user:delete": { label: "Delete User", color: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
   "user:update_roles": { label: "Update User Roles", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
   "user:update_profile": { label: "Update Profile", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
@@ -76,12 +76,12 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
 const getActionTranslationKey = (action: string): string => {
   const mapping: Record<string, string> = {
     "auth:login": "login",
-    "auth:login_failed": "loginFailed",
     "auth:logout": "logout",
     "auth:initial_setup": "initialSetup",
     "ldap:test_connection": "ldapTest",
     "ldap:fetch_data": "ldapFetch",
-    "ldap:sync_data": "ldapSync",
+    "ldap:sync_users": "ldapSyncUsers",
+    "ldap:sync_companies": "ldapSyncCompanies",
     "user:delete": "deleteUser",
     "user:update_roles": "updateUserRoles",
     "user:update_profile": "updateProfile",
@@ -104,43 +104,6 @@ const getActionTranslationKey = (action: string): string => {
     "session:revoke_specific": "revokeSpecificSession",
   };
   return mapping[action] ? `auditLogsPage.actions.${mapping[action]}` : "";
-};
-
-const renderDetailsText = (
-  details: string | null,
-  t: (key: string, variables?: Record<string, string | number>) => string
-) => {
-  if (!details) return null;
-
-  // 1. Check if it's JSON (e.g. key and dynamic params)
-  if (details.startsWith("{") && details.endsWith("}")) {
-    try {
-      const parsed = JSON.parse(details);
-      if (parsed.key) {
-        return (
-          <div className="text-sm whitespace-pre-wrap">
-            {t(parsed.key, parsed.params)}
-          </div>
-        );
-      }
-    } catch {}
-  }
-
-  // 2. Check if it's a translation key (e.g. starts with "errors." or "auditLogsPage.")
-  if (details.includes(".") && !details.includes(" ")) {
-    return (
-      <div className="text-sm font-medium whitespace-pre-wrap">
-        {t(details)}
-      </div>
-    );
-  }
-
-  // 3. Fallback to raw pre for other strings / unstructured JSONs
-  return (
-    <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-x-auto max-h-[50vh] border whitespace-pre-wrap">
-      {details}
-    </pre>
-  );
 };
 
 
@@ -263,27 +226,70 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
     const afterStr = typeof after === "string"
       ? (after.includes(".") && !after.includes(" ") ? t(after) : after)
       : JSON.stringify(after, null, 2);
-    const isChanged = beforeStr !== afterStr;
+
+    const beforeLines = beforeStr.split("\n");
+    const afterLines = afterStr.split("\n");
+    const maxLines = Math.max(beforeLines.length, afterLines.length);
 
     return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-        {/* Before */}
-        <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
-          <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+      <div className="flex flex-col border border-muted/50 rounded-lg overflow-hidden flex-1 min-h-0 bg-background w-full">
+        {/* Split Header */}
+        <div className="grid grid-cols-2 text-xs font-semibold shrink-0 border-b border-muted/30">
+          <div className="bg-rose-500/10 px-3 py-1.5 text-rose-600 dark:text-rose-400 border-r border-muted/30">
             {t("auditLogsPage.beforeState")}
           </div>
-          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 whitespace-pre-wrap break-all ${isChanged ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300" : "text-muted-foreground/80"}`}>
-            {beforeStr}
-          </pre>
-        </div>
-        {/* After */}
-        <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
-          <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+          <div className="bg-emerald-500/10 px-3 py-1.5 text-emerald-600 dark:text-emerald-400">
             {t("auditLogsPage.afterState")}
           </div>
-          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 whitespace-pre-wrap break-all ${isChanged ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground/80"}`}>
-            {afterStr}
-          </pre>
+        </div>
+
+        {/* Split Content Body */}
+        <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 space-y-0.5 bg-background">
+          {Array.from({ length: maxLines }).map((_, i) => {
+            const hasBefore = i < beforeLines.length;
+            const hasAfter = i < afterLines.length;
+            const lineBefore = beforeLines[i];
+            const lineAfter = afterLines[i];
+            const isLineChanged = !hasBefore || !hasAfter || lineBefore !== lineAfter;
+
+            return (
+              <div key={i} className="grid grid-cols-2 gap-4 items-stretch">
+                {/* Before Column Cell */}
+                <div className="border-r border-muted/20 pr-2 flex flex-col justify-stretch">
+                  {!hasBefore ? (
+                    <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
+                  ) : (
+                    <div
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
+                        isLineChanged
+                          ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
+                          : "text-muted-foreground/85"
+                      }`}
+                    >
+                      {lineBefore}
+                    </div>
+                  )}
+                </div>
+
+                {/* After Column Cell */}
+                <div className="pl-2 flex flex-col justify-stretch">
+                  {!hasAfter ? (
+                    <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
+                  ) : (
+                    <div
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
+                        isLineChanged
+                          ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
+                          : "text-muted-foreground/85"
+                      }`}
+                    >
+                      {lineAfter}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -410,25 +416,12 @@ export default function AuditLogsPage() {
   const [selectedBatchUserIndex, setSelectedBatchUserIndex] = useState<number>(0);
   const [batchUserSearch, setBatchUserSearch] = useState<string>("");
   const [prevLogId, setPrevLogId] = useState<string | null>(null);
-  const [syncTab, setSyncTab] = useState<"user" | "company">("company");
 
   const currentLogId = selectedLog?.id || null;
   if (currentLogId !== prevLogId) {
     setPrevLogId(currentLogId);
     setSelectedBatchUserIndex(0);
     setBatchUserSearch("");
-    // Default to company tab if there are companies, otherwise user tab
-    const details = selectedLog?.details;
-    let defaultTab: "user" | "company" = "user";
-    if (details) {
-      try {
-        const parsed = JSON.parse(details);
-        if (Array.isArray(parsed?.companiesCreated) && parsed.companiesCreated.length > 0) {
-          defaultTab = "company";
-        }
-      } catch { /* empty */ }
-    }
-    setSyncTab(defaultTab);
   }
 
   const fetchLogs = useCallback(async () => {
@@ -581,31 +574,7 @@ export default function AuditLogsPage() {
 
   const getTargetTranslation = (target: string | null) => {
     if (!target) return "-";
-    if (target === "success") return t("auditLogsPage.targets.success");
-    if (target === "failed") return t("auditLogsPage.targets.failed");
-    const userMatch = target.match(/^(\d+) users$/);
-    if (userMatch) return t("auditLogsPage.targets.users", { count: parseInt(userMatch[1], 10) });
     return target;
-  };
-
-  // Parse sync log target to get structured detail for the table cell
-  const getSyncLogTargetDetail = (log: AuditLogRecord): { created: number; updated: number; companies: number } | null => {
-    if (log.action !== "ldap:sync_data" || !log.details) return null;
-    try {
-      const parsed = JSON.parse(log.details);
-      if (!parsed || typeof parsed !== "object") return null;
-      const details = Array.isArray(parsed.details) ? parsed.details : [];
-      const createdCount = typeof parsed.createdCount === "number"
-        ? parsed.createdCount
-        : details.filter((d: { before: unknown }) => d.before === null).length;
-      const updatedCount = typeof parsed.updatedCount === "number"
-        ? parsed.updatedCount
-        : details.filter((d: { before: unknown }) => d.before !== null).length;
-      const companiesCount = Array.isArray(parsed.companiesCreated) ? parsed.companiesCreated.length : 0;
-      return { created: createdCount, updated: updatedCount, companies: companiesCount };
-    } catch {
-      return null;
-    }
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -616,20 +585,10 @@ export default function AuditLogsPage() {
     if (!log.details) return null;
     try {
       const parsed = JSON.parse(log.details);
-      if (parsed && typeof parsed === "object") {
-        if ("before" in parsed || "after" in parsed) {
-          return parsed as { before: unknown; after: unknown };
-        }
-        // Backward compatibility for old log records (auth:login, auth:logout, session:revoke_*)
-        if (log.action === "auth:login") {
-          return { before: null, after: parsed };
-        }
-        if (log.action === "auth:logout" || log.action.startsWith("session:revoke")) {
-          return { before: parsed, after: null };
-        }
-        if (log.action === "auth:login_failed") {
-          const errorMsg = parsed.error || (parsed.key ? parsed.key : JSON.stringify(parsed));
-          return { before: null, after: { error: errorMsg } };
+      if (parsed && typeof parsed === "object" && parsed.data && typeof parsed.data === "object") {
+        const data = parsed.data as Record<string, unknown>;
+        if ("before" in data || "after" in data) {
+          return data as { before: unknown; after: unknown };
         }
       }
       return null;
@@ -647,14 +606,16 @@ export default function AuditLogsPage() {
   }
 
   const parseBatchLdapSync = (log: AuditLogRecord | null): BatchSyncItem[] | null => {
-    if (!log || log.action !== "ldap:sync_data" || !log.details) return null;
+    if (!log || !log.details) return null;
     try {
       const parsed = JSON.parse(log.details);
+      if (!parsed || typeof parsed !== "object" || parsed.status !== "success" || !parsed.data) return null;
+      const data = parsed.data as Record<string, unknown>;
       const items: BatchSyncItem[] = [];
 
-      // Parse users
-      if (parsed && typeof parsed === "object" && Array.isArray(parsed.details)) {
-        for (const detail of parsed.details) {
+      // Phân tích danh sách user đồng bộ
+      if (log.action === "ldap:sync_users" && Array.isArray(data.details)) {
+        for (const detail of data.details) {
           if (detail && typeof detail === "object" && "username" in detail) {
             const uDetail = detail as {
               username: string;
@@ -672,9 +633,9 @@ export default function AuditLogsPage() {
         }
       }
 
-      // Parse companies
-      if (parsed && typeof parsed === "object" && Array.isArray(parsed.companiesCreated)) {
-        for (const comp of parsed.companiesCreated) {
+      // Phân tích danh sách công ty đồng bộ
+      if (log.action === "ldap:sync_companies" && Array.isArray(data.companies)) {
+        for (const comp of data.companies) {
           if (comp && typeof comp === "object" && "code" in comp) {
             const cDetail = comp as {
               code: string;
@@ -698,35 +659,6 @@ export default function AuditLogsPage() {
     }
   };
 
-  interface LdapTestLogDetail {
-    success?: boolean;
-    error?: string;
-    errorDetails?: string;
-    message?: string;
-    config?: {
-      url: string;
-      port: string;
-      username: string;
-      baseDN: string;
-      filter: string;
-    } | null;
-  }
-
-  const parseLdapTestInfo = (detailsStr: string | null): LdapTestLogDetail | null => {
-    if (!detailsStr) return null;
-    try {
-      const parsed = JSON.parse(detailsStr);
-      if (parsed && typeof parsed === "object" && ("success" in parsed || "error" in parsed || "config" in parsed)) {
-        return parsed as LdapTestLogDetail;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-
-
   const getActionBadge = (action: string) => {
     const config = ACTION_LABELS[action] || { label: action, color: "bg-muted text-muted-foreground border-muted-foreground/20" };
     const translationKey = getActionTranslationKey(action);
@@ -745,34 +677,35 @@ export default function AuditLogsPage() {
   const diffData = selectedLog ? parseDiff(selectedLog) : null;
   const batchSyncDetails = selectedLog ? parseBatchLdapSync(selectedLog) : null;
   const isBatchSync = !!batchSyncDetails && batchSyncDetails.length > 0;
-  const ldapTestInfo = (selectedLog && selectedLog.action === "ldap:test_connection")
-    ? parseLdapTestInfo(selectedLog.details)
-    : null;
 
-  const parseLdapFetchInfo = (detailsStr: string | null) => {
-    if (!detailsStr) return null;
+  // Trích xuất status, message và data từ details để hiển thị dạng Thông báo riêng
+  const logDetailsParsed = (() => {
+    if (!selectedLog || !selectedLog.details) return null;
     try {
-      const parsed = JSON.parse(detailsStr);
-      if (parsed && typeof parsed === "object" && ("count" in parsed || "error" in parsed)) {
-        return parsed as { count?: number; error?: string };
+      const parsed = JSON.parse(selectedLog.details);
+      if (parsed && typeof parsed === "object") {
+        const status = parsed.status === "failed" ? "failed" : "success";
+        const message = parsed.message
+          ? (parsed.message.includes(".") && !parsed.message.includes(" ") ? t(parsed.message) : parsed.message)
+          : "";
+        return {
+          status,
+          message,
+          data: parsed.data,
+        };
       }
       return null;
     } catch {
-      return null;
+      return {
+        status: "success" as const,
+        message: selectedLog.details,
+        data: null,
+      };
     }
-  };
-
-  const ldapFetchInfo = (selectedLog && selectedLog.action === "ldap:fetch_data")
-    ? parseLdapFetchInfo(selectedLog.details)
-    : null;
+  })();
 
 
-  const userItems = batchSyncDetails ? batchSyncDetails.filter((item) => item.type === "user") : [];
-  const companyItems = batchSyncDetails ? batchSyncDetails.filter((item) => item.type === "company") : [];
-
-  const currentTabItems = (syncTab === "company" && companyItems.length > 0) ? companyItems : userItems;
-
-  const filteredBatchItems = currentTabItems.filter((item) =>
+  const filteredBatchItems = (batchSyncDetails || []).filter((item) =>
     item.name.toLowerCase().includes(batchUserSearch.toLowerCase())
   );
 
@@ -830,14 +763,14 @@ export default function AuditLogsPage() {
                 >
                   <option value="all">{t("auditLogsPage.allActivities")}</option>
                   <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
-                   <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
                   <option value="auth:logout">{t("auditLogsPage.actions.logout")}</option>
                   <option value="auth:initial_setup">{t("auditLogsPage.actions.initialSetup")}</option>
                   <option value="session:revoke_all">{t("auditLogsPage.actions.revokeAllSessions")}</option>
                   <option value="session:revoke_other">{t("auditLogsPage.actions.revokeOtherSessions")}</option>
                   <option value="session:revoke_specific">{t("auditLogsPage.actions.revokeSpecificSession")}</option>
                   <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
-                  <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
+                  <option value="ldap:sync_users">{t("auditLogsPage.actions.ldapSyncUsers")}</option>
+                  <option value="ldap:sync_companies">{t("auditLogsPage.actions.ldapSyncCompanies")}</option>
                   <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
                   <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
                   <option value="user:update_profile">{t("auditLogsPage.actions.updateProfile")}</option>
@@ -893,6 +826,11 @@ export default function AuditLogsPage() {
                       {sortConfig?.key === "action" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
+                  <TableHead className="w-[130px]">
+                    <div className="flex items-center">
+                      {t("auditLogsPage.tableHeaders.status")}
+                    </div>
+                  </TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("target")}>
                     <div className="flex items-center">
                       {t("auditLogsPage.tableHeaders.target")}
@@ -911,12 +849,19 @@ export default function AuditLogsPage() {
               <TableBody className={`transition-opacity duration-200 ${isLoading && logs.length > 0 ? "opacity-50" : ""}`}>
                 {logs.length > 0 ? (
                   logs.map((log) => {
-                    const isFailed = log.action.includes("failed") || log.target === "failed";
+                    let isFailed = false;
+                    try {
+                      if (log.details) {
+                        const parsed = JSON.parse(log.details);
+                        isFailed = parsed?.status === "failed";
+                      }
+                    } catch { /* empty */ }
+
                     return (
                       <TableRow
                         key={log.id}
                         className={isFailed
-                          ? "bg-destructive/10 dark:bg-destructive/20 hover:bg-destructive/15 dark:hover:bg-destructive/25 border-l-2 border-l-destructive"
+                          ? "bg-destructive/[0.03] dark:bg-destructive/[0.05] hover:bg-destructive/[0.06] dark:hover:bg-destructive/[0.08] border-l-2 border-l-destructive"
                           : "border-l-2 border-l-transparent"
                         }
                       >
@@ -941,61 +886,102 @@ export default function AuditLogsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center min-h-[2.5rem]">
+                          <div className="flex flex-wrap items-center gap-1.5 min-h-[2.5rem]">
                             {getActionBadge(log.action)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center min-h-[2.5rem]">
+                            {(() => {
+                              try {
+                                if (log.details) {
+                                  const parsed = JSON.parse(log.details);
+                                  if (parsed && typeof parsed === "object" && "status" in parsed) {
+                                    const status = parsed.status;
+                                    if (status === "success") {
+                                      return (
+                                        <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] font-semibold h-5 px-1.5 shrink-0">
+                                          {t("auditLogsPage.targets.success")}
+                                        </Badge>
+                                      );
+                                    } else if (status === "failed") {
+                                      return (
+                                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] font-semibold h-5 px-1.5 shrink-0">
+                                          {t("auditLogsPage.targets.failed")}
+                                        </Badge>
+                                      );
+                                    }
+                                  }
+                                }
+                              } catch { /* empty */ }
+                              return <span className="text-muted-foreground">-</span>;
+                            })()}
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[250px] text-sm">
                           <div className="flex flex-col min-h-[2.5rem] justify-center">
-                            {log.action === "ldap:sync_data" ? (() => {
-                              const detail = getSyncLogTargetDetail(log);
-                              if (detail) {
-                                const noChange = detail.created === 0 && detail.updated === 0 && detail.companies === 0;
-                                if (noChange) {
+                            {["ldap:sync_users", "ldap:sync_companies"].includes(log.action) ? (() => {
+                              try {
+                                if (!log.details) return "-";
+                                const parsed = JSON.parse(log.details);
+                                if (!parsed || typeof parsed !== "object" || parsed.status !== "success" || !parsed.data) return "-";
+                                const data = parsed.data as {
+                                  createdCount?: number;
+                                  updatedCount?: number;
+                                  count?: number;
+                                };
+                                
+                                if (log.action === "ldap:sync_users") {
+                                  const created = data.createdCount || 0;
+                                  const updated = data.updatedCount || 0;
+                                  const noChange = created === 0 && updated === 0;
+                                  if (noChange) {
+                                    return (
+                                      <span className="font-semibold truncate max-w-[200px] text-muted-foreground">
+                                        {t("auditLogsPage.syncNoChanges")}
+                                      </span>
+                                    );
+                                  }
+                                  const parts = [];
+                                  if (created > 0) {
+                                    parts.push({
+                                      text: t("auditLogsPage.syncUserCreated", { count: created }),
+                                      color: "text-emerald-600 dark:text-emerald-400",
+                                    });
+                                  }
+                                  if (updated > 0) {
+                                    parts.push({
+                                      text: t("auditLogsPage.syncUserUpdated", { count: updated }),
+                                      color: "text-amber-600 dark:text-amber-400",
+                                    });
+                                  }
                                   return (
-                                    <span className="font-semibold truncate max-w-[200px] text-muted-foreground">
-                                      {t("auditLogsPage.syncNoChanges")}
+                                    <span className="font-semibold truncate max-w-[250px]">
+                                      {parts.map((part, i) => (
+                                        <span key={i} className={part.color}>
+                                          {i > 0 && <span className="text-muted-foreground/50">, </span>}
+                                          {part.text}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  );
+                                } else if (log.action === "ldap:sync_companies") {
+                                  const count = data.count || 0;
+                                  return (
+                                    <span className="font-semibold truncate max-w-[250px] text-blue-600 dark:text-blue-400">
+                                      {t("auditLogsPage.syncCompanyCreated", { count })}
                                     </span>
                                   );
                                 }
-                                const parts: { text: string; color: string }[] = [];
-                                if (detail.created > 0) {
-                                  parts.push({
-                                    text: t("auditLogsPage.syncUserCreated", { count: detail.created }),
-                                    color: "text-emerald-600 dark:text-emerald-400",
-                                  });
-                                }
-                                if (detail.updated > 0) {
-                                  parts.push({
-                                    text: t("auditLogsPage.syncUserUpdated", { count: detail.updated }),
-                                    color: "text-amber-600 dark:text-amber-400",
-                                  });
-                                }
-                                if (detail.companies > 0) {
-                                  parts.push({
-                                    text: t("auditLogsPage.syncCompanyCreated", { count: detail.companies }),
-                                    color: "text-blue-600 dark:text-blue-400",
-                                  });
-                                }
-                                return (
-                                  <span className="font-semibold truncate max-w-[250px]">
-                                    {parts.map((part, i) => (
-                                      <span key={i} className={part.color}>
-                                        {i > 0 && <span className="text-muted-foreground/50">, </span>}
-                                        {part.text}
-                                      </span>
-                                    ))}
-                                  </span>
-                                );
-                              }
-                              return <span className="font-semibold truncate max-w-[200px]">{getTargetTranslation(log.target)}</span>;
+                              } catch { /* empty */ }
+                              return "-";
                             })() : (
                               <>
                                 <span className="font-semibold truncate max-w-[200px]">{getTargetTranslation(log.target)}</span>
-                                {["auth:login", "auth:logout", "auth:login_failed"].includes(log.action) && log.details && (() => {
+                                {["auth:login", "auth:logout"].includes(log.action) && log.details && (() => {
                                   try {
                                     const detailsObj = JSON.parse(log.details!);
-                                    const ua = detailsObj?.userAgent;
+                                    const ua = detailsObj?.data?.session?.userAgent || detailsObj?.data?.before?.userAgent;
                                     const { browser, os } = ua ? parseUserAgent(ua) : { browser: "", os: "" };
                                     if (browser && os) {
                                       return (
@@ -1034,7 +1020,7 @@ export default function AuditLogsPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
                       {!isLoading && t("auditLogsPage.noRecords")}
                     </TableCell>
                   </TableRow>
@@ -1124,51 +1110,38 @@ export default function AuditLogsPage() {
                 </div>
               </div>
 
+              {/* Phần Thông báo (luôn hiển thị trên cùng nếu có message) */}
+              {logDetailsParsed && logDetailsParsed.message && (
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground block font-semibold uppercase tracking-wider">
+                    {t("auditLogsPage.notification")}
+                  </span>
+                  <div className={`p-3 rounded-lg border text-sm font-medium whitespace-pre-wrap ${
+                    logDetailsParsed.status === "success"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
+                  }`}>
+                    {logDetailsParsed.message}
+                  </div>
+                </div>
+              )}
+
+              {/* Các phần chi tiết cấu trúc khác ở bên dưới */}
               {isBatchSync ? (
                 <div className="flex flex-col md:flex-row gap-4 min-h-0 md:h-[55vh]">
                   {/* Left pane: Sync List */}
                   <div className="w-full md:w-1/3 flex flex-col border rounded-lg bg-muted/10 p-3 gap-2 min-h-0 md:overflow-hidden max-h-[45vh] md:max-h-none">
-                    {companyItems.length > 0 ? (
-                      <div className="flex border-b border-muted/50 mb-2 shrink-0">
-                        <button
-                          onClick={() => {
-                            setSyncTab("company");
-                            setSelectedBatchUserIndex(0);
-                            setBatchUserSearch("");
-                          }}
-                          className={`flex-1 pb-2 text-center text-xs font-semibold border-b-2 transition-all ${
-                            syncTab === "company"
-                              ? "border-primary text-primary"
-                              : "border-transparent text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          {t("auditLogsPage.badgeCompany")} ({companyItems.length})
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSyncTab("user");
-                            setSelectedBatchUserIndex(0);
-                            setBatchUserSearch("");
-                          }}
-                          className={`flex-1 pb-2 text-center text-xs font-semibold border-b-2 transition-all ${
-                            syncTab === "user"
-                              ? "border-primary text-primary"
-                              : "border-transparent text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          {t("auditLogsPage.badgeUser")} ({userItems.length})
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                        {t("auditLogsPage.syncedUsersList")} ({batchSyncDetails.length})
-                      </span>
-                    )}
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1 shrink-0">
+                      {selectedLog.action === "ldap:sync_companies"
+                        ? t("auditLogsPage.actions.ldapSyncCompanies")
+                        : t("auditLogsPage.actions.ldapSyncUsers")
+                      } ({batchSyncDetails.length})
+                    </span>
                     <Input
                       placeholder={
-                        syncTab === "user"
-                          ? t("auditLogsPage.searchUserPlaceholder")
-                          : `${t("common.search")} ${t("auditLogsPage.badgeCompany").toLowerCase()}...`
+                        selectedLog.action === "ldap:sync_companies"
+                          ? `${t("common.search")} ${t("auditLogsPage.badgeCompany").toLowerCase()}...`
+                          : t("auditLogsPage.searchUserPlaceholder")
                       }
                       value={batchUserSearch}
                       onChange={(e) => {
@@ -1250,9 +1223,9 @@ export default function AuditLogsPage() {
                       </>
                     ) : (
                       <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/5 text-muted-foreground text-xs font-medium min-h-[120px]">
-                        {syncTab === "user"
-                          ? t("auditLogsPage.selectUserToViewDiff")
-                          : t("auditLogsPage.selectCompanyToViewDiff")
+                        {selectedLog.action === "ldap:sync_companies"
+                          ? t("auditLogsPage.selectCompanyToViewDiff")
+                          : t("auditLogsPage.selectUserToViewDiff")
                         }
                       </div>
                     )}
@@ -1260,107 +1233,14 @@ export default function AuditLogsPage() {
                 </div>
               ) : diffData ? (
                 <DiffViewer before={diffData.before} after={diffData.after} t={t} />
-              ) : ldapTestInfo ? (
-                <div className="space-y-4">
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted px-4 py-2 border-b font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-primary" />
-                      {t("auditLogsPage.ldapTest.details")}
-                    </div>
-                    <div className="p-4 space-y-4">
-                      {/* Success / Error Banner */}
-                      {ldapTestInfo.success ? (
-                        <div className="flex gap-2.5 items-start p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 text-sm">
-                          <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold block">{t("auditLogsPage.ldapTest.success")}</span>
-                            <span className="text-xs">
-                              {ldapTestInfo.message ? (
-                                ldapTestInfo.message.includes(".") && !ldapTestInfo.message.includes(" ") ? (
-                                  t(ldapTestInfo.message)
-                                ) : (
-                                  ldapTestInfo.message
-                                )
-                              ) : t("auditLogsPage.ldapTest.successDesc")}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2.5 items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
-                          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold block">{t("auditLogsPage.ldapTest.failed")}</span>
-                            <span className="text-xs font-mono">
-                              {ldapTestInfo.error ? (
-                                ldapTestInfo.error.includes(".") && !ldapTestInfo.error.includes(" ") ? (
-                                  t(ldapTestInfo.error, { error: ldapTestInfo.errorDetails || "" })
-                                ) : (
-                                  ldapTestInfo.error
-                                )
-                              ) : t("auditLogsPage.ldapTest.failedDesc")}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Config parameters */}
-                      {ldapTestInfo.config && (
-                        <div className="space-y-3">
-                          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                            {t("auditLogsPage.ldapTest.configParams")}
-                          </h4>
-                          <pre className="bg-muted/40 p-4 rounded-lg text-xs font-mono border whitespace-pre-wrap overflow-x-auto">
-                            {JSON.stringify(ldapTestInfo.config, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : ldapFetchInfo ? (
-                <div className="space-y-4">
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted px-4 py-2 border-b font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <Globe className="w-4 h-4 text-primary" />
-                      {t("auditLogsPage.ldapFetch.details")}
-                    </div>
-                    <div className="p-4 space-y-4">
-                      {/* Success / Error Banner */}
-                      {ldapFetchInfo.error ? (
-                        <div className="flex gap-2.5 items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
-                          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold block">{t("auditLogsPage.ldapFetch.failed")}</span>
-                            <span className="text-xs font-mono">{ldapFetchInfo.error || t("auditLogsPage.ldapFetch.failedDesc")}</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2.5 items-start p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg border border-emerald-500/20 text-sm">
-                          <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold block">{t("auditLogsPage.ldapFetch.success")}</span>
-                            <span className="text-xs">{t("auditLogsPage.ldapFetch.successDesc")}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Display JSON metadata */}
-                      {!ldapFetchInfo.error && (
-                        <div className="space-y-3">
-                          <pre className="bg-muted/40 p-4 rounded-lg text-xs font-mono border whitespace-pre-wrap overflow-x-auto">
-                            {JSON.stringify(ldapFetchInfo, null, 2)}
-                          </pre>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
+              ) : logDetailsParsed && logDetailsParsed.data !== null && logDetailsParsed.data !== undefined ? (
                 <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground block">{t("auditLogsPage.detailData")}</span>
-                  {renderDetailsText(selectedLog.details, t)}
+                  <span className="text-xs text-muted-foreground block font-semibold uppercase tracking-wider">{t("auditLogsPage.detailData")}</span>
+                  <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-x-auto max-h-[50vh] border whitespace-pre-wrap">
+                    {JSON.stringify(logDetailsParsed.data, null, 2)}
+                  </pre>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
           <DialogFooter className="shrink-0 border-t pt-4">

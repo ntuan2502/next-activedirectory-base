@@ -3,10 +3,16 @@ import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { sseManager } from "@/lib/sse";
 
+export interface AuditLogDetails {
+  status: "success" | "failed";
+  message: string;
+  data: unknown;
+}
+
 export async function logAction(
   action: string,
   target?: string | null,
-  details?: unknown,
+  details?: AuditLogDetails | null,
   overrideUser?: { userId: string; username: string }
 ) {
   try {
@@ -30,7 +36,7 @@ export async function logAction(
 
     let detailsString = null;
     if (details) {
-      detailsString = typeof details === "string" ? details : JSON.stringify(details, null, 2);
+      detailsString = JSON.stringify(details, null, 2);
     }
 
     const userId = overrideUser?.userId || session?.userId || null;

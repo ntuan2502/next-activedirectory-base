@@ -30,34 +30,53 @@ export async function POST(request: NextRequest) {
 
     const affectedUsers = await prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, username: true, disabled: true }
+    });
+
+    const usersBefore = affectedUsers.map((u) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash, ...rest } = u;
+      return rest;
     });
 
     if (action === "delete") {
       await prisma.user.deleteMany({
         where: { id: { in: userIds } },
       });
-      await logAction("users:bulk_delete", `${userIds.length} users`, {
-        before: affectedUsers.map((u) => ({ id: u.id, username: u.username })),
-        after: null,
+      await logAction("users:bulk_delete", null, {
+        status: "success",
+        message: "auditLogsPage.messages.bulkDeleteUsersSuccess",
+        data: {
+          before: usersBefore,
+          after: null,
+        },
       });
     } else if (action === "disable") {
       await prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { disabled: true },
       });
-      await logAction("users:bulk_disable", `${userIds.length} users`, {
-        before: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: u.disabled })),
-        after: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: true })),
+      const usersAfter = usersBefore.map((u) => ({ ...u, disabled: true }));
+      await logAction("users:bulk_disable", null, {
+        status: "success",
+        message: "auditLogsPage.messages.bulkDisableUsersSuccess",
+        data: {
+          before: usersBefore,
+          after: usersAfter,
+        },
       });
     } else if (action === "enable") {
       await prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { disabled: false },
       });
-      await logAction("users:bulk_enable", `${userIds.length} users`, {
-        before: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: u.disabled })),
-        after: affectedUsers.map((u) => ({ id: u.id, username: u.username, disabled: false })),
+      const usersAfter = usersBefore.map((u) => ({ ...u, disabled: false }));
+      await logAction("users:bulk_enable", null, {
+        status: "success",
+        message: "auditLogsPage.messages.bulkEnableUsersSuccess",
+        data: {
+          before: usersBefore,
+          after: usersAfter,
+        },
       });
     }
 

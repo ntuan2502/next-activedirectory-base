@@ -62,9 +62,13 @@ export async function DELETE(request: NextRequest) {
         where: { userId: session.userId },
       });
 
-      await logAction("session:revoke_all", session.username, {
-        before: sessionsToRevoke,
-        after: null,
+      await logAction("session:revoke_all", null, {
+        status: "success",
+        message: "auditLogsPage.messages.revokeAllSessionsSuccess",
+        data: {
+          before: sessionsToRevoke,
+          after: null,
+        },
       });
 
       cookieStore.delete("session");
@@ -94,9 +98,13 @@ export async function DELETE(request: NextRequest) {
         },
       });
 
-      await logAction("session:revoke_other", session.username, {
-        before: otherSessions,
-        after: null,
+      await logAction("session:revoke_other", null, {
+        status: "success",
+        message: "auditLogsPage.messages.revokeOtherSessionsSuccess",
+        data: {
+          before: otherSessions,
+          after: null,
+        },
       });
 
       // Notify all other sessions to log out
@@ -127,8 +135,12 @@ export async function DELETE(request: NextRequest) {
       });
 
       await logAction("session:revoke_specific", id, {
-        before: targetSession,
-        after: null,
+        status: "success",
+        message: "auditLogsPage.messages.revokeSpecificSessionSuccess",
+        data: {
+          before: targetSession,
+          after: null,
+        },
       });
 
       // Notify target session to log out

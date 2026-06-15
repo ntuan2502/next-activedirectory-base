@@ -30,11 +30,15 @@ export async function DELETE(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...userWithoutPassword } = existingUser;
     await logAction("user:delete", existingUser.username, {
-      before: {
-        ...userWithoutPassword,
-        company: existingUser.companyObj?.code || "",
+      status: "success",
+      message: "auditLogsPage.messages.deleteUserSuccess",
+      data: {
+        before: {
+          ...userWithoutPassword,
+          company: existingUser.companyObj?.code || "",
+        },
+        after: null,
       },
-      after: null,
     });
 
     await prisma.user.delete({

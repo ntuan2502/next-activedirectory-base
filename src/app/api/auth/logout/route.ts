@@ -10,11 +10,15 @@ export async function POST() {
       where: { id: session.sessionId },
     });
     await logAction("auth:logout", session.username, {
-      before: dbSession || {
-        id: session.sessionId,
-        userId: session.userId,
+      status: "success",
+      message: "auditLogsPage.messages.logoutSuccess",
+      data: {
+        before: dbSession || {
+          id: session.sessionId,
+          userId: session.userId,
+        },
+        after: null,
       },
-      after: null,
     });
   }
   await deleteSession();

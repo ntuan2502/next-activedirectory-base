@@ -67,8 +67,12 @@ export async function PATCH(
 
     // Ghi audit log
     await logAction("company:update", updatedCompany.code, {
-      before: existingCompany,
-      after: updatedCompany,
+      status: "success",
+      message: "auditLogsPage.messages.updateCompanySuccess",
+      data: {
+        before: existingCompany,
+        after: updatedCompany,
+      },
     });
 
     return NextResponse.json({
@@ -123,8 +127,12 @@ export async function DELETE(
 
     // Ghi audit log
     await logAction("company:delete", existingCompany.code, {
-      before: existingCompany,
-      after: null,
+      status: "success",
+      message: "auditLogsPage.messages.deleteCompanySuccess",
+      data: {
+        before: existingCompany,
+        after: null,
+      },
     });
 
     return NextResponse.json({ success: true });

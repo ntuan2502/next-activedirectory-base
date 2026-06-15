@@ -15,7 +15,11 @@ export async function GET() {
   try {
     const ldapUsers = await fetchLdapUsers();
 
-    await logAction("ldap:fetch_data", "success", { count: ldapUsers.length });
+    await logAction("ldap:fetch_data", null, {
+      status: "success",
+      message: "auditLogsPage.messages.ldapFetchSuccess",
+      data: { count: ldapUsers.length },
+    });
 
     return NextResponse.json({
       success: true,
@@ -27,9 +31,10 @@ export async function GET() {
     const message = t("errors.failedToSyncLdap", { error: rawMessage });
     console.error(error);
 
-    await logAction("ldap:fetch_data", "failed", {
-      key: "errors.failedToSyncLdap",
-      params: { error: rawMessage },
+    await logAction("ldap:fetch_data", null, {
+      status: "failed",
+      message: "errors.ldapFetchFailed",
+      data: { error: rawMessage },
     });
 
     return NextResponse.json(

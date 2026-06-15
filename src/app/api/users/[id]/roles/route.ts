@@ -55,8 +55,12 @@ export async function PUT(
     const { passwordHash: _2, ...updatedUserWithoutPassword } = updatedUser;
 
     await logAction("user:update_roles", user.username, {
-      before: userWithoutPassword,
-      after: updatedUserWithoutPassword,
+      status: "success",
+      message: "auditLogsPage.messages.updateUserRolesSuccess",
+      data: {
+        before: userWithoutPassword,
+        after: updatedUserWithoutPassword,
+      },
     });
 
     sseManager.publish({

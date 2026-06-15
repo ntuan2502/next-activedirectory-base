@@ -15,7 +15,7 @@ export async function getLdapConfig(): Promise<LdapConfig> {
   const settings = await prisma.systemSetting.findFirst();
   
   if (!settings || !settings.ldapUrl) {
-    throw new Error("LDAP configuration is missing. Please configure it in System Settings.");
+    throw new Error("errors.ldapConfigMissing");
   }
 
   return {

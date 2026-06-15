@@ -128,8 +128,12 @@ export async function POST(request: NextRequest) {
 
     // Ghi audit log
     await logAction("company:create", formattedCode, {
-      before: null,
-      after: newCompany,
+      status: "success",
+      message: "auditLogsPage.messages.createCompanySuccess",
+      data: {
+        before: null,
+        after: newCompany,
+      },
     });
 
     return NextResponse.json({

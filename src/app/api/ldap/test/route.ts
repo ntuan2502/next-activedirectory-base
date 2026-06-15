@@ -55,21 +55,23 @@ export async function POST(request: NextRequest) {
     await client.bind(config.username, config.password);
     await client.unbind();
 
-    await logAction("ldap:test_connection", "success", {
-      success: true,
-      message: "setupPage.successTest",
-      config: configDetails,
+    await logAction("ldap:test_connection", null, {
+      status: "success",
+      message: "auditLogsPage.messages.ldapTestConnectionSuccess",
+      data: { config: configDetails },
     });
     return NextResponse.json({ success: true, message: t("setupPage.successTest") });
   } catch (error: unknown) {
     const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("setupPage.errorLdapTest", { error: rawMessage });
     console.error(error);
-    await logAction("ldap:test_connection", "failed", {
-      success: false,
-      error: "setupPage.errorLdapTest",
-      errorDetails: rawMessage,
-      config: configDetails,
+    await logAction("ldap:test_connection", null, {
+      status: "failed",
+      message: "setupPage.errorLdapTest",
+      data: {
+        error: rawMessage,
+        config: configDetails,
+      },
     });
     return NextResponse.json(
       { error: message },

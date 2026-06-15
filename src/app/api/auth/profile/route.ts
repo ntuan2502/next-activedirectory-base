@@ -71,8 +71,12 @@ export async function PATCH(request: Request) {
       const { passwordHash: _2, ...updatedUserWithoutPassword } = updatedUser;
 
       await logAction("user:update_profile", user.username, {
-        before: userWithoutPassword,
-        after: updatedUserWithoutPassword,
+        status: "success",
+        message: "auditLogsPage.messages.updateProfileSuccess",
+        data: {
+          before: userWithoutPassword,
+          after: updatedUserWithoutPassword,
+        },
       });
 
       return NextResponse.json({
@@ -86,7 +90,11 @@ export async function PATCH(request: Request) {
 
     if (type === "password") {
       if (!isLocal) {
-        await logAction("user:change_password", "failed", "errors.passwordSyncedFromAd");
+        await logAction("user:change_password", user.username, {
+          status: "failed",
+          message: "errors.passwordSyncedFromAd",
+          data: null,
+        });
         return NextResponse.json(
           { error: t("errors.passwordSyncedFromAd") },
           { status: 400 },
@@ -94,7 +102,11 @@ export async function PATCH(request: Request) {
       }
 
       if (!currentPassword || !newPassword) {
-        await logAction("user:change_password", "failed", "errors.passwordFieldsRequired");
+        await logAction("user:change_password", user.username, {
+          status: "failed",
+          message: "errors.passwordFieldsRequired",
+          data: null,
+        });
         return NextResponse.json(
           { error: t("errors.passwordFieldsRequired") },
           { status: 400 },
@@ -102,7 +114,11 @@ export async function PATCH(request: Request) {
       }
 
       if (newPassword.length < 8) {
-        await logAction("user:change_password", "failed", "errors.passwordTooShort");
+        await logAction("user:change_password", user.username, {
+          status: "failed",
+          message: "errors.passwordTooShort",
+          data: null,
+        });
         return NextResponse.json(
           { error: t("errors.passwordTooShort") },
           { status: 400 },
@@ -113,7 +129,11 @@ export async function PATCH(request: Request) {
       if (user.passwordHash) {
         const passwordMatch = await bcrypt.compare(currentPassword, user.passwordHash);
         if (!passwordMatch) {
-          await logAction("user:change_password", "failed", "errors.incorrectCurrentPassword");
+          await logAction("user:change_password", user.username, {
+            status: "failed",
+            message: "errors.incorrectCurrentPassword",
+            data: null,
+          });
           return NextResponse.json(
             { error: t("errors.incorrectCurrentPassword") },
             { status: 400 },
@@ -130,7 +150,11 @@ export async function PATCH(request: Request) {
         },
       });
 
-      await logAction("user:change_password", "success", "auditLogsPage.details.passwordUpdatedSuccessfully");
+      await logAction("user:change_password", user.username, {
+        status: "success",
+        message: "auditLogsPage.messages.changePasswordSuccess",
+        data: null,
+      });
 
       return NextResponse.json({ success: true });
     }

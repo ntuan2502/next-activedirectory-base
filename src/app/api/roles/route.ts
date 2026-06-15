@@ -125,10 +125,14 @@ export async function POST(request: NextRequest) {
     });
 
     await logAction("role:create", role.name, {
-      before: null,
-      after: {
-        ...role,
-        permissions: permissions || [],
+      status: "success",
+      message: "auditLogsPage.messages.createRoleSuccess",
+      data: {
+        before: null,
+        after: {
+          ...role,
+          permissions: permissions || [],
+        },
       },
     });
 

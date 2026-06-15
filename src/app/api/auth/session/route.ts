@@ -139,8 +139,12 @@ export async function PATCH(request: Request) {
       "user:update_settings",
       currentUser.username,
       {
-        before: beforeWithoutPassword,
-        after: afterWithoutPassword,
+        status: "success",
+        message: "auditLogsPage.messages.updateSettingsSuccess",
+        data: {
+          before: beforeWithoutPassword,
+          after: afterWithoutPassword,
+        },
       },
       {
         userId: session.userId,

@@ -289,31 +289,42 @@ export async function logLdapSyncResult(
   errorObj?: { key: string; params?: Record<string, unknown> } | null
 ) {
   if (errorObj) {
-    await logAction("ldap:sync_data", "failed", errorObj);
-  } else if (result) {
+    await logAction("ldap:sync_users", null, {
+      status: "failed",
+      message: errorObj.key,
+      data: errorObj,
+    });
+    return;
+  }
+
+  if (result) {
     const createdCount = result.usersCreated?.length ?? result.syncDetails.filter((d) => d.before === null).length;
     const updatedCount = result.usersUpdated?.length ?? result.syncDetails.filter((d) => d.before !== null).length;
     const companyCount = result.companiesCreated?.length ?? 0;
 
-    let targetStr: string;
-    if (companyCount > 0) {
-      targetStr = `${createdCount} created, ${updatedCount} updated, ${companyCount} companies`;
-    } else if (createdCount > 0 && updatedCount > 0) {
-      targetStr = `${createdCount} created, ${updatedCount} updated`;
-    } else if (createdCount > 0) {
-      targetStr = `${createdCount} users created`;
-    } else if (updatedCount > 0) {
-      targetStr = `${updatedCount} users updated`;
-    } else {
-      targetStr = `${result.syncedCount} users`;
-    }
-
-    await logAction("ldap:sync_data", targetStr, {
-      usernames: result.syncDetails.map((u) => u.username),
-      details: result.syncDetails,
-      companiesCreated: result.companiesCreated || [],
-      createdCount,
-      updatedCount,
+    // 1. Ghi log đồng bộ user
+    await logAction("ldap:sync_users", null, {
+      status: "success",
+      message: "auditLogsPage.messages.ldapSyncUsersSuccess",
+      data: {
+        usernames: result.syncDetails.map((u) => u.username),
+        details: result.syncDetails,
+        createdCount,
+        updatedCount,
+        syncedCount: result.syncedCount,
+      },
     });
+
+    // 2. Ghi log đồng bộ công ty (chỉ khi có công ty được tạo mới)
+    if (companyCount > 0) {
+      await logAction("ldap:sync_companies", null, {
+        status: "success",
+        message: "auditLogsPage.messages.ldapSyncCompaniesSuccess",
+        data: {
+          companies: result.companiesCreated || [],
+          count: companyCount,
+        },
+      });
+    }
   }
 }

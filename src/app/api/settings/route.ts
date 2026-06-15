@@ -134,9 +134,13 @@ export async function POST(request: NextRequest) {
     const afterState = settingsWithoutPassword;
 
     // Log the action
-    await logAction("settings:update", "system", {
-      before: beforeState,
-      after: afterState,
+    await logAction("settings:update", null, {
+      status: "success",
+      message: "auditLogsPage.messages.updateSystemSettingsSuccess",
+      data: {
+        before: beforeState,
+        after: afterState,
+      },
     });
 
     // Trigger immediate background sync check if enabled

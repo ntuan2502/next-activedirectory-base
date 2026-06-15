@@ -3,6 +3,7 @@ import { authenticateUser, AuthError } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { logAction } from "@/lib/audit";
 import { getServerTranslator } from "@/lib/i18n";
+import { headers } from "next/headers";
 
 type LoginBody = {
   username: string;
@@ -39,8 +40,12 @@ export async function POST(request: NextRequest) {
     });
 
     await logAction("auth:login", result.username, {
-      before: null,
-      after: dbSession,
+      status: "success",
+      message: "auditLogsPage.messages.loginSuccess",
+      data: {
+        before: null,
+        after: dbSession,
+      },
     }, {
       userId: result.userId,
       username: result.username,
@@ -65,9 +70,24 @@ export async function POST(request: NextRequest) {
     const clientMessage = errorKey.includes(".") && !errorKey.includes(" ") ? t(errorKey) : errorKey;
 
     if (requestUsername) {
-      await logAction("auth:login_failed", requestUsername, {
-        before: null,
-        after: { error: errorKey },
+      const headersList = await headers();
+      const userAgent = headersList.get("user-agent") || null;
+      const ipAddress = headersList.get("x-forwarded-for")?.split(",")[0] || headersList.get("x-real-ip") || null;
+
+      await logAction("auth:login", requestUsername, {
+        status: "failed",
+        message: errorKey,
+        data: {
+          before: null,
+          after: {
+            id: null,
+            userId: null,
+            ipAddress,
+            userAgent,
+            createdAt: new Date().toISOString(),
+            lastActiveAt: new Date().toISOString(),
+          },
+        },
       });
     }
     return NextResponse.json(

@@ -70,10 +70,14 @@ export async function POST(request: NextRequest) {
       "auth:initial_setup",
       lowercaseUsername,
       {
-        before: null,
-        after: {
-          ...userWithoutPassword,
-          role: "Super Admin",
+        status: "success",
+        message: "auditLogsPage.messages.initialSetupSuccess",
+        data: {
+          before: null,
+          after: {
+            ...userWithoutPassword,
+            role: "Super Admin",
+          },
         },
       },
       {

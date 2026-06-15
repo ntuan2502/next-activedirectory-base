@@ -43,13 +43,17 @@ export async function PUT(
     });
 
     await logAction("role:update", role.name, {
-      before: {
-        ...existingRole,
-        permissions: JSON.parse(existingRole.permissions || "[]"),
-      },
-      after: {
-        ...role,
-        permissions: JSON.parse(role.permissions || "[]"),
+      status: "success",
+      message: "auditLogsPage.messages.updateRoleSuccess",
+      data: {
+        before: {
+          ...existingRole,
+          permissions: JSON.parse(existingRole.permissions || "[]"),
+        },
+        after: {
+          ...role,
+          permissions: JSON.parse(role.permissions || "[]"),
+        },
       },
     });
 
@@ -104,11 +108,15 @@ export async function DELETE(
     }
 
     await logAction("role:delete", existingRole.name, {
-      before: {
-        ...existingRole,
-        permissions: JSON.parse(existingRole.permissions || "[]"),
+      status: "success",
+      message: "auditLogsPage.messages.deleteRoleSuccess",
+      data: {
+        before: {
+          ...existingRole,
+          permissions: JSON.parse(existingRole.permissions || "[]"),
+        },
+        after: null,
       },
-      after: null,
     });
 
     await prisma.role.delete({
