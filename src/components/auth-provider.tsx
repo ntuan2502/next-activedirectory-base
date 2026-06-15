@@ -139,6 +139,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [pathname, router, status]);
 
+  const tRef = useRef(t);
+  const localeRef = useRef(locale);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    tRef.current = t;
+    localeRef.current = locale;
+    userRef.current = user;
+  }, [t, locale, user]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -153,9 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       eventSource.addEventListener("connected", (event) => {
         try {
-          console.log(t("sse.connectedLog"), JSON.parse(event.data));
+          console.log(tRef.current("sse.connectedLog"), JSON.parse(event.data));
         } catch {
-          console.log(t("sse.connectedLog"));
+          console.log(tRef.current("sse.connectedLog"));
         }
       });
 
@@ -163,7 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const data = JSON.parse(event.data);
           const { sessionId, payload } = data;
-          const isCurrentSession = sessionId === user.sessionId;
+          const isCurrentSession = sessionId === userRef.current?.sessionId;
 
           setUser((prev) => {
             if (!prev) return null;
@@ -174,18 +184,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
 
           if (!isCurrentSession) {
-            const newLocale = (payload.locale || user.locale || locale) as string;
-            const sseTranslations = (translations[newLocale as Locale]?.sse || translations[locale]?.sse) as Record<string, string> | undefined;
-            const message = sseTranslations?.settingsSynced || t("sse.settingsSynced");
+            const newLocale = (payload.locale || userRef.current?.locale || localeRef.current) as string;
+            const sseTranslations = (translations[newLocale as Locale]?.sse || translations[localeRef.current]?.sse) as Record<string, string> | undefined;
+            const message = sseTranslations?.settingsSynced || tRef.current("sse.settingsSynced");
             toast.success(message);
           }
         } catch (err) {
-          console.error(t("sse.failedToParseSettings"), err);
+          console.error(tRef.current("sse.failedToParseSettings"), err);
         }
       });
 
       eventSource.addEventListener("PERMISSIONS_UPDATED", async () => {
-        toast.info(t("sse.permissionsUpdated"));
+        toast.info(tRef.current("sse.permissionsUpdated"));
         await refreshSession();
       });
 
@@ -203,8 +213,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const data = JSON.parse(event.data);
           const { sessionId, payload } = data;
 
-          if (sessionId === user.sessionId || (payload?.exclude && payload.exclude !== user.sessionId)) {
-            setKickReason(t("sse.sessionRevoked"));
+          if (sessionId === userRef.current?.sessionId || (payload?.exclude && payload.exclude !== userRef.current?.sessionId)) {
+            setKickReason(tRef.current("sse.sessionRevoked"));
             setIsKicked(true);
             fetch("/api/auth/logout", { method: "POST" });
           } else {
@@ -212,12 +222,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.dispatchEvent(new CustomEvent("session_revoked_event"));
           }
         } catch (err) {
-          console.error(t("sse.failedToParseSession"), err);
+          console.error(tRef.current("sse.failedToParseSession"), err);
         }
       });
 
       eventSource.addEventListener("FORCE_LOGOUT", () => {
-        setKickReason(t("sse.forceLogout"));
+        setKickReason(tRef.current("sse.forceLogout"));
         setIsKicked(true);
         fetch("/api/auth/logout", { method: "POST" });
       });
@@ -243,7 +253,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearTimeout(reconnectTimeout);
       }
     };
-  }, [user, t, locale]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.sessionId]);
 
   if (isKicked) {
     return (
