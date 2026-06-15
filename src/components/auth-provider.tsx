@@ -189,6 +189,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await refreshSession();
       });
 
+      eventSource.addEventListener("AUDIT_LOG_CREATED", (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          window.dispatchEvent(new CustomEvent("audit_log_created_event", { detail: data.payload }));
+        } catch (err) {
+          console.error("Failed to parse audit log creation event", err);
+        }
+      });
+
       eventSource.addEventListener("SESSION_REVOKED", (event) => {
         try {
           const data = JSON.parse(event.data);

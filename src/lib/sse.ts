@@ -2,7 +2,7 @@ import { EventEmitter } from "events";
 
 export type SseEvent = {
   userId: string;
-  type: "SETTINGS_UPDATED" | "PERMISSIONS_UPDATED" | "SESSION_REVOKED" | "FORCE_LOGOUT";
+  type: "SETTINGS_UPDATED" | "PERMISSIONS_UPDATED" | "SESSION_REVOKED" | "FORCE_LOGOUT" | "AUDIT_LOG_CREATED";
   sessionId?: string;
   payload?: unknown;
 };
@@ -18,7 +18,7 @@ class SseManager {
   // Subscribe to changes for a specific user ID
   subscribe(userId: string, onEvent: (event: SseEvent) => void) {
     const listener = (event: SseEvent) => {
-      if (event.userId === userId) {
+      if (event.userId === userId || event.userId === "*") {
         onEvent(event);
       }
     };

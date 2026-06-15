@@ -489,6 +489,50 @@ export default function AuditLogsPage() {
     window.history.replaceState(null, "", newUrl);
   }, [page, limit, actionFilter, search, sortConfig, isReady]);
 
+  // Listen to real-time audit log creations via SSE Custom Event
+  useEffect(() => {
+    const handleNewLog = (e: Event) => {
+      const customEvent = e as CustomEvent<AuditLogRecord>;
+      const newLog = customEvent.detail;
+
+      // Filter check: Action
+      if (actionFilter !== "all" && newLog.action !== actionFilter) {
+        return;
+      }
+      // Filter check: Search Query
+      if (search.trim()) {
+        const query = search.toLowerCase();
+        const matches =
+          newLog.username.toLowerCase().includes(query) ||
+          (newLog.target && newLog.target.toLowerCase().includes(query)) ||
+          (newLog.details && newLog.details.toLowerCase().includes(query));
+        if (!matches) return;
+      }
+
+      // Increment totalCount count
+      setTotalCount((c) => c + 1);
+
+      // Only insert to list in real-time if we are on the first page
+      if (page === 1) {
+        setLogs((prev) => {
+          if (prev.some((l) => l.id === newLog.id)) {
+            return prev;
+          }
+          const updated = [newLog, ...prev];
+          if (updated.length > limit) {
+            updated.pop();
+          }
+          return updated;
+        });
+      }
+    };
+
+    window.addEventListener("audit_log_created_event", handleNewLog);
+    return () => {
+      window.removeEventListener("audit_log_created_event", handleNewLog);
+    };
+  }, [page, actionFilter, search, limit]);
+
   // Reset page when filter changes
   const handleFilterChange = (val: string) => {
     setActionFilter(val);

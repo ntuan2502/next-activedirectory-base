@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
+import { sseManager } from "@/lib/sse";
 
 export async function logAction(
   action: string,
@@ -35,7 +36,7 @@ export async function logAction(
     const userId = overrideUser?.userId || session?.userId || null;
     const username = overrideUser?.username || session?.username || "system";
 
-    await prisma.auditLog.create({
+    const createdLog = await prisma.auditLog.create({
       data: {
         userId,
         username,
@@ -43,6 +44,30 @@ export async function logAction(
         target: target || null,
         details: detailsString,
         ipAddress,
+      },
+      include: {
+        user: {
+          select: {
+            displayName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    sseManager.publish({
+      userId: "*",
+      type: "AUDIT_LOG_CREATED",
+      payload: {
+        id: createdLog.id,
+        userId: createdLog.userId,
+        username: createdLog.username,
+        action: createdLog.action,
+        target: createdLog.target,
+        details: createdLog.details,
+        ipAddress: createdLog.ipAddress,
+        createdAt: createdLog.createdAt.toISOString(),
+        user: createdLog.user,
       },
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/session";
 import { sseManager } from "@/lib/sse";
 import { getServerTranslator } from "@/lib/i18n";
+import { getUserPermissions } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,13 @@ export async function GET(request: Request) {
 
   // Subscribe to changes for this user
   const unsubscribe = sseManager.subscribe(session.userId, async (event) => {
+    // Security check: Only broadcast audit log events to users who have audit logs reading permission
+    if (event.type === "AUDIT_LOG_CREATED") {
+      const userPermissions = await getUserPermissions(session.userId);
+      const hasPermission = userPermissions.includes("*") || userPermissions.includes("audit_logs:read");
+      if (!hasPermission) return;
+    }
+
     await sendEvent(event.type, {
       sessionId: event.sessionId,
       payload: event.payload,
