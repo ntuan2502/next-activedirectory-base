@@ -109,6 +109,7 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
   }
 
   // Tự động tạo các công ty chưa tồn tại trong cơ sở dữ liệu
+  const companiesCreatedDetails: LdapCompanySyncDetail[] = [];
   for (const code of requiredCodes) {
     if (!companyMap.has(code)) {
       const newCompany = await prisma.company.create({
@@ -121,6 +122,20 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
         },
       });
       companyMap.set(code, newCompany.id);
+      companiesCreatedDetails.push({
+        code: newCompany.code,
+        before: null,
+        after: {
+          id: newCompany.id,
+          code: newCompany.code,
+          nameVi: newCompany.nameVi,
+          nameEn: newCompany.nameEn,
+          taxAddress: newCompany.taxAddress,
+          taxCode: newCompany.taxCode,
+          createdAt: newCompany.createdAt.toISOString(),
+          updatedAt: newCompany.updatedAt.toISOString(),
+        },
+      });
     }
   }
 
@@ -247,7 +262,14 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     usersCreated,
     usersUpdated,
     syncDetails,
+    companiesCreated: companiesCreatedDetails,
   };
+}
+
+export interface LdapCompanySyncDetail {
+  code: string;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown>;
 }
 
 export interface LdapSyncDetail {
@@ -257,15 +279,41 @@ export interface LdapSyncDetail {
 }
 
 export async function logLdapSyncResult(
-  result: { syncedCount: number; syncDetails: LdapSyncDetail[] } | null,
+  result: {
+    syncedCount: number;
+    syncDetails: LdapSyncDetail[];
+    companiesCreated?: LdapCompanySyncDetail[];
+    usersCreated?: { username: string }[];
+    usersUpdated?: { username: string }[];
+  } | null,
   errorObj?: { key: string; params?: Record<string, unknown> } | null
 ) {
   if (errorObj) {
     await logAction("ldap:sync_data", "failed", errorObj);
   } else if (result) {
-    await logAction("ldap:sync_data", `${result.syncedCount} users`, {
+    const createdCount = result.usersCreated?.length ?? result.syncDetails.filter((d) => d.before === null).length;
+    const updatedCount = result.usersUpdated?.length ?? result.syncDetails.filter((d) => d.before !== null).length;
+    const companyCount = result.companiesCreated?.length ?? 0;
+
+    let targetStr: string;
+    if (companyCount > 0) {
+      targetStr = `${createdCount} created, ${updatedCount} updated, ${companyCount} companies`;
+    } else if (createdCount > 0 && updatedCount > 0) {
+      targetStr = `${createdCount} created, ${updatedCount} updated`;
+    } else if (createdCount > 0) {
+      targetStr = `${createdCount} users created`;
+    } else if (updatedCount > 0) {
+      targetStr = `${updatedCount} users updated`;
+    } else {
+      targetStr = `${result.syncedCount} users`;
+    }
+
+    await logAction("ldap:sync_data", targetStr, {
       usernames: result.syncDetails.map((u) => u.username),
       details: result.syncDetails,
+      companiesCreated: result.companiesCreated || [],
+      createdCount,
+      updatedCount,
     });
   }
 }

@@ -399,12 +399,25 @@ export default function AuditLogsPage() {
   const [selectedBatchUserIndex, setSelectedBatchUserIndex] = useState<number>(0);
   const [batchUserSearch, setBatchUserSearch] = useState<string>("");
   const [prevLogId, setPrevLogId] = useState<string | null>(null);
+  const [syncTab, setSyncTab] = useState<"user" | "company">("company");
 
   const currentLogId = selectedLog?.id || null;
   if (currentLogId !== prevLogId) {
     setPrevLogId(currentLogId);
     setSelectedBatchUserIndex(0);
     setBatchUserSearch("");
+    // Default to company tab if there are companies, otherwise user tab
+    const details = selectedLog?.details;
+    let defaultTab: "user" | "company" = "user";
+    if (details) {
+      try {
+        const parsed = JSON.parse(details);
+        if (Array.isArray(parsed?.companiesCreated) && parsed.companiesCreated.length > 0) {
+          defaultTab = "company";
+        }
+      } catch { /* empty */ }
+    }
+    setSyncTab(defaultTab);
   }
 
   const fetchLogs = useCallback(async () => {
@@ -557,17 +570,31 @@ export default function AuditLogsPage() {
 
   const getTargetTranslation = (target: string | null) => {
     if (!target) return "-";
-    if (target === "success") {
-      return t("auditLogsPage.targets.success");
-    }
-    if (target === "failed") {
-      return t("auditLogsPage.targets.failed");
-    }
+    if (target === "success") return t("auditLogsPage.targets.success");
+    if (target === "failed") return t("auditLogsPage.targets.failed");
     const userMatch = target.match(/^(\d+) users$/);
-    if (userMatch) {
-      return t("auditLogsPage.targets.users", { count: parseInt(userMatch[1], 10) });
-    }
+    if (userMatch) return t("auditLogsPage.targets.users", { count: parseInt(userMatch[1], 10) });
     return target;
+  };
+
+  // Parse sync log target to get structured detail for the table cell
+  const getSyncLogTargetDetail = (log: AuditLogRecord): { created: number; updated: number; companies: number } | null => {
+    if (log.action !== "ldap:sync_data" || !log.details) return null;
+    try {
+      const parsed = JSON.parse(log.details);
+      if (!parsed || typeof parsed !== "object") return null;
+      const details = Array.isArray(parsed.details) ? parsed.details : [];
+      const createdCount = typeof parsed.createdCount === "number"
+        ? parsed.createdCount
+        : details.filter((d: { before: unknown }) => d.before === null).length;
+      const updatedCount = typeof parsed.updatedCount === "number"
+        ? parsed.updatedCount
+        : details.filter((d: { before: unknown }) => d.before !== null).length;
+      const companiesCount = Array.isArray(parsed.companiesCreated) ? parsed.companiesCreated.length : 0;
+      return { created: createdCount, updated: updatedCount, companies: companiesCount };
+    } catch {
+      return null;
+    }
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -600,20 +627,61 @@ export default function AuditLogsPage() {
     }
   };
 
-  interface BatchLdapSyncDetail {
-    username: string;
+  interface BatchSyncItem {
+    id: string;
+    type: "user" | "company";
+    name: string;
     before: Record<string, unknown> | null;
     after: Record<string, unknown>;
   }
 
-  const parseBatchLdapSync = (log: AuditLogRecord | null): BatchLdapSyncDetail[] | null => {
+  const parseBatchLdapSync = (log: AuditLogRecord | null): BatchSyncItem[] | null => {
     if (!log || log.action !== "ldap:sync_data" || !log.details) return null;
     try {
       const parsed = JSON.parse(log.details);
+      const items: BatchSyncItem[] = [];
+
+      // Parse users
       if (parsed && typeof parsed === "object" && Array.isArray(parsed.details)) {
-        return parsed.details as BatchLdapSyncDetail[];
+        for (const detail of parsed.details) {
+          if (detail && typeof detail === "object" && "username" in detail) {
+            const uDetail = detail as {
+              username: string;
+              before: Record<string, unknown> | null;
+              after: Record<string, unknown>;
+            };
+            items.push({
+              id: `user-${uDetail.username}`,
+              type: "user",
+              name: uDetail.username,
+              before: uDetail.before,
+              after: uDetail.after,
+            });
+          }
+        }
       }
-      return null;
+
+      // Parse companies
+      if (parsed && typeof parsed === "object" && Array.isArray(parsed.companiesCreated)) {
+        for (const comp of parsed.companiesCreated) {
+          if (comp && typeof comp === "object" && "code" in comp) {
+            const cDetail = comp as {
+              code: string;
+              before: Record<string, unknown> | null;
+              after: Record<string, unknown>;
+            };
+            items.push({
+              id: `company-${cDetail.code}`,
+              type: "company",
+              name: cDetail.code,
+              before: cDetail.before,
+              after: cDetail.after,
+            });
+          }
+        }
+      }
+
+      return items.length > 0 ? items : null;
     } catch {
       return null;
     }
@@ -688,13 +756,16 @@ export default function AuditLogsPage() {
     : null;
 
 
-  const filteredBatchUsers = batchSyncDetails
-    ? batchSyncDetails.filter((detail) =>
-      detail.username.toLowerCase().includes(batchUserSearch.toLowerCase())
-    )
-    : [];
+  const userItems = batchSyncDetails ? batchSyncDetails.filter((item) => item.type === "user") : [];
+  const companyItems = batchSyncDetails ? batchSyncDetails.filter((item) => item.type === "company") : [];
 
-  const activeBatchUser = filteredBatchUsers[selectedBatchUserIndex] || filteredBatchUsers[0] || null;
+  const currentTabItems = (syncTab === "company" && companyItems.length > 0) ? companyItems : userItems;
+
+  const filteredBatchItems = currentTabItems.filter((item) =>
+    item.name.toLowerCase().includes(batchUserSearch.toLowerCase())
+  );
+
+  const activeBatchItem = filteredBatchItems[selectedBatchUserIndex] || filteredBatchItems[0] || null;
 
   return (
     <div className="space-y-6">
@@ -863,26 +934,70 @@ export default function AuditLogsPage() {
                             {getActionBadge(log.action)}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-sm" title={log.target ? getTargetTranslation(log.target) : ""}>
+                        <TableCell className="max-w-[250px] text-sm">
                           <div className="flex flex-col min-h-[2.5rem] justify-center">
-                            <span className="font-semibold truncate max-w-[180px]">{getTargetTranslation(log.target)}</span>
-                            {(() => {
-                              if (["auth:login", "auth:logout", "auth:login_failed"].includes(log.action) && log.details) {
-                                try {
-                                  const detailsObj = JSON.parse(log.details);
-                                  const ua = detailsObj?.userAgent;
-                                  const { browser, os } = ua ? parseUserAgent(ua) : { browser: "", os: "" };
-                                  if (browser && os) {
-                                    return (
-                                      <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[180px]" title={`${browser} on ${os}`}>
-                                        {browser} on {os}
+                            {log.action === "ldap:sync_data" ? (() => {
+                              const detail = getSyncLogTargetDetail(log);
+                              if (detail) {
+                                const noChange = detail.created === 0 && detail.updated === 0 && detail.companies === 0;
+                                if (noChange) {
+                                  return (
+                                    <span className="font-semibold truncate max-w-[200px] text-muted-foreground">
+                                      {t("auditLogsPage.syncNoChanges")}
+                                    </span>
+                                  );
+                                }
+                                const parts: { text: string; color: string }[] = [];
+                                if (detail.created > 0) {
+                                  parts.push({
+                                    text: t("auditLogsPage.syncUserCreated", { count: detail.created }),
+                                    color: "text-emerald-600 dark:text-emerald-400",
+                                  });
+                                }
+                                if (detail.updated > 0) {
+                                  parts.push({
+                                    text: t("auditLogsPage.syncUserUpdated", { count: detail.updated }),
+                                    color: "text-amber-600 dark:text-amber-400",
+                                  });
+                                }
+                                if (detail.companies > 0) {
+                                  parts.push({
+                                    text: t("auditLogsPage.syncCompanyCreated", { count: detail.companies }),
+                                    color: "text-blue-600 dark:text-blue-400",
+                                  });
+                                }
+                                return (
+                                  <span className="font-semibold truncate max-w-[250px]">
+                                    {parts.map((part, i) => (
+                                      <span key={i} className={part.color}>
+                                        {i > 0 && <span className="text-muted-foreground/50">, </span>}
+                                        {part.text}
                                       </span>
-                                    );
-                                  }
-                                } catch { }
+                                    ))}
+                                  </span>
+                                );
                               }
-                              return null;
-                            })()}
+                              return <span className="font-semibold truncate max-w-[200px]">{getTargetTranslation(log.target)}</span>;
+                            })() : (
+                              <>
+                                <span className="font-semibold truncate max-w-[200px]">{getTargetTranslation(log.target)}</span>
+                                {["auth:login", "auth:logout", "auth:login_failed"].includes(log.action) && log.details && (() => {
+                                  try {
+                                    const detailsObj = JSON.parse(log.details!);
+                                    const ua = detailsObj?.userAgent;
+                                    const { browser, os } = ua ? parseUserAgent(ua) : { browser: "", os: "" };
+                                    if (browser && os) {
+                                      return (
+                                        <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[200px]" title={`${browser} on ${os}`}>
+                                          {browser} on {os}
+                                        </span>
+                                      );
+                                    }
+                                  } catch { /* empty */ }
+                                  return null;
+                                })()}
+                              </>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs font-mono">
@@ -999,14 +1114,51 @@ export default function AuditLogsPage() {
               </div>
 
               {isBatchSync ? (
-                <div className="flex flex-col md:flex-row gap-4 h-[52vh] min-h-0">
+                <div className="flex flex-col md:flex-row gap-4 min-h-0 md:h-[55vh]">
                   {/* Left pane: Sync List */}
-                  <div className="w-full md:w-1/3 flex flex-col border rounded-lg bg-muted/10 p-3 gap-2 min-h-0">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                      {t("auditLogsPage.syncedUsersList")} ({batchSyncDetails.length})
-                    </span>
+                  <div className="w-full md:w-1/3 flex flex-col border rounded-lg bg-muted/10 p-3 gap-2 min-h-0 md:overflow-hidden max-h-[45vh] md:max-h-none">
+                    {companyItems.length > 0 ? (
+                      <div className="flex border-b border-muted/50 mb-2 shrink-0">
+                        <button
+                          onClick={() => {
+                            setSyncTab("company");
+                            setSelectedBatchUserIndex(0);
+                            setBatchUserSearch("");
+                          }}
+                          className={`flex-1 pb-2 text-center text-xs font-semibold border-b-2 transition-all ${
+                            syncTab === "company"
+                              ? "border-primary text-primary"
+                              : "border-transparent text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {t("auditLogsPage.badgeCompany")} ({companyItems.length})
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSyncTab("user");
+                            setSelectedBatchUserIndex(0);
+                            setBatchUserSearch("");
+                          }}
+                          className={`flex-1 pb-2 text-center text-xs font-semibold border-b-2 transition-all ${
+                            syncTab === "user"
+                              ? "border-primary text-primary"
+                              : "border-transparent text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {t("auditLogsPage.badgeUser")} ({userItems.length})
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                        {t("auditLogsPage.syncedUsersList")} ({batchSyncDetails.length})
+                      </span>
+                    )}
                     <Input
-                      placeholder={t("auditLogsPage.searchUserPlaceholder")}
+                      placeholder={
+                        syncTab === "user"
+                          ? t("auditLogsPage.searchUserPlaceholder")
+                          : `${t("common.search")} ${t("auditLogsPage.badgeCompany").toLowerCase()}...`
+                      }
                       value={batchUserSearch}
                       onChange={(e) => {
                         setBatchUserSearch(e.target.value);
@@ -1015,15 +1167,16 @@ export default function AuditLogsPage() {
                       className="h-8 text-xs bg-background"
                     />
                     <div className="flex-1 overflow-y-auto space-y-1 pr-1">
-                      {filteredBatchUsers.length > 0 ? (
-                        filteredBatchUsers.map((detail) => {
-                          const isSelected = activeBatchUser?.username === detail.username;
-                          const isCreated = !detail.before;
+                      {filteredBatchItems.length > 0 ? (
+                        filteredBatchItems.map((item) => {
+                          const isSelected = activeBatchItem?.id === item.id;
+                          const isCreated = !item.before;
+
                           return (
                             <button
-                              key={detail.username}
+                              key={item.id}
                               onClick={() => {
-                                const originalIndex = filteredBatchUsers.indexOf(detail);
+                                const originalIndex = filteredBatchItems.indexOf(item);
                                 setSelectedBatchUserIndex(originalIndex !== -1 ? originalIndex : 0);
                               }}
                               className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-md transition-colors text-left border ${isSelected
@@ -1031,10 +1184,10 @@ export default function AuditLogsPage() {
                                 : "bg-background hover:bg-muted text-foreground border-border"
                                 }`}
                             >
-                              <span className="font-mono truncate mr-2">{detail.username}</span>
+                              <span className="font-mono truncate mr-2">{item.name}</span>
                               {isCreated ? (
                                 <Badge
-                                  className={`text-[9px] px-1 py-0 h-4 border ${isSelected
+                                  className={`text-[9px] px-1 py-0 h-4 border shrink-0 ${isSelected
                                     ? "bg-emerald-600 text-white border-emerald-500"
                                     : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                                     }`}
@@ -1043,7 +1196,7 @@ export default function AuditLogsPage() {
                                 </Badge>
                               ) : (
                                 <Badge
-                                  className={`text-[9px] px-1 py-0 h-4 border ${isSelected
+                                  className={`text-[9px] px-1 py-0 h-4 border shrink-0 ${isSelected
                                     ? "bg-blue-600 text-white border-blue-500"
                                     : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                                     }`}
@@ -1063,20 +1216,33 @@ export default function AuditLogsPage() {
                   </div>
 
                   {/* Right pane: Side-by-side Diff */}
-                  <div className="flex-1 flex flex-col min-h-0 gap-2">
-                    {activeBatchUser ? (
+                  <div className="flex-1 flex flex-col min-h-0 gap-2 md:overflow-hidden min-h-[40vh] md:min-h-0">
+                    {activeBatchItem ? (
                       <>
-                        <div className="flex items-center gap-2 px-1">
+                        <div className="flex items-center gap-2 px-1 shrink-0">
                           <span className="text-xs text-muted-foreground">{t("auditLogsPage.comparingChangesFor")}</span>
                           <Badge variant="outline" className="font-mono text-xs px-2 py-0.5 bg-muted">
-                            {activeBatchUser.username}
+                            {activeBatchItem.name}
+                          </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] px-1 py-0 h-4 ${
+                              activeBatchItem.type === "company"
+                                ? "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {t(`auditLogsPage.badge${activeBatchItem.type === "company" ? "Company" : "User"}`)}
                           </Badge>
                         </div>
-                        <DiffViewer before={activeBatchUser.before} after={activeBatchUser.after} t={t} />
+                        <DiffViewer before={activeBatchItem.before} after={activeBatchItem.after} t={t} />
                       </>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/5 text-muted-foreground text-xs font-medium">
-                        {t("auditLogsPage.selectUserToViewDiff")}
+                      <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/5 text-muted-foreground text-xs font-medium min-h-[120px]">
+                        {syncTab === "user"
+                          ? t("auditLogsPage.selectUserToViewDiff")
+                          : t("auditLogsPage.selectCompanyToViewDiff")
+                        }
                       </div>
                     )}
                   </div>
