@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function POST(request: NextRequest) {
+  const { t } = await getServerTranslator();
   try {
     // 1. Guard check: Ensure no users exist yet
     const userCount = await prisma.user.count();
     if (userCount > 0) {
       return NextResponse.json(
-        { error: "Initial setup has already been completed. Registration blocked." },
+        { error: t("errors.initialSetupAlreadyCompleted") },
         { status: 400 }
       );
     }
@@ -19,11 +21,11 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!username || !displayName || !email || !password) {
-      return NextResponse.json({ error: "Missing required admin registration fields" }, { status: 400 });
+      return NextResponse.json({ error: t("errors.missingRequiredAdminRegistrationFields") }, { status: 400 });
     }
 
     if (password.length < 8) {
-      return NextResponse.json({ error: "Password must be at least 8 characters long" }, { status: 400 });
+      return NextResponse.json({ error: t("errors.passwordTooShort") }, { status: 400 });
     }
 
     // 2. Ensure Super Admin role exists in DB
@@ -62,13 +64,17 @@ export async function POST(request: NextRequest) {
     });
 
     // 4. Log the action
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _, ...userWithoutPassword } = createdUser;
     await logAction(
       "auth:initial_setup",
-      "success",
+      lowercaseUsername,
       {
-        message: "First system administrator registered successfully",
-        adminUsername: lowercaseUsername,
-        adminEmail: email,
+        before: null,
+        after: {
+          ...userWithoutPassword,
+          role: "Super Admin",
+        },
       },
       {
         userId: createdUser.id,
@@ -78,14 +84,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "System administrator created successfully",
+      message: t("setupPage.successAdmin"),
       data: {
         userId: createdUser.id,
         username: lowercaseUsername,
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to register system administrator";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToRegisterAdmin", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

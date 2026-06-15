@@ -22,6 +22,7 @@ export default function InitialSetupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showLdapPassword, setShowLdapPassword] = useState(false);
 
   // Step 1: Admin Registration Form States
@@ -39,6 +40,20 @@ export default function InitialSetupPage() {
   const [ldapBaseDn, setLdapBaseDn] = useState("");
   const [ldapFilter, setLdapFilter] = useState("");
 
+  const [lastTestedConfig, setLastTestedConfig] = useState<string>("not_tested");
+
+  const currentLdapConfig = JSON.stringify({
+    ldapUrl,
+    ldapPort,
+    ldapBindDn,
+    ldapBindPassword,
+    ldapBaseDn,
+    ldapFilter,
+  });
+
+  const isLdapConfigValid = ldapUrl.trim() && ldapPort && ldapBindDn.trim() && ldapBindPassword && ldapBaseDn.trim();
+  const isConfigTested = currentLdapConfig === lastTestedConfig;
+
   // Verify setup status on mount
   useEffect(() => {
     const checkStatus = async () => {
@@ -50,10 +65,13 @@ export default function InitialSetupPage() {
             router.replace("/login");
           } else {
             setIsReady(true);
+            if (data.adminExists) {
+              setStep(2);
+            }
           }
         }
       } catch (err) {
-        console.error("Failed to fetch setup status:", err);
+        console.error(err);
       }
     };
     checkStatus();
@@ -62,12 +80,12 @@ export default function InitialSetupPage() {
   const handleRegisterAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username || !displayName || !email || !password) {
-      toast.error(t("setupPage.errorRequiredFields") || "Vui lòng điền đầy đủ các thông tin bắt buộc.");
+      toast.error(t("setupPage.errorRequiredFields"));
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error(t("setupPage.errorPasswordMismatch") || "Mật khẩu xác nhận không trùng khớp!");
+      toast.error(t("setupPage.errorPasswordMismatch"));
       return;
     }
 
@@ -80,10 +98,10 @@ export default function InitialSetupPage() {
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        toast.success(t("setupPage.successAdmin") || "Đã tạo tài khoản quản trị cục bộ thành công.");
+        toast.success(t("setupPage.successAdmin"));
         setStep(2);
       } else {
-        toast.error(result.error || t("setupPage.errorAdmin") || "Không thể đăng ký admin");
+        toast.error(result.error || t("setupPage.errorAdmin"));
       }
     } catch {
       toast.error(t("common.networkError"));
@@ -109,9 +127,10 @@ export default function InitialSetupPage() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(t("setupPage.successTest") || "Kiểm tra kết nối LDAP thành công.");
+        toast.success(t("setupPage.successTest"));
+        setLastTestedConfig(currentLdapConfig);
       } else {
-        toast.error(data.error || t("setupPage.errorLdapTest") || "Kiểm tra kết nối thất bại");
+        toast.error(data.error || t("setupPage.errorLdapTest"));
       }
     } catch {
       toast.error(t("common.networkError"));
@@ -144,13 +163,13 @@ export default function InitialSetupPage() {
       const result = await res.json();
       if (res.ok && result.success) {
         if (isSkipped) {
-          toast.success(t("setupPage.successSkip") || "Đã bỏ qua thiết lập LDAP.");
+          toast.success(t("setupPage.successSkip"));
         } else {
-          toast.success(t("setupPage.successLdap") || "Đã cấu hình LDAP thành công.");
+          toast.success(t("setupPage.successLdap"));
         }
         router.replace("/login");
       } else {
-        toast.error(result.error || t("setupPage.errorSaveLdap") || "Lưu cấu hình thất bại.");
+        toast.error(result.error || t("setupPage.errorSaveLdap"));
       }
     } catch {
       toast.error(t("common.networkError"));
@@ -173,14 +192,14 @@ export default function InitialSetupPage() {
         <ThemeToggle className="w-32" />
       </div>
 
-      <div className="flex-1 flex flex-col justify-center max-w-xl w-full mx-auto space-y-8">
+      <div className="flex-1 flex flex-col justify-center max-w-2xl w-full mx-auto space-y-8">
         <div className="text-center">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl flex items-center justify-center gap-2">
             <Server className="w-8 h-8 text-primary animate-pulse" />
-            {t("setupPage.title") || "Thiết lập hệ thống ban đầu"}
+            {t("setupPage.title")}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {t("setupPage.subtitle") || "Cấu hình các thông số nền tảng để sẵn sàng vận hành ứng dụng Active Directory Sync."}
+            {t("setupPage.subtitle")}
           </p>
         </div>
 
@@ -190,55 +209,55 @@ export default function InitialSetupPage() {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step === 1 ? "bg-primary text-primary-foreground" : "bg-emerald-500 text-white"}`}>
               {step > 1 ? <CheckCircle2 className="w-5 h-5" /> : "1"}
             </div>
-            <span className={`text-sm font-semibold ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>{t("setupPage.step1Title") || "Tạo Admin"}</span>
+            <span className={`text-sm font-semibold ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>{t("setupPage.step1Title")}</span>
           </div>
           <ChevronRight className="w-5 h-5 text-muted-foreground/40" />
           <div className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${step === 2 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground border"}`}>
               2
             </div>
-            <span className={`text-sm font-semibold ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>{t("setupPage.step2Title") || "Cấu hình LDAP"}</span>
+            <span className={`text-sm font-semibold ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>{t("setupPage.step2Title")}</span>
           </div>
         </div>
 
         {/* Wizard step 1: Admin Account Creation */}
         {step === 1 && (
-          <Card className="shadow-xl border-muted/70 animate-fade-in">
-            <CardHeader className="bg-muted/10 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-primary" />
-                {t("setupPage.step1Title") || "Đăng ký tài khoản Admin"}
-              </CardTitle>
-              <CardDescription>
-                {t("setupPage.step1Desc") || "Tạo tài khoản quản trị viên tối cao cục bộ đầu tiên."}
-              </CardDescription>
-            </CardHeader>
-            <form onSubmit={handleRegisterAdmin}>
-              <CardContent className="pt-6 space-y-4">
+          <form onSubmit={handleRegisterAdmin}>
+            <Card className="shadow-xl border-muted/70 animate-fade-in">
+              <CardHeader className="bg-muted/10 border-b">
+                <CardTitle className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-primary" />
+                  {t("setupPage.step1Title")}
+                </CardTitle>
+                <CardDescription>
+                  {t("setupPage.step1Desc")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0 pb-0 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="username" className="font-semibold">{t("setupPage.username") || "Tên đăng nhập"} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="username" className="font-semibold">{t("setupPage.username")} <span className="text-destructive">*</span></Label>
                   <Input
                     id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
                     className="focus-visible:ring-primary"
-                    placeholder="Ví dụ: superadmin"
+                    placeholder={t("setupPage.usernamePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="displayName" className="font-semibold">{t("setupPage.displayName") || "Tên hiển thị"} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="displayName" className="font-semibold">{t("setupPage.displayName")} <span className="text-destructive">*</span></Label>
                   <Input
                     id="displayName"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     required
                     className="focus-visible:ring-primary"
-                    placeholder="Ví dụ: Nguyễn Văn A"
+                    placeholder={t("setupPage.displayNamePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="font-semibold">{t("setupPage.email") || "Địa chỉ Email"} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="email" className="font-semibold">{t("setupPage.email")} <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -246,11 +265,11 @@ export default function InitialSetupPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     className="focus-visible:ring-primary"
-                    placeholder="Ví dụ: admin@company.com"
+                    placeholder={t("setupPage.emailPlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="font-semibold">{t("setupPage.password") || "Mật khẩu"} <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="password" className="font-semibold">{t("setupPage.password")} <span className="text-destructive">*</span></Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -270,26 +289,39 @@ export default function InitialSetupPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="font-semibold">{t("setupPage.confirmPassword") || "Xác nhận mật khẩu"} <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="confirmPassword"
-                    type={showPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    className="focus-visible:ring-primary"
-                  />
+                  <Label htmlFor="confirmPassword" className="font-semibold">{t("setupPage.confirmPassword")} <span className="text-destructive">*</span></Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                      className="pr-10 focus-visible:ring-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t pt-4 bg-muted/5 flex justify-end">
-                <Button type="submit" disabled={isLoading} className="font-semibold h-10 px-6">
+              <CardFooter className="border-t p-4 bg-muted/5 flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={isLoading || !username.trim() || !displayName.trim() || !email.trim() || !password || !confirmPassword}
+                  className="font-semibold h-10 px-6"
+                >
                   {isLoading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-                  {t("setupPage.btnNext") || "Tiếp tục"}
+                  {t("setupPage.btnNext")}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </CardFooter>
-            </form>
-          </Card>
+            </Card>
+          </form>
         )}
 
         {/* Wizard step 2: LDAP connection configuration */}
@@ -298,15 +330,15 @@ export default function InitialSetupPage() {
             <CardHeader className="bg-muted/10 border-b">
               <CardTitle className="flex items-center gap-2">
                 <KeyRound className="w-5 h-5 text-primary" />
-                {t("setupPage.step2Title") || "Cấu hình liên kết LDAP"}
+                {t("setupPage.step2Title")}
               </CardTitle>
               <CardDescription>
-                {t("setupPage.step2Desc") || "Thiết lập kết nối Active Directory (bước này có thể bỏ qua để cài đặt sau)."}
+                {t("setupPage.step2Desc")}
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="md:col-span-3 space-y-2">
+            <CardContent className="pt-0 pb-0 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="md:col-span-8 space-y-2">
                   <Label htmlFor="ldapUrl" className="font-semibold">{t("settingsPage.ldapServerUrl")} <span className="text-destructive">*</span></Label>
                   <Input
                     id="ldapUrl"
@@ -316,7 +348,7 @@ export default function InitialSetupPage() {
                     className="focus-visible:ring-primary"
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="md:col-span-4 space-y-2">
                   <Label htmlFor="ldapPort" className="font-semibold">{t("settingsPage.ldapPort")} <span className="text-destructive">*</span></Label>
                   <Input
                     id="ldapPort"
@@ -347,7 +379,7 @@ export default function InitialSetupPage() {
                     type={showLdapPassword ? "text" : "password"}
                     value={ldapBindPassword}
                     onChange={(e) => setLdapBindPassword(e.target.value)}
-                    placeholder={t("settingsPage.placeholderBindPasswordNew") || "Nhập mật khẩu kết nối LDAP"}
+                    placeholder={t("settingsPage.placeholderBindPasswordNew")}
                     className="pr-10 focus-visible:ring-primary"
                   />
                   <button
@@ -382,7 +414,7 @@ export default function InitialSetupPage() {
                 />
               </div>
             </CardContent>
-            <CardFooter className="border-t pt-4 bg-muted/5 flex flex-col sm:flex-row justify-between gap-3">
+            <CardFooter className="border-t p-4 bg-muted/5 flex flex-col sm:flex-row justify-between gap-3">
               <Button
                 variant="outline"
                 type="button"
@@ -390,26 +422,26 @@ export default function InitialSetupPage() {
                 disabled={isLoading || isTesting}
                 className="w-full sm:w-auto h-10 px-5 font-semibold"
               >
-                {t("setupPage.btnSkip") || "Bỏ qua bước này"}
+                {t("setupPage.btnSkip")}
               </Button>
               <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   variant="secondary"
                   type="button"
                   onClick={handleTestConnection}
-                  disabled={isTesting || isLoading || !ldapUrl || !ldapBindDn || !ldapBaseDn}
+                  disabled={isTesting || isLoading || !ldapUrl.trim() || !ldapPort || !ldapBindDn.trim() || !ldapBindPassword || !ldapBaseDn.trim()}
                   className="flex-1 sm:flex-none h-10 px-4 font-semibold"
                 >
                   {isTesting ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Server className="w-4 h-4 mr-2" />}
-                  {t("settingsPage.testConnection") || "Kiểm tra kết nối"}
+                  {t("settingsPage.testConnection")}
                 </Button>
                 <Button
                   onClick={() => handleSaveLdap(false)}
-                  disabled={isLoading || isTesting || !ldapUrl || !ldapBindDn || !ldapBaseDn}
+                  disabled={isLoading || isTesting || !isLdapConfigValid || !isConfigTested}
                   className="flex-1 sm:flex-none font-semibold h-10 px-6 bg-primary text-primary-foreground hover:bg-primary/95"
                 >
                   {isLoading && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-                  {t("setupPage.btnFinish") || "Hoàn thành"}
+                  {t("setupPage.btnFinish")}
                 </Button>
               </div>
             </CardFooter>

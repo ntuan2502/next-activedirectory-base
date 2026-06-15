@@ -140,7 +140,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         });
         await refreshSession();
       } catch (err) {
-        console.error("Failed to sync settings with DB:", err);
+        console.error(err);
       }
     }
   };

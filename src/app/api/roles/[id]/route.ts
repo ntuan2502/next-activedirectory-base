@@ -44,13 +44,11 @@ export async function PUT(
 
     await logAction("role:update", role.name, {
       before: {
-        name: existingRole.name,
-        description: existingRole.description,
+        ...existingRole,
         permissions: JSON.parse(existingRole.permissions || "[]"),
       },
       after: {
-        name: role.name,
-        description: role.description,
+        ...role,
         permissions: JSON.parse(role.permissions || "[]"),
       },
     });
@@ -75,7 +73,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("errors.failedToUpdateRole", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -107,8 +105,7 @@ export async function DELETE(
 
     await logAction("role:delete", existingRole.name, {
       before: {
-        name: existingRole.name,
-        description: existingRole.description,
+        ...existingRole,
         permissions: JSON.parse(existingRole.permissions || "[]"),
       },
       after: null,
@@ -120,7 +117,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("errors.failedToDeleteRole", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }

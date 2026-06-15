@@ -151,6 +151,27 @@ export default function SettingsPage() {
   const [lastSyncMessage, setLastSyncMessage] = useState("");
   const [hasExistingConfig, setHasExistingConfig] = useState(false);
 
+  const [lastTestedConfig, setLastTestedConfig] = useState<string>("");
+
+  const currentLdapConfig = JSON.stringify({
+    ldapUrl,
+    ldapPort,
+    ldapBindDn,
+    ldapBindPassword,
+    ldapBaseDn,
+    ldapFilter,
+  });
+
+  const isLdapConfigValid = !!(
+    ldapUrl.trim() &&
+    ldapPort &&
+    ldapBindDn.trim() &&
+    ldapBaseDn.trim() &&
+    (ldapBindPassword || hasExistingConfig)
+  );
+
+  const isConfigTested = currentLdapConfig === lastTestedConfig;
+
   const hasPermission = useCallback((perm: string) => {
     if (!user?.permissions) return false;
     if (user.permissions.includes("*")) return true;
@@ -181,12 +202,22 @@ export default function SettingsPage() {
           setLastSyncStatus(d.lastSyncStatus);
           setLastSyncMessage(d.lastSyncMessage);
           hasLoadedRef.current = true;
+
+          // Set initial tested config to avoid forcing test connection on load
+          setLastTestedConfig(JSON.stringify({
+            ldapUrl: d.ldapUrl || "",
+            ldapPort: d.ldapPort !== null && d.ldapPort !== undefined ? String(d.ldapPort) : "",
+            ldapBindDn: d.ldapBindDn || "",
+            ldapBindPassword: "",
+            ldapBaseDn: d.ldapBaseDn || "",
+            ldapFilter: d.ldapFilter || "",
+          }));
         }
       } else {
         toast.error(t("settingsPage.saveFailed"));
       }
     } catch (error) {
-      console.error("Failed to load settings:", error);
+      console.error(error);
       toast.error(t("common.networkError"));
     } finally {
       setIsLoading(false);
@@ -217,6 +248,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         toast.success(t("settingsPage.successTest"));
+        setLastTestedConfig(currentLdapConfig);
       } else {
         toast.error(data.error || "Connection test failed");
       }
@@ -281,6 +313,17 @@ export default function SettingsPage() {
         toast.success(t("settingsPage.saveSuccess"));
         setHasExistingConfig(true);
         setLdapBindPassword("");
+
+        // Update last tested config as password input is cleared
+        setLastTestedConfig(JSON.stringify({
+          ldapUrl,
+          ldapPort,
+          ldapBindDn,
+          ldapBindPassword: "",
+          ldapBaseDn,
+          ldapFilter,
+        }));
+
         // Update local sync status if changed
         if (result.data) {
           const d: SettingsData = result.data;
@@ -292,7 +335,7 @@ export default function SettingsPage() {
         toast.error(result.error || t("settingsPage.saveFailed"));
       }
     } catch (error) {
-      console.error("Failed to save settings:", error);
+      console.error(error);
       toast.error(t("common.networkError"));
     } finally {
       setIsSaving(false);
@@ -357,7 +400,7 @@ export default function SettingsPage() {
           <Button
             type="submit"
             form="settings-form"
-            disabled={isSaving || isTesting}
+            disabled={isSaving || isTesting || !isLdapConfigValid || !isConfigTested}
             className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm transition-all cursor-pointer"
           >
             {isSaving ? (

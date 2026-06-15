@@ -3,12 +3,15 @@ import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { DEFAULT_LIMIT } from "@/config/constants";
+import { getServerTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.AUDIT_LOGS_READ);
   if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
 
   try {
     const { searchParams } = request.nextUrl;
@@ -82,8 +85,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch audit logs.";
-    console.error("Audit Logs API Error:", error);
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToFetchAuditLogs", { error: rawMessage });
+    console.error(error);
     return NextResponse.json(
       { error: message },
       { status: 500 },

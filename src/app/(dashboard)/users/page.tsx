@@ -232,7 +232,7 @@ export default function UsersPage() {
         setSelectedUsernames(new Set(validUsers.map((u: LdapUserPreview) => u.username)));
       }
     } catch (error) {
-      console.error("Failed to fetch preview", error);
+      console.error(error);
     } finally {
       setIsPreviewLoading(false);
     }

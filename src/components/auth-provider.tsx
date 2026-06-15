@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           isSetup = !!setupData.isSetup;
         }
       } catch (err) {
-        console.error("Failed to check setup status:", err);
+        console.error(err);
       }
 
       if (cancelled) return;

@@ -17,15 +17,16 @@ model User {
   phone        String    @default("")
   title        String    @default("")
   department   String    @default("")
-  company      String    @default("")
+  companyId    String?   @map("company_id")
+  companyObj   Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
   employeeId   String    @default("")
   manager      String    @default("")
   passwordHash String?
   disabled     Boolean   @default(false)
   lastSyncAt   DateTime?
   lastLoginAt  DateTime?
-  theme        String    @default("dark")
-  locale       String    @default("vi")
+  theme        String    @default("system")
+  locale       String    @default("en")
   fontSize     Int       @default(14)
   fontFamily   String    @default("sans")
   dateFormat   String    @default("YYYY-MM-DD")
@@ -38,6 +39,20 @@ model User {
   sessions     Session[]
 
   @@map("users")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  code        String   @unique // Ví dụ: ACLT, ACBH, ACHL, ATLT, ACPT
+  nameVi      String   // Tên tiếng Việt: CÔNG TY CỔ PHẦN ĐÔ THỊ AMATA LONG THÀNH
+  nameEn      String   // Tên tiếng Anh: AMATA CITY LONGTHANH JOINT STOCK COMPANY
+  taxAddress  String   // Địa chỉ thuế
+  taxCode     String   // Mã số thuế
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("companies")
 }
 
 model Role {

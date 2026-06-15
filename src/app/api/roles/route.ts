@@ -4,6 +4,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
 import { Prisma } from "@prisma/client";
 import { DEFAULT_LIMIT } from "@/config/constants";
+import { getServerTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -85,8 +86,10 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch roles.";
-    console.error("Roles API Error:", error);
+    const { t } = await getServerTranslator();
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToFetchRoles", { error: rawMessage });
+    console.error(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -95,12 +98,14 @@ export async function POST(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.ROLES_CREATE);
   if (authResponse) return authResponse;
 
+  const { t } = await getServerTranslator();
+
   try {
     const body = await request.json();
     const { name, description, permissions } = body;
 
     if (!name) {
-      return NextResponse.json({ error: "Role name is required." }, { status: 400 });
+      return NextResponse.json({ error: t("rolesPage.roleNameRequired") }, { status: 400 });
     }
 
     const existingRole = await prisma.role.findUnique({
@@ -108,7 +113,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingRole) {
-      return NextResponse.json({ error: "Role with this name already exists." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.roleNameExists") }, { status: 400 });
     }
 
     const role = await prisma.role.create({
@@ -120,13 +125,17 @@ export async function POST(request: NextRequest) {
     });
 
     await logAction("role:create", role.name, {
-      description: role.description,
-      permissions: permissions || [],
+      before: null,
+      after: {
+        ...role,
+        permissions: permissions || [],
+      },
     });
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to create role.";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToCreateRole", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

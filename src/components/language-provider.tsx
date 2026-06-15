@@ -31,12 +31,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
             setLocale(val);
           }
         } else {
-          // Fallback to navigator language
-          const navLang = navigator.language.split("-")[0];
-          const matchedLocale = SUPPORTED_LOCALES.find((l) => l.code === navLang);
-          if (matchedLocale) {
-            setLocale(matchedLocale.code);
-          }
+          // Default fallback to English
+          setLocale("en");
         }
       }
       setMounted(true);

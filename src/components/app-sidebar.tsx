@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Server, Users, Shield, ClipboardList, Settings } from "lucide-react"
+import { Server, Users, Shield, ClipboardList, Settings, Building2 } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import {
@@ -34,6 +34,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       isActive: true,
       items: [
         { title: t("common.dashboard"), url: "/", icon: Server },
+        { title: t("common.companies"), url: "/companies", icon: Building2, permission: PERMISSIONS.COMPANIES_READ },
         { title: t("common.users"), url: "/users", icon: Users, permission: PERMISSIONS.USERS_READ },
         { title: t("common.roles"), url: "/roles", icon: Shield, permission: PERMISSIONS.ROLES_READ },
       ].filter(item => hasPermission(item.permission))

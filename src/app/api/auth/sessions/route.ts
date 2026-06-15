@@ -31,7 +31,7 @@ export async function GET() {
       })),
     });
   } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("errors.failedToFetchSessions", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
@@ -54,12 +54,17 @@ export async function DELETE(request: NextRequest) {
 
     if (action === "all") {
       // Revoke all sessions for this user (logs out current device too)
+      const sessionsToRevoke = await prisma.session.findMany({
+        where: { userId: session.userId },
+      });
+
       await prisma.session.deleteMany({
         where: { userId: session.userId },
       });
 
       await logAction("session:revoke_all", session.username, {
-        message: t("logs.sessionRevokedAll", { username: session.username })
+        before: sessionsToRevoke,
+        after: null,
       });
 
       cookieStore.delete("session");
@@ -75,6 +80,13 @@ export async function DELETE(request: NextRequest) {
 
     if (action === "other") {
       // Revoke all sessions except the current one
+      const otherSessions = await prisma.session.findMany({
+        where: {
+          userId: session.userId,
+          id: { not: session.sessionId },
+        },
+      });
+
       await prisma.session.deleteMany({
         where: {
           userId: session.userId,
@@ -83,7 +95,8 @@ export async function DELETE(request: NextRequest) {
       });
 
       await logAction("session:revoke_other", session.username, {
-        message: t("logs.sessionRevokedOther", { username: session.username })
+        before: otherSessions,
+        after: null,
       });
 
       // Notify all other sessions to log out
@@ -114,10 +127,8 @@ export async function DELETE(request: NextRequest) {
       });
 
       await logAction("session:revoke_specific", id, {
-        targetSessionId: id,
-        ipAddress: targetSession.ipAddress,
-        userAgent: targetSession.userAgent,
-        message: t("logs.sessionRevokedSpecific", { id, username: session.username })
+        before: targetSession,
+        after: null,
       });
 
       // Notify target session to log out
@@ -137,7 +148,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ error: t("errors.invalidAction") }, { status: 400 });
   } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("errors.failedToDeleteSessions", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }

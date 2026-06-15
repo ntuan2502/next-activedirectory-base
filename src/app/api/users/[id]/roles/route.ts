@@ -49,13 +49,14 @@ export async function PUT(
       }
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _1, ...userWithoutPassword } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _2, ...updatedUserWithoutPassword } = updatedUser;
+
     await logAction("user:update_roles", user.username, {
-      before: {
-        roles: user.roles.map((r) => r.name),
-      },
-      after: {
-        roles: updatedUser.roles.map((r) => r.name),
-      },
+      before: userWithoutPassword,
+      after: updatedUserWithoutPassword,
     });
 
     sseManager.publish({
@@ -65,7 +66,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: updatedUser });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("errors.failedToUpdateUserRoles", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }

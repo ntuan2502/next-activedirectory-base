@@ -67,7 +67,7 @@ export async function checkAndRunSync() {
         console.log(`[Scheduler] Sync successful: ${result.syncedCount} users.`);
       } catch (syncError: unknown) {
         const errorMsg = syncError instanceof Error ? syncError.message : "Unknown LDAP sync error";
-        console.error("[Scheduler] Sync failed:", syncError);
+        console.error(syncError);
 
         await prisma.systemSetting.update({
           where: { id: settings.id },
@@ -79,12 +79,15 @@ export async function checkAndRunSync() {
         });
 
         // Ghi audit log cho đồng bộ tự động thất bại
-        await logLdapSyncResult(null, errorMsg);
+        await logLdapSyncResult(null, {
+          key: "errors.failedToSyncLdap",
+          params: { error: errorMsg },
+        });
       } finally {
         globalThis.__schedulerRunning__ = false;
       }
     }
   } catch (dbError) {
-    console.error("[Scheduler] Database check error:", dbError);
+    console.error(dbError);
   }
 }

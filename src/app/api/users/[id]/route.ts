@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function DELETE(
   _request: NextRequest,
@@ -10,25 +11,28 @@ export async function DELETE(
   const authResponse = await requirePermission(PERMISSIONS.USERS_DELETE);
   if (authResponse) return authResponse;
 
+  const { t } = await getServerTranslator();
+
   try {
     const { id } = await params;
 
     const existingUser = await prisma.user.findUnique({
       where: { id },
+      include: {
+        companyObj: true,
+      },
     });
 
     if (!existingUser) {
-      return NextResponse.json({ error: "User not found." }, { status: 404 });
+      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _, ...userWithoutPassword } = existingUser;
     await logAction("user:delete", existingUser.username, {
       before: {
-        username: existingUser.username,
-        displayName: existingUser.displayName,
-        email: existingUser.email,
-        title: existingUser.title,
-        department: existingUser.department,
-        company: existingUser.company,
+        ...userWithoutPassword,
+        company: existingUser.companyObj?.code || "",
       },
       after: null,
     });
@@ -39,8 +43,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to delete user.";
-    console.error("Delete User Error:", error);
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToDeleteUser", { error: rawMessage });
+    console.error(error);
     return NextResponse.json(
       { error: message },
       { status: 500 },

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import crypto from "crypto";
 import { sseManager } from "@/lib/sse";
 import { getServerTranslator } from "@/lib/i18n";
+import { logAction } from "@/lib/audit";
 
 export async function GET() {
   const session = await getSession();
@@ -41,8 +42,15 @@ export async function GET() {
     },
   });
 
-  const email = dbUser?.email || "";
-  const displayName = dbUser?.displayName || session.username;
+  if (!dbUser) {
+    return NextResponse.json(
+      { error: t("errors.userNotFound") },
+      { status: 401 },
+    );
+  }
+
+  const email = dbUser.email;
+  const displayName = dbUser.displayName || session.username;
 
   // Compute Gravatar URL with md5 hash
   let avatarUrl = "";
@@ -58,16 +66,16 @@ export async function GET() {
       displayName,
       email,
       avatarUrl,
-      isLocal: dbUser?.dn === "" || !dbUser?.dn,
-      createdAt: dbUser?.createdAt ? dbUser.createdAt.toISOString() : null,
-      roles: dbUser?.roles || [],
+      isLocal: dbUser.dn === "",
+      createdAt: dbUser.createdAt.toISOString(),
+      roles: dbUser.roles,
       permissions,
-      theme: dbUser?.theme || "dark",
-      locale: dbUser?.locale || "vi",
-      fontSize: dbUser?.fontSize || 14,
-      fontFamily: dbUser?.fontFamily || "sans",
-      dateFormat: dbUser?.dateFormat || "YYYY-MM-DD",
-      timeFormat: dbUser?.timeFormat || "24h",
+      theme: dbUser.theme,
+      locale: dbUser.locale,
+      fontSize: dbUser.fontSize,
+      fontFamily: dbUser.fontFamily,
+      dateFormat: dbUser.dateFormat,
+      timeFormat: dbUser.timeFormat,
     },
   });
 }
@@ -106,10 +114,39 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: t("errors.noFieldsToUpdate") }, { status: 400 });
     }
 
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.userId },
+    });
+
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: t("errors.userNotFound") },
+        { status: 404 },
+      );
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: session.userId },
       data: updateData,
     });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _1, ...beforeWithoutPassword } = currentUser;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _2, ...afterWithoutPassword } = updatedUser;
+
+    await logAction(
+      "user:update_settings",
+      currentUser.username,
+      {
+        before: beforeWithoutPassword,
+        after: afterWithoutPassword,
+      },
+      {
+        userId: session.userId,
+        username: currentUser.username,
+      }
+    );
 
     sseManager.publish({
       userId: session.userId,
@@ -137,7 +174,7 @@ export async function PATCH(request: Request) {
       },
     });
   } catch (error) {
-    const rawMessage = error instanceof Error ? error.message : "Unknown error";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
     const message = t("errors.failedToUpdateSettings", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }

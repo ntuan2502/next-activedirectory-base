@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function POST(request: NextRequest) {
+  const { t } = await getServerTranslator();
   try {
     // 1. Guard check: Ensure at least one admin exists
     const userCount = await prisma.user.count();
     if (userCount === 0) {
       return NextResponse.json(
-        { error: "Please register a system administrator first." },
+        { error: t("errors.registerAdminFirst") },
         { status: 400 }
       );
     }
@@ -37,8 +39,6 @@ export async function POST(request: NextRequest) {
         ldapBindPassword: null,
         ldapBaseDn: null,
         ldapFilter: null,
-        syncEnabled: false,
-        syncInterval: 1440,
       };
 
       if (existing) {
@@ -55,13 +55,16 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { ldapBindPassword: _, ...settingsWithoutPassword } = updatedSettings;
       await logAction("settings:initial_setup_skip", "system", {
-        message: "LDAP configuration skipped during initial setup",
+        before: null,
+        after: settingsWithoutPassword,
       });
 
       return NextResponse.json({
         success: true,
-        message: "LDAP configuration skipped",
+        message: t("setupPage.successSkip"),
         data: updatedSettings,
       });
     }
@@ -69,7 +72,7 @@ export async function POST(request: NextRequest) {
     // Process actual configuration
     if (!ldapUrl || !ldapBindDn || !ldapBaseDn) {
       return NextResponse.json(
-        { error: "Missing required LDAP settings fields" },
+        { error: t("errors.missingRequiredLdapSettingsFields") },
         { status: 400 }
       );
     }
@@ -82,8 +85,6 @@ export async function POST(request: NextRequest) {
       ldapBindPassword: ldapBindPassword || null,
       ldapBaseDn,
       ldapFilter: ldapFilter || null,
-      syncEnabled: false,
-      syncInterval: 1440,
     };
 
     if (existing) {
@@ -101,21 +102,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Log the action
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { ldapBindPassword: _, ...settingsWithoutPassword } = updatedSettings;
     await logAction("settings:initial_setup_ldap", "system", {
-      ldapUrl,
-      ldapPort: portNumber,
-      ldapBindDn,
-      ldapBaseDn,
-      ldapFilter: dataPayload.ldapFilter,
+      before: null,
+      after: settingsWithoutPassword,
     });
 
     return NextResponse.json({
       success: true,
-      message: "LDAP settings configured successfully",
+      message: t("setupPage.successLdap"),
       data: updatedSettings,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to configure initial LDAP settings";
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToConfigureLdap", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

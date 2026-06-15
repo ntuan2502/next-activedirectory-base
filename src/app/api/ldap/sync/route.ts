@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
 import { fetchLdapUsers, syncLdapUsers, logLdapSyncResult } from "@/lib/sync-core";
+import { getServerTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +22,15 @@ export async function GET() {
       data: ldapUsers,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch preview data from LDAP";
-    console.error("LDAP Preview Error:", error);
+    const { t } = await getServerTranslator();
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToSyncLdap", { error: rawMessage });
+    console.error(error);
 
-    await logAction("ldap:fetch_data", "failed", { error: message });
+    await logAction("ldap:fetch_data", "failed", {
+      key: "errors.failedToSyncLdap",
+      params: { error: rawMessage },
+    });
 
     return NextResponse.json(
       { error: message },
@@ -38,6 +44,7 @@ export async function POST(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.LDAP_SYNC);
   if (authResponse) return authResponse;
 
+  const { t } = await getServerTranslator();
   try {
     const body = await request.json();
     const { usernamesToSync, action } = body;
@@ -54,7 +61,11 @@ export async function POST(request: NextRequest) {
           data: {
             lastSyncAt: now,
             lastSyncStatus: "success",
-            lastSyncMessage: `Successfully synchronized ${result.syncedCount} users (Created: ${result.usersCreated.length}, Updated: ${result.usersUpdated.length})`,
+            lastSyncMessage: t("setupPage.syncSuccessCount", {
+              count: result.syncedCount,
+              created: result.usersCreated.length,
+              updated: result.usersUpdated.length,
+            }),
           },
         });
       }
@@ -66,12 +77,14 @@ export async function POST(request: NextRequest) {
         syncedCount: result.syncedCount,
         lastSyncAt: now.toISOString(),
         lastSyncStatus: "success",
-        lastSyncMessage: `Successfully synchronized ${result.syncedCount} users`,
+        lastSyncMessage: t("setupPage.syncSuccess", {
+          count: result.syncedCount,
+        }),
       });
     }
 
     if (!usernamesToSync || !Array.isArray(usernamesToSync)) {
-      return NextResponse.json({ error: "Invalid payload. Expected 'usernamesToSync' array." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.invalidPayloadSync") }, { status: 400 });
     }
 
     const result = await syncLdapUsers(usernamesToSync);
@@ -93,7 +106,17 @@ export async function POST(request: NextRequest) {
         phone: true,
         title: true,
         department: true,
-        company: true,
+        companyId: true,
+        companyObj: {
+          select: {
+            id: true,
+            code: true,
+            nameVi: true,
+            nameEn: true,
+            taxAddress: true,
+            taxCode: true,
+          },
+        },
         employeeId: true,
         manager: true,
         lastSyncAt: true,
@@ -101,14 +124,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const formattedUsers = dbUsers.map((user) => {
+      return {
+        ...user,
+        company: user.companyObj?.code || "",
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      data: dbUsers,
+      data: formattedUsers,
       syncedCount,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to synchronize data from LDAP";
-    console.error("LDAP Sync Error:", error);
+    const { t } = await getServerTranslator();
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToSyncLdap", { error: rawMessage });
+    console.error(error);
 
     // If it was a simulated action, update SystemSetting to failed state
     try {
@@ -125,7 +157,10 @@ export async function POST(request: NextRequest) {
       }
     } catch {}
 
-    await logLdapSyncResult(null, message);
+    await logLdapSyncResult(null, {
+      key: "errors.failedToSyncLdap",
+      params: { error: rawMessage },
+    });
 
     return NextResponse.json(
       { error: message },

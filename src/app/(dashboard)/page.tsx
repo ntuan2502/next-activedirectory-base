@@ -59,7 +59,7 @@ export default function DashboardPage() {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch dashboard stats:", error);
+      console.error(error);
     } finally {
       setIsStatsLoading(false);
     }

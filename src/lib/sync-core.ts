@@ -59,6 +59,20 @@ export async function fetchLdapUsers(): Promise<LdapUserPreview[]> {
   });
 }
 
+function parseCompanyCodeFromDn(dn: string): string | null {
+  if (!dn) return null;
+  const parts = dn.split(",");
+  const usersIndex = parts.findIndex((part) => part.trim().toUpperCase() === "OU=USERS");
+  if (usersIndex > 0) {
+    const companyPart = parts[usersIndex - 1].trim();
+    const match = companyPart.match(/^OU=(.+)$/i);
+    if (match) {
+      return match[1].toUpperCase();
+    }
+  }
+  return null;
+}
+
 export async function syncLdapUsers(usernamesToSync?: string[]) {
   const ldapUsers = await fetchLdapUsers();
   
@@ -76,6 +90,40 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     where: { username: { in: usersToSync.map((u) => u.username) } },
   });
 
+  const companies = await prisma.company.findMany();
+  const companyMap = new Map<string, string>();
+  for (const comp of companies) {
+    companyMap.set(comp.code.toUpperCase(), comp.id);
+  }
+
+  // Thu thập các code công ty cần thiết từ danh sách đồng bộ
+  const requiredCodes = new Set<string>();
+  for (const user of usersToSync) {
+    const detectedCode = parseCompanyCodeFromDn(user.dn);
+    if (detectedCode) {
+      requiredCodes.add(detectedCode.toUpperCase());
+    }
+    if (user.company) {
+      requiredCodes.add(user.company.toUpperCase());
+    }
+  }
+
+  // Tự động tạo các công ty chưa tồn tại trong cơ sở dữ liệu
+  for (const code of requiredCodes) {
+    if (!companyMap.has(code)) {
+      const newCompany = await prisma.company.create({
+        data: {
+          code: code,
+          nameVi: "",
+          nameEn: "",
+          taxAddress: "",
+          taxCode: "",
+        },
+      });
+      companyMap.set(code, newCompany.id);
+    }
+  }
+
   const now = new Date();
   const syncOperations = [];
   const usersCreated = [];
@@ -83,6 +131,16 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
 
   for (const user of usersToSync) {
     const dbUser = existingUsers.find((eu) => eu.username === user.username);
+
+    let companyId: string | null = null;
+    const detectedCode = parseCompanyCodeFromDn(user.dn);
+    if (detectedCode) {
+      companyId = companyMap.get(detectedCode.toUpperCase()) || null;
+    }
+
+    if (!companyId && user.company) {
+      companyId = companyMap.get(user.company.toUpperCase()) || null;
+    }
 
     if (!dbUser) {
       usersCreated.push(user);
@@ -98,7 +156,7 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
             phone: user.phone || "",
             title: user.title || "",
             department: user.department || "",
-            company: user.company || "",
+            companyId: companyId,
             employeeId: user.employeeId || "",
             manager: user.manager || "",
             lastSyncAt: now,
@@ -115,7 +173,7 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
         dbUser.phone !== (user.phone || "") ||
         dbUser.title !== (user.title || "") ||
         dbUser.department !== (user.department || "") ||
-        dbUser.company !== (user.company || "") ||
+        dbUser.companyId !== companyId ||
         dbUser.employeeId !== (user.employeeId || "") ||
         dbUser.manager !== (user.manager || "");
 
@@ -133,7 +191,7 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
               phone: user.phone || "",
               title: user.title || "",
               department: user.department || "",
-              company: user.company || "",
+              companyId: companyId,
               employeeId: user.employeeId || "",
               manager: user.manager || "",
               lastSyncAt: now,
@@ -148,50 +206,40 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     await prisma.$transaction(syncOperations);
   }
 
+  const latestDbUsers = await prisma.user.findMany({
+    where: { username: { in: usersToSync.map((u) => u.username) } },
+  });
+
   const syncedCount = usersCreated.length + usersUpdated.length;
 
   const syncDetails = [];
   for (const user of usersCreated) {
-    syncDetails.push({
-      username: user.username,
-      before: null,
-      after: {
-        dn: user.dn,
-        displayName: user.displayName,
-        email: user.email,
-        phone: user.phone,
-        title: user.title,
-        department: user.department,
-        company: user.company,
-      },
-    });
+    const latestUser = latestDbUsers.find((lu) => lu.username === user.username);
+    if (latestUser) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _, ...userWithoutPassword } = latestUser;
+      syncDetails.push({
+        username: user.username,
+        before: null,
+        after: userWithoutPassword,
+      });
+    }
   }
 
   for (const user of usersUpdated) {
-    const dbUser = existingUsers.find((eu) => eu.username === user.username);
-    syncDetails.push({
-      username: user.username,
-      before: dbUser
-        ? {
-            dn: dbUser.dn,
-            displayName: dbUser.displayName,
-            email: dbUser.email,
-            phone: dbUser.phone,
-            title: dbUser.title,
-            department: dbUser.department,
-            company: dbUser.company,
-          }
-        : null,
-      after: {
-        dn: user.dn,
-        displayName: user.displayName,
-        email: user.email,
-        phone: user.phone,
-        title: user.title,
-        department: user.department,
-        company: user.company,
-      },
-    });
+    const oldUser = existingUsers.find((eu) => eu.username === user.username);
+    const latestUser = latestDbUsers.find((lu) => lu.username === user.username);
+    if (latestUser && oldUser) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _1, ...oldUserWithoutPassword } = oldUser;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _2, ...latestUserWithoutPassword } = latestUser;
+      syncDetails.push({
+        username: user.username,
+        before: oldUserWithoutPassword,
+        after: latestUserWithoutPassword,
+      });
+    }
   }
 
   return {
@@ -210,10 +258,10 @@ export interface LdapSyncDetail {
 
 export async function logLdapSyncResult(
   result: { syncedCount: number; syncDetails: LdapSyncDetail[] } | null,
-  errorMsg?: string | null
+  errorObj?: { key: string; params?: Record<string, unknown> } | null
 ) {
-  if (errorMsg) {
-    await logAction("ldap:sync_data", "failed", { error: errorMsg });
+  if (errorObj) {
+    await logAction("ldap:sync_data", "failed", errorObj);
   } else if (result) {
     await logAction("ldap:sync_data", `${result.syncedCount} users`, {
       usernames: result.syncDetails.map((u) => u.username),

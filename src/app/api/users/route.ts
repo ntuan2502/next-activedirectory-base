@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { Prisma } from "@prisma/client";
 import { DEFAULT_LIMIT } from "@/config/constants";
+import { getServerTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.USERS_READ);
   if (authResponse) return authResponse;
 
+  const { t } = await getServerTranslator();
   try {
     const { searchParams } = request.nextUrl;
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -29,19 +31,27 @@ export async function GET(request: NextRequest) {
         { displayName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
         { department: { contains: search, mode: "insensitive" } },
-        { company: { contains: search, mode: "insensitive" } },
         { title: { contains: search, mode: "insensitive" } },
+        {
+          companyObj: {
+            OR: [
+              { nameVi: { contains: search, mode: "insensitive" } },
+              { nameEn: { contains: search, mode: "insensitive" } },
+              { code: { contains: search, mode: "insensitive" } },
+            ],
+          },
+        },
       ];
     }
 
     // Determine sorting
-    const allowedSortFields = ["username", "displayName", "email", "title", "department", "company", "disabled"];
+    const allowedSortFields = ["username", "displayName", "email", "title", "department", "disabled"];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : "username";
     const sortDirection = sortOrder === "desc" ? "desc" : "asc";
 
-    const orderBy: Prisma.UserOrderByWithRelationInput = {
-      [sortField]: sortDirection,
-    };
+    const orderBy: Prisma.UserOrderByWithRelationInput = sortBy === "company"
+      ? { companyObj: { code: sortDirection } }
+      : { [sortField]: sortDirection };
 
     // Execute parallel queries for count and data
     const [total, users] = await Promise.all([
@@ -61,7 +71,17 @@ export async function GET(request: NextRequest) {
           phone: true,
           title: true,
           department: true,
-          company: true,
+          companyId: true,
+          companyObj: {
+            select: {
+              id: true,
+              code: true,
+              nameVi: true,
+              nameEn: true,
+              taxAddress: true,
+              taxCode: true,
+            },
+          },
           disabled: true,
           roles: {
             select: {
@@ -74,11 +94,18 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    const formattedUsers = users.map((user) => {
+      return {
+        ...user,
+        company: user.companyObj?.code || "",
+      };
+    });
+
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
       success: true,
-      data: users,
+      data: formattedUsers,
       pagination: {
         page,
         limit,
@@ -87,8 +114,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to fetch users.";
-    console.error("Users API Error:", error);
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToFetchUsers", { error: rawMessage });
+    console.error(error);
     return NextResponse.json(
       { error: message },
       { status: 500 },

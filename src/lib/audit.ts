@@ -46,6 +46,6 @@ export async function logAction(
       },
     });
   } catch (error) {
-    console.error("Failed to create audit log:", error);
+    console.error(error);
   }
 }

@@ -268,7 +268,7 @@ export default function AccountPage() {
         setSessions(data.sessions || []);
       }
     } catch (error) {
-      console.error("Failed to fetch sessions:", error);
+      console.error(error);
     } finally {
       setSessionsLoading(false);
     }

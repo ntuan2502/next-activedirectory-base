@@ -3,9 +3,12 @@
 ## User
 - [user] Always write responses, tasks, and walkthroughs in Vietnamese → user-preferences.md
 - [user] Adhere to SOLID, DRY, and clean code principles → user-preferences.md
+- [user] Do not use automated browser testing, user will test UI changes manually → user-preferences.md
 
 ## Project
 - [project] Always create dedicated branches for major code changes → project-conventions.md
 - [project] Use pnpm and pnpx/pnpm dlx instead of npm/npx → project-conventions.md
-- [project] Always run pnpm lint to check for errors before replying → project-conventions.md
+- [project] Run pnpm lint to check for errors before replying only when code changes → project-conventions.md
 - [project] Strictly forbid the use of 'any' type in all circumstances → project-conventions.md
+- [project] Use pnpm prisma migrate dev for schema drift/database updates → project-conventions.md
+- [project] Always record entity ID in target/details of audit logs when changes occur → project-conventions.md

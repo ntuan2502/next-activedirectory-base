@@ -12,7 +12,7 @@ export async function getServerLocale(): Promise<string> {
     // cookies() might throw if called outside request context
   }
   const availableLocales = Object.keys(translations);
-  return availableLocales.includes("vi") ? "vi" : (availableLocales[0] || "vi");
+  return availableLocales.includes("en") ? "en" : (availableLocales[0] || "en");
 }
 
 export function translate(locale: string, key: string, variables?: Record<string, string | number>): string {

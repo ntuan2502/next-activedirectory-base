@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/lib/auth";
 import { createSession } from "@/lib/session";
 import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 type LoginBody = {
   username: string;
@@ -10,6 +11,7 @@ type LoginBody = {
 
 export async function POST(request: NextRequest) {
   let requestUsername = "";
+  const { t } = await getServerTranslator();
   try {
     const body = (await request.json()) as LoginBody;
     const { username, password } = body;
@@ -17,14 +19,14 @@ export async function POST(request: NextRequest) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: "Username and password are required." },
+        { error: t("errors.usernamePasswordRequired") },
         { status: 400 },
       );
     }
 
     if (username.includes("@")) {
       return NextResponse.json(
-        { error: "Please use your username only, not email address." },
+        { error: t("errors.useUsernameOnly") },
         { status: 400 },
       );
     }
@@ -37,10 +39,8 @@ export async function POST(request: NextRequest) {
     });
 
     await logAction("auth:login", result.username, {
-      userId: result.userId,
-      sessionId: dbSession.id,
-      ipAddress: dbSession.ipAddress,
-      userAgent: dbSession.userAgent,
+      before: null,
+      after: dbSession,
     }, {
       userId: result.userId,
       username: result.username,
@@ -55,9 +55,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Authentication failed.";
+    const message = error instanceof Error ? error.message : t("errors.authenticationFailed");
     if (requestUsername) {
-      await logAction("auth:login_failed", requestUsername, { error: message });
+      await logAction("auth:login_failed", requestUsername, {
+        before: null,
+        after: { error: message },
+      });
     }
     return NextResponse.json(
       { error: message },

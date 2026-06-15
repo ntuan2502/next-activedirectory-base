@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
 import { checkAndRunSync } from "@/lib/scheduler";
+import { getServerTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,9 @@ export async function GET() {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to retrieve system settings";
+    const { t } = await getServerTranslator();
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToRetrieveSettings", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
@@ -60,6 +63,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.LDAP_SYNC);
   if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
 
   try {
     const body = await request.json();
@@ -76,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     // Validate inputs
     if (!ldapUrl || !ldapBindDn || !ldapBaseDn) {
-      return NextResponse.json({ error: "Missing required LDAP settings fields" }, { status: 400 });
+      return NextResponse.json({ error: t("errors.missingRequiredLdapSettingsFields") }, { status: 400 });
     }
 
     const portNumber = ldapPort ? parseInt(ldapPort, 10) : null;
@@ -116,27 +121,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Prepare before state (exclude password for security)
-    const beforeState = existing ? {
-      ldapUrl: existing.ldapUrl,
-      ldapPort: existing.ldapPort,
-      ldapBindDn: existing.ldapBindDn,
-      ldapBaseDn: existing.ldapBaseDn,
-      ldapFilter: existing.ldapFilter,
-      syncEnabled: existing.syncEnabled,
-      syncInterval: existing.syncInterval,
-    } : null;
+    // Prepare before and after states (exclude password for security)
+    let beforeState = null;
+    if (existing) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { ldapBindPassword: _, ...settingsWithoutPassword } = existing;
+      beforeState = settingsWithoutPassword;
+    }
 
-    // Prepare after state
-    const afterState = {
-      ldapUrl,
-      ldapPort: portNumber,
-      ldapBindDn,
-      ldapBaseDn,
-      ldapFilter: dataPayload.ldapFilter,
-      syncEnabled: !!syncEnabled,
-      syncInterval: intervalNumber,
-    };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { ldapBindPassword: _, ...settingsWithoutPassword } = updatedSettings;
+    const afterState = settingsWithoutPassword;
 
     // Log the action
     await logAction("settings:update", "system", {
@@ -147,7 +142,7 @@ export async function POST(request: NextRequest) {
     // Trigger immediate background sync check if enabled
     if (updatedSettings.syncEnabled) {
       checkAndRunSync().catch((err) => {
-        console.error("Error triggering immediate background sync check:", err);
+        console.error(err);
       });
     }
 
@@ -168,7 +163,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to update system settings";
+    const { t } = await getServerTranslator();
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToUpdateSettings", { error: rawMessage });
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Laptop, Globe, ShieldAlert, KeyRound, Smartphone, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, Globe, ShieldAlert, ShieldCheck, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,13 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "settings:update": { label: "Update Settings", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
   "settings:initial_setup_ldap": { label: "Setup Initial LDAP", color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
   "settings:initial_setup_skip": { label: "Skip Initial LDAP", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  "company:create": { label: "Create Company", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
+  "company:update": { label: "Update Company", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
+  "company:delete": { label: "Delete Company", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
+  "user:update_settings": { label: "Update Display Preferences", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
+  "session:revoke_all": { label: "Revoke All Sessions", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
+  "session:revoke_other": { label: "Revoke Other Sessions", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  "session:revoke_specific": { label: "Revoke Specific Session", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
 };
 
 const getActionTranslationKey = (action: string): string => {
@@ -78,6 +85,7 @@ const getActionTranslationKey = (action: string): string => {
     "user:delete": "deleteUser",
     "user:update_roles": "updateUserRoles",
     "user:update_profile": "updateProfile",
+    "user:update_settings": "updateSettings",
     "user:change_password": "changePassword",
     "users:bulk_delete": "bulkDelete",
     "users:bulk_disable": "bulkDisable",
@@ -88,8 +96,51 @@ const getActionTranslationKey = (action: string): string => {
     "settings:update": "settingsUpdate",
     "settings:initial_setup_ldap": "initialSetupLdap",
     "settings:initial_setup_skip": "initialSetupSkip",
+    "company:create": "createCompany",
+    "company:update": "updateCompany",
+    "company:delete": "deleteCompany",
+    "session:revoke_all": "revokeAllSessions",
+    "session:revoke_other": "revokeOtherSessions",
+    "session:revoke_specific": "revokeSpecificSession",
   };
   return mapping[action] ? `auditLogsPage.actions.${mapping[action]}` : "";
+};
+
+const renderDetailsText = (
+  details: string | null,
+  t: (key: string, variables?: Record<string, string | number>) => string
+) => {
+  if (!details) return null;
+
+  // 1. Check if it's JSON (e.g. key and dynamic params)
+  if (details.startsWith("{") && details.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(details);
+      if (parsed.key) {
+        return (
+          <div className="text-sm whitespace-pre-wrap">
+            {t(parsed.key, parsed.params)}
+          </div>
+        );
+      }
+    } catch {}
+  }
+
+  // 2. Check if it's a translation key (e.g. starts with "errors." or "auditLogsPage.")
+  if (details.includes(".") && !details.includes(" ")) {
+    return (
+      <div className="text-sm font-medium whitespace-pre-wrap">
+        {t(details)}
+      </div>
+    );
+  }
+
+  // 3. Fallback to raw pre for other strings / unstructured JSONs
+  return (
+    <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-x-auto max-h-[50vh] border whitespace-pre-wrap">
+      {details}
+    </pre>
+  );
 };
 
 
@@ -103,6 +154,14 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
   const isBeforeObj = !!before && typeof before === "object" && !Array.isArray(before);
   const isAfterObj = !!after && typeof after === "object" && !Array.isArray(after);
 
+  const isComplex = (val: unknown): boolean => {
+    if (!val || typeof val !== "object") return false;
+    if (Array.isArray(val)) return true;
+    return Object.values(val as Record<string, unknown>).some(
+      (v) => v !== null && typeof v === "object"
+    );
+  };
+
   if (!before && !after) {
     return <div className="p-4 text-muted-foreground">{t("common.noData")}</div>;
   }
@@ -111,6 +170,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
   if (!before && after) {
     const keys = typeof after === "object" ? Object.keys(after) : [];
     const afterObj = after as Record<string, unknown>;
+    const isAfterComplex = isComplex(after);
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
         {/* Before */}
@@ -127,15 +187,21 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             {t("auditLogsPage.afterState")}
           </div>
-          <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5 select-all">
-            <div className="text-muted-foreground/60">{"{"}</div>
-            {keys.map((k) => (
-              <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs break-all whitespace-pre-wrap">
-                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(afterObj[k])}
-              </div>
-            ))}
-            <div className="text-muted-foreground/60">{"}"}</div>
-          </div>
+          {isAfterComplex ? (
+            <pre className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] text-emerald-700 dark:text-emerald-300 whitespace-pre-wrap break-all flex-1">
+              {JSON.stringify(after, null, 2)}
+            </pre>
+          ) : (
+            <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5">
+              <div className="text-muted-foreground/60">{"{"}</div>
+              {keys.map((k) => (
+                <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs break-all whitespace-pre-wrap">
+                  &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(afterObj[k])}
+                </div>
+              ))}
+              <div className="text-muted-foreground/60">{"}"}</div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -145,6 +211,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
   if (before && !after) {
     const keys = typeof before === "object" ? Object.keys(before) : [];
     const beforeObj = before as Record<string, unknown>;
+    const isBeforeComplex = isComplex(before);
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
         {/* Before */}
@@ -152,15 +219,21 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
             {t("auditLogsPage.beforeState")}
           </div>
-          <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5 select-all">
-            <div className="text-muted-foreground/60">{"{"}</div>
-            {keys.map((k) => (
-              <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs break-all whitespace-pre-wrap">
-                &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(beforeObj[k])}
-              </div>
-            ))}
-            <div className="text-muted-foreground/60">{"}"}</div>
-          </div>
+          {isBeforeComplex ? (
+            <pre className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] text-rose-700 dark:text-rose-300 whitespace-pre-wrap break-all flex-1">
+              {JSON.stringify(before, null, 2)}
+            </pre>
+          ) : (
+            <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5">
+              <div className="text-muted-foreground/60">{"{"}</div>
+              {keys.map((k) => (
+                <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs break-all whitespace-pre-wrap">
+                  &nbsp;&nbsp;&quot;{k}&quot;: {JSON.stringify(beforeObj[k])}
+                </div>
+              ))}
+              <div className="text-muted-foreground/60">{"}"}</div>
+            </div>
+          )}
         </div>
         {/* After */}
         <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
@@ -188,7 +261,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
             {t("auditLogsPage.beforeState")}
           </div>
-          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 select-all whitespace-pre-wrap break-all ${isChanged ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300" : "text-muted-foreground/80"}`}>
+          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 whitespace-pre-wrap break-all ${isChanged ? "bg-rose-500/10 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300" : "text-muted-foreground/80"}`}>
             {beforeStr}
           </pre>
         </div>
@@ -197,7 +270,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
           <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             {t("auditLogsPage.afterState")}
           </div>
-          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 select-all whitespace-pre-wrap break-all ${isChanged ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground/80"}`}>
+          <pre className={`p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 whitespace-pre-wrap break-all ${isChanged ? "bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "text-muted-foreground/80"}`}>
             {afterStr}
           </pre>
         </div>
@@ -230,7 +303,7 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
       </div>
 
       {/* Split Content Body */}
-      <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 select-all space-y-0.5 bg-background">
+      <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 space-y-0.5 bg-background">
         {/* Open bracket row */}
         <div className="grid grid-cols-2 gap-4 border-b border-muted/20 pb-1 mb-1 text-muted-foreground/50 select-none">
           <div className="border-r border-muted/20 pr-2">{"{"}</div>
@@ -359,7 +432,7 @@ export default function AuditLogsPage() {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch audit logs:", error);
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -457,12 +530,25 @@ export default function AuditLogsPage() {
     return formatDateTimeCustom(dateStr, dateFormat, timeFormat, locale);
   };
 
-  const parseDiff = (detailsStr: string | null) => {
-    if (!detailsStr) return null;
+  const parseDiff = (log: AuditLogRecord) => {
+    if (!log.details) return null;
     try {
-      const parsed = JSON.parse(detailsStr);
-      if (parsed && typeof parsed === "object" && ("before" in parsed || "after" in parsed)) {
-        return parsed as { before: unknown; after: unknown };
+      const parsed = JSON.parse(log.details);
+      if (parsed && typeof parsed === "object") {
+        if ("before" in parsed || "after" in parsed) {
+          return parsed as { before: unknown; after: unknown };
+        }
+        // Backward compatibility for old log records (auth:login, auth:logout, session:revoke_*)
+        if (log.action === "auth:login") {
+          return { before: null, after: parsed };
+        }
+        if (log.action === "auth:logout" || log.action.startsWith("session:revoke")) {
+          return { before: parsed, after: null };
+        }
+        if (log.action === "auth:login_failed") {
+          const errorMsg = parsed.error || (parsed.key ? parsed.key : JSON.stringify(parsed));
+          return { before: null, after: { error: errorMsg } };
+        }
       }
       return null;
     } catch {
@@ -489,30 +575,10 @@ export default function AuditLogsPage() {
     }
   };
 
-  interface SessionLogDetail {
-    userId?: string;
-    sessionId?: string;
-    ipAddress?: string | null;
-    userAgent?: string | null;
-    error?: string;
-  }
-
-  const parseSessionInfo = (detailsStr: string | null): SessionLogDetail | null => {
-    if (!detailsStr) return null;
-    try {
-      const parsed = JSON.parse(detailsStr);
-      if (parsed && typeof parsed === "object") {
-        return parsed as SessionLogDetail;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
   interface LdapTestLogDetail {
     success?: boolean;
     error?: string;
+    errorDetails?: string;
     message?: string;
     config?: {
       url: string;
@@ -553,12 +619,9 @@ export default function AuditLogsPage() {
     return <AccessDenied />;
   }
 
-  const diffData = selectedLog ? parseDiff(selectedLog.details) : null;
+  const diffData = selectedLog ? parseDiff(selectedLog) : null;
   const batchSyncDetails = selectedLog ? parseBatchLdapSync(selectedLog) : null;
   const isBatchSync = !!batchSyncDetails && batchSyncDetails.length > 0;
-  const sessionInfo = (selectedLog && ["auth:login", "auth:login_failed", "auth:logout"].includes(selectedLog.action))
-    ? parseSessionInfo(selectedLog.details)
-    : null;
   const ldapTestInfo = (selectedLog && selectedLog.action === "ldap:test_connection")
     ? parseLdapTestInfo(selectedLog.details)
     : null;
@@ -579,6 +642,7 @@ export default function AuditLogsPage() {
   const ldapFetchInfo = (selectedLog && selectedLog.action === "ldap:fetch_data")
     ? parseLdapFetchInfo(selectedLog.details)
     : null;
+
 
   const filteredBatchUsers = batchSyncDetails
     ? batchSyncDetails.filter((detail) =>
@@ -640,14 +704,18 @@ export default function AuditLogsPage() {
                 >
                   <option value="all">{t("auditLogsPage.allActivities")}</option>
                   <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
-                  <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
+                   <option value="auth:login_failed">{t("auditLogsPage.actions.loginFailed")}</option>
                   <option value="auth:logout">{t("auditLogsPage.actions.logout")}</option>
                   <option value="auth:initial_setup">{t("auditLogsPage.actions.initialSetup")}</option>
+                  <option value="session:revoke_all">{t("auditLogsPage.actions.revokeAllSessions")}</option>
+                  <option value="session:revoke_other">{t("auditLogsPage.actions.revokeOtherSessions")}</option>
+                  <option value="session:revoke_specific">{t("auditLogsPage.actions.revokeSpecificSession")}</option>
                   <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
                   <option value="ldap:sync_data">{t("auditLogsPage.actions.ldapSync")}</option>
                   <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
                   <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
                   <option value="user:update_profile">{t("auditLogsPage.actions.updateProfile")}</option>
+                  <option value="user:update_settings">{t("auditLogsPage.actions.updateSettings")}</option>
                   <option value="user:change_password">{t("auditLogsPage.actions.changePassword")}</option>
                   <option value="users:bulk_delete">{t("auditLogsPage.actions.bulkDelete")}</option>
                   <option value="users:bulk_disable">{t("auditLogsPage.actions.bulkDisable")}</option>
@@ -658,6 +726,9 @@ export default function AuditLogsPage() {
                   <option value="settings:update">{t("auditLogsPage.actions.settingsUpdate")}</option>
                   <option value="settings:initial_setup_ldap">{t("auditLogsPage.actions.initialSetupLdap")}</option>
                   <option value="settings:initial_setup_skip">{t("auditLogsPage.actions.initialSetupSkip")}</option>
+                  <option value="company:create">{t("auditLogsPage.actions.createCompany")}</option>
+                  <option value="company:update">{t("auditLogsPage.actions.updateCompany")}</option>
+                  <option value="company:delete">{t("auditLogsPage.actions.deleteCompany")}</option>
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
               </div>
@@ -968,70 +1039,6 @@ export default function AuditLogsPage() {
                 </div>
               ) : diffData ? (
                 <DiffViewer before={diffData.before} after={diffData.after} t={t} />
-              ) : sessionInfo ? (
-                <div className="space-y-4">
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-muted px-4 py-2 border-b font-semibold text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                      <KeyRound className="w-4 h-4 text-primary" />
-                      {t("auditLogsPage.sessionDetails")}
-                    </div>
-                    <div className="p-4 space-y-4">
-                      {sessionInfo.error && (
-                        <div className="flex gap-2.5 items-start p-3 bg-destructive/10 text-destructive rounded-lg border border-destructive/20 text-sm">
-                          <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold block">{t("auditLogsPage.loginFailedReason")}</span>
-                            <span className="text-xs font-mono">{sessionInfo.error}</span>
-                          </div>
-                        </div>
-                      )}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        {sessionInfo.sessionId && (
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">{t("auditLogsPage.sessionId")}</span>
-                            <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">{sessionInfo.sessionId}</span>
-                          </div>
-                        )}
-                        {sessionInfo.userId && (
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">{t("auditLogsPage.userId")}</span>
-                            <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">{sessionInfo.userId}</span>
-                          </div>
-                        )}
-                        {sessionInfo.ipAddress && (
-                          <div className="space-y-1">
-                            <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.ipAddress")}</span>
-                            <span className="font-semibold flex items-center gap-1.5 mt-1">
-                              <Globe className="w-4 h-4 text-muted-foreground/60" />
-                              {sessionInfo.ipAddress}
-                            </span>
-                          </div>
-                        )}
-                        {sessionInfo.userAgent && (() => {
-                          const { browser, os, isMobile } = parseUserAgent(sessionInfo.userAgent);
-                          const DeviceIcon = isMobile ? Smartphone : Laptop;
-                          return (
-                            <div className="space-y-3 md:col-span-2">
-                              <div className="space-y-1">
-                                <span className="text-xs text-muted-foreground block">{t("auditLogsPage.device")}</span>
-                                <span className="font-semibold flex items-center gap-1.5 mt-1 text-sm text-foreground">
-                                  <DeviceIcon className="w-4 h-4 text-muted-foreground/60 shrink-0" />
-                                  {browser} on {os}
-                                </span>
-                              </div>
-                              <div className="space-y-1">
-                                <span className="text-xs text-muted-foreground block">{t("auditLogsPage.userAgent")}</span>
-                                <span className="font-mono text-xs break-all text-muted-foreground bg-muted/20 p-2 rounded border w-full block select-all">
-                                  {sessionInfo.userAgent}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
               ) : ldapTestInfo ? (
                 <div className="space-y-4">
                   <div className="border rounded-lg overflow-hidden">
@@ -1046,7 +1053,15 @@ export default function AuditLogsPage() {
                           <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
                           <div>
                             <span className="font-semibold block">{t("auditLogsPage.ldapTest.success")}</span>
-                            <span className="text-xs">{ldapTestInfo.message || t("auditLogsPage.ldapTest.successDesc")}</span>
+                            <span className="text-xs">
+                              {ldapTestInfo.message ? (
+                                ldapTestInfo.message.includes(".") && !ldapTestInfo.message.includes(" ") ? (
+                                  t(ldapTestInfo.message)
+                                ) : (
+                                  ldapTestInfo.message
+                                )
+                              ) : t("auditLogsPage.ldapTest.successDesc")}
+                            </span>
                           </div>
                         </div>
                       ) : (
@@ -1054,7 +1069,15 @@ export default function AuditLogsPage() {
                           <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
                           <div>
                             <span className="font-semibold block">{t("auditLogsPage.ldapTest.failed")}</span>
-                            <span className="text-xs font-mono">{ldapTestInfo.error || t("auditLogsPage.ldapTest.failedDesc")}</span>
+                            <span className="text-xs font-mono">
+                              {ldapTestInfo.error ? (
+                                ldapTestInfo.error.includes(".") && !ldapTestInfo.error.includes(" ") ? (
+                                  t(ldapTestInfo.error, { error: ldapTestInfo.errorDetails || "" })
+                                ) : (
+                                  ldapTestInfo.error
+                                )
+                              ) : t("auditLogsPage.ldapTest.failedDesc")}
+                            </span>
                           </div>
                         </div>
                       )}
@@ -1065,32 +1088,9 @@ export default function AuditLogsPage() {
                           <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                             {t("auditLogsPage.ldapTest.configParams")}
                           </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm bg-muted/10 p-4 rounded-lg border">
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.serverUrl")}</span>
-                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
-                                {ldapTestInfo.config.url}:{ldapTestInfo.config.port}
-                              </span>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.bindDn")}</span>
-                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
-                                {ldapTestInfo.config.username}
-                              </span>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.baseDn")}</span>
-                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
-                                {ldapTestInfo.config.baseDN}
-                              </span>
-                            </div>
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapTest.userFilter")}</span>
-                              <span className="font-mono text-xs block bg-muted/40 p-2 rounded border select-all">
-                                {ldapTestInfo.config.filter}
-                              </span>
-                            </div>
-                          </div>
+                          <pre className="bg-muted/40 p-4 rounded-lg text-xs font-mono border whitespace-pre-wrap overflow-x-auto">
+                            {JSON.stringify(ldapTestInfo.config, null, 2)}
+                          </pre>
                         </div>
                       )}
                     </div>
@@ -1123,17 +1123,12 @@ export default function AuditLogsPage() {
                         </div>
                       )}
 
-                      {/* Display Count */}
-                      {!ldapFetchInfo.error && typeof ldapFetchInfo.count === "number" && (
+                      {/* Display JSON metadata */}
+                      {!ldapFetchInfo.error && (
                         <div className="space-y-3">
-                          <div className="grid grid-cols-1 gap-4 text-sm bg-muted/10 p-4 rounded-lg border">
-                            <div className="space-y-1">
-                              <span className="text-xs text-muted-foreground block">{t("auditLogsPage.ldapFetch.fetchedCount")}</span>
-                              <span className="font-semibold text-lg text-emerald-600 dark:text-emerald-400">
-                                {ldapFetchInfo.count}
-                              </span>
-                            </div>
-                          </div>
+                          <pre className="bg-muted/40 p-4 rounded-lg text-xs font-mono border whitespace-pre-wrap overflow-x-auto">
+                            {JSON.stringify(ldapFetchInfo, null, 2)}
+                          </pre>
                         </div>
                       )}
                     </div>
@@ -1142,9 +1137,7 @@ export default function AuditLogsPage() {
               ) : (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground block">{t("auditLogsPage.detailData")}</span>
-                  <pre className="bg-muted p-4 rounded-md text-xs font-mono overflow-x-auto max-h-[50vh] border select-all">
-                    {selectedLog.details}
-                  </pre>
+                  {renderDetailsText(selectedLog.details, t)}
                 </div>
               )}
             </div>

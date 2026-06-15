@@ -3,13 +3,15 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function PATCH(request: Request) {
   const session = await getSession();
+  const { t } = await getServerTranslator();
 
   if (!session) {
     return NextResponse.json(
-      { error: "Not authenticated" },
+      { error: t("errors.notAuthenticated") },
       { status: 401 },
     );
   }
@@ -24,7 +26,7 @@ export async function PATCH(request: Request) {
 
     if (!user) {
       return NextResponse.json(
-        { error: "User not found" },
+        { error: t("errors.userNotFound") },
         { status: 404 },
       );
     }
@@ -34,14 +36,14 @@ export async function PATCH(request: Request) {
     if (type === "profile") {
       if (!isLocal) {
         return NextResponse.json(
-          { error: "Profile is synchronized from Active Directory and cannot be modified here." },
+          { error: t("errors.profileSyncedFromAd") },
           { status: 400 },
         );
       }
 
       if (!displayName || !email) {
         return NextResponse.json(
-          { error: "Display name and email are required." },
+          { error: t("errors.displayNameAndEmailRequired") },
           { status: 400 },
         );
       }
@@ -50,15 +52,10 @@ export async function PATCH(request: Request) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         return NextResponse.json(
-          { error: "Invalid email format." },
+          { error: t("errors.invalidEmailFormat") },
           { status: 400 },
         );
       }
-
-      const before = {
-        displayName: user.displayName,
-        email: user.email,
-      };
 
       const updatedUser = await prisma.user.update({
         where: { id: user.id },
@@ -68,12 +65,14 @@ export async function PATCH(request: Request) {
         },
       });
 
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _1, ...userWithoutPassword } = user;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { passwordHash: _2, ...updatedUserWithoutPassword } = updatedUser;
+
       await logAction("user:update_profile", user.username, {
-        before,
-        after: {
-          displayName: updatedUser.displayName,
-          email: updatedUser.email,
-        },
+        before: userWithoutPassword,
+        after: updatedUserWithoutPassword,
       });
 
       return NextResponse.json({
@@ -87,25 +86,25 @@ export async function PATCH(request: Request) {
 
     if (type === "password") {
       if (!isLocal) {
-        await logAction("user:change_password", "failed", "Attempted to modify AD password.");
+        await logAction("user:change_password", "failed", "errors.passwordSyncedFromAd");
         return NextResponse.json(
-          { error: "Password is authenticated by Active Directory and cannot be modified here." },
+          { error: t("errors.passwordSyncedFromAd") },
           { status: 400 },
         );
       }
 
       if (!currentPassword || !newPassword) {
-        await logAction("user:change_password", "failed", "Current password and new password are required.");
+        await logAction("user:change_password", "failed", "errors.passwordFieldsRequired");
         return NextResponse.json(
-          { error: "Current password and new password are required." },
+          { error: t("errors.passwordFieldsRequired") },
           { status: 400 },
         );
       }
 
       if (newPassword.length < 8) {
-        await logAction("user:change_password", "failed", "New password must be at least 8 characters long.");
+        await logAction("user:change_password", "failed", "errors.passwordTooShort");
         return NextResponse.json(
-          { error: "New password must be at least 8 characters long." },
+          { error: t("errors.passwordTooShort") },
           { status: 400 },
         );
       }
@@ -114,9 +113,9 @@ export async function PATCH(request: Request) {
       if (user.passwordHash) {
         const passwordMatch = await bcrypt.compare(currentPassword, user.passwordHash);
         if (!passwordMatch) {
-          await logAction("user:change_password", "failed", "Incorrect current password.");
+          await logAction("user:change_password", "failed", "errors.incorrectCurrentPassword");
           return NextResponse.json(
-            { error: "Incorrect current password." },
+            { error: t("errors.incorrectCurrentPassword") },
             { status: 400 },
           );
         }
@@ -131,18 +130,19 @@ export async function PATCH(request: Request) {
         },
       });
 
-      await logAction("user:change_password", "success", "Password updated successfully.");
+      await logAction("user:change_password", "success", "auditLogsPage.details.passwordUpdatedSuccessfully");
 
       return NextResponse.json({ success: true });
     }
 
     return NextResponse.json(
-      { error: "Invalid update type." },
+      { error: t("errors.invalidUpdateType") },
       { status: 400 },
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to update profile";
-    console.error("Profile update error:", error);
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToUpdateProfile", { error: rawMessage });
+    console.error(error);
     return NextResponse.json(
       { error: message },
       { status: 500 },

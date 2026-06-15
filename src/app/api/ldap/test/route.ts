@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLdapConfig, createLdapClient } from "@/lib/ldap";
-import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
+import { getServerTranslator } from "@/lib/i18n";
 
 export async function POST(request: NextRequest) {
-  const authResponse = await requirePermission(PERMISSIONS.LDAP_TEST);
-  if (authResponse) return authResponse;
+  const { t } = await getServerTranslator();
 
   let config = {
     url: "",
@@ -58,16 +57,18 @@ export async function POST(request: NextRequest) {
 
     await logAction("ldap:test_connection", "success", {
       success: true,
-      message: "Connection successful",
+      message: "setupPage.successTest",
       config: configDetails,
     });
-    return NextResponse.json({ success: true, message: "Connection successful" });
+    return NextResponse.json({ success: true, message: t("setupPage.successTest") });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Failed to connect to LDAP server";
-    console.error("LDAP Test Connection Error:", error);
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("setupPage.errorLdapTest", { error: rawMessage });
+    console.error(error);
     await logAction("ldap:test_connection", "failed", {
       success: false,
-      error: message,
+      error: "setupPage.errorLdapTest",
+      errorDetails: rawMessage,
       config: configDetails,
     });
     return NextResponse.json(
