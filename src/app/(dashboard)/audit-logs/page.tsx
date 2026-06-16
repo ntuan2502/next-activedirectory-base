@@ -260,11 +260,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                     <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
                   ) : (
                     <div
-                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
-                        isLineChanged
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isLineChanged
                           ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
                           : "text-muted-foreground/85"
-                      }`}
+                        }`}
                     >
                       {lineBefore}
                     </div>
@@ -277,11 +276,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                     <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
                   ) : (
                     <div
-                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
-                        isLineChanged
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isLineChanged
                           ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
                           : "text-muted-foreground/85"
-                      }`}
+                        }`}
                     >
                       {lineAfter}
                     </div>
@@ -343,11 +341,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                   <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
                 ) : (
                   <div
-                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
-                      isChanged
+                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isChanged
                         ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
                         : "text-muted-foreground/85"
-                    }`}
+                      }`}
                   >
                     &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valBefore)}
                   </div>
@@ -360,11 +357,10 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                   <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
                 ) : (
                   <div
-                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${
-                      isChanged
+                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isChanged
                         ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
                         : "text-muted-foreground/85"
-                    }`}
+                      }`}
                   >
                     &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valAfter)}
                   </div>
@@ -930,45 +926,34 @@ export default function AuditLogsPage() {
                                   updatedCount?: number;
                                   count?: number;
                                 };
-                                
+
                                 if (log.action === "ldap:sync_users") {
                                   const created = data.createdCount || 0;
                                   const updated = data.updatedCount || 0;
                                   const noChange = created === 0 && updated === 0;
                                   if (noChange) {
                                     return (
-                                      <span className="font-semibold truncate max-w-[200px] text-muted-foreground">
+                                      <span className="font-semibold truncate max-w-[200px]">
                                         {t("auditLogsPage.syncNoChanges")}
                                       </span>
                                     );
                                   }
                                   const parts = [];
                                   if (created > 0) {
-                                    parts.push({
-                                      text: t("auditLogsPage.syncUserCreated", { count: created }),
-                                      color: "text-emerald-600 dark:text-emerald-400",
-                                    });
+                                    parts.push(t("auditLogsPage.syncUserCreated", { count: created }));
                                   }
                                   if (updated > 0) {
-                                    parts.push({
-                                      text: t("auditLogsPage.syncUserUpdated", { count: updated }),
-                                      color: "text-amber-600 dark:text-amber-400",
-                                    });
+                                    parts.push(t("auditLogsPage.syncUserUpdated", { count: updated }));
                                   }
                                   return (
                                     <span className="font-semibold truncate max-w-[250px]">
-                                      {parts.map((part, i) => (
-                                        <span key={i} className={part.color}>
-                                          {i > 0 && <span className="text-muted-foreground/50">, </span>}
-                                          {part.text}
-                                        </span>
-                                      ))}
+                                      {parts.join(", ")}
                                     </span>
                                   );
                                 } else if (log.action === "ldap:sync_companies") {
                                   const count = data.count || 0;
                                   return (
-                                    <span className="font-semibold truncate max-w-[250px] text-blue-600 dark:text-blue-400">
+                                    <span className="font-semibold truncate max-w-[250px]">
                                       {t("auditLogsPage.syncCompanyCreated", { count })}
                                     </span>
                                   );
@@ -1116,11 +1101,10 @@ export default function AuditLogsPage() {
                   <span className="text-xs text-muted-foreground block font-semibold uppercase tracking-wider">
                     {t("auditLogsPage.notification")}
                   </span>
-                  <div className={`p-3 rounded-lg border text-sm font-medium whitespace-pre-wrap ${
-                    logDetailsParsed.status === "success"
+                  <div className={`p-3 rounded-lg border text-sm font-medium whitespace-pre-wrap ${logDetailsParsed.status === "success"
                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                       : "bg-destructive/10 text-destructive border-destructive/20"
-                  }`}>
+                    }`}>
                     {logDetailsParsed.message}
                   </div>
                 </div>
@@ -1210,11 +1194,10 @@ export default function AuditLogsPage() {
                           </Badge>
                           <Badge
                             variant="outline"
-                            className={`text-[9px] px-1 py-0 h-4 ${
-                              activeBatchItem.type === "company"
+                            className={`text-[9px] px-1 py-0 h-4 ${activeBatchItem.type === "company"
                                 ? "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400"
                                 : "bg-muted text-muted-foreground"
-                            }`}
+                              }`}
                           >
                             {t(`auditLogsPage.badge${activeBatchItem.type === "company" ? "Company" : "User"}`)}
                           </Badge>
