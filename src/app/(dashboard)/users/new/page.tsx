@@ -406,7 +406,6 @@ export default function NewUserPage() {
                             return next;
                           });
                         }}
-                        className="border-muted/70"
                       />
                       <Label htmlFor={`role-${role.id}`} className="text-sm font-semibold cursor-pointer flex items-center gap-1.5 select-none">
                         {role.name}
