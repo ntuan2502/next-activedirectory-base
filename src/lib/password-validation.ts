@@ -64,26 +64,44 @@ export function validatePassword(
     }
   }
 
-  // 3. Password cannot be the same as first name, last name, email, or username
+  // 3. Password cannot contain or be contained in first name, last name, email prefix, or username (allowing letter paddings)
   if (settings.passwordNoUserInfo && userInfo) {
     const lowerPassword = password.toLowerCase();
     const { username, email, firstName, lastName } = userInfo;
 
     let matchesUserInfo = false;
-    if (username && lowerPassword === username.toLowerCase()) {
+
+    const checkMatch = (val: string | undefined): boolean => {
+      if (!val) return false;
+      const lowerVal = val.toLowerCase();
+      
+      // Escape special regex characters in the user info value
+      const escapedVal = lowerVal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      
+      // We block if the password is just the user info padded ONLY by non-letters (digits, spaces, symbols).
+      // If the padding contains letters (e.g. "thuận theo ý trời" where padding is " theo ý trời"), it is ALLOWED.
+      const regex = new RegExp("^[^\\p{L}]*" + escapedVal + "[^\\p{L}]*$", "ui");
+      return regex.test(lowerPassword);
+    };
+
+    if (checkMatch(username)) {
+      matchesUserInfo = true;
+    }
+    if (checkMatch(firstName)) {
+      matchesUserInfo = true;
+    }
+    if (checkMatch(lastName)) {
       matchesUserInfo = true;
     }
     if (email) {
-      const emailPrefix = email.split("@")[0].toLowerCase();
-      if (lowerPassword === email.toLowerCase() || lowerPassword === emailPrefix) {
+      if (checkMatch(email)) {
         matchesUserInfo = true;
+      } else {
+        const emailPrefix = email.split("@")[0];
+        if (checkMatch(emailPrefix)) {
+          matchesUserInfo = true;
+        }
       }
-    }
-    if (firstName && lowerPassword === firstName.toLowerCase()) {
-      matchesUserInfo = true;
-    }
-    if (lastName && lowerPassword === lastName.toLowerCase()) {
-      matchesUserInfo = true;
     }
 
     if (matchesUserInfo) {
