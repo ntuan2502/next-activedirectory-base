@@ -183,7 +183,7 @@ export default function InitialSetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col justify-between py-12 px-4 sm:px-6 lg:px-8 relative">
+    <div className="min-h-screen bg-muted/30 flex flex-col justify-between py-8 px-4 relative">
       {/* Top bar with tools */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
         <div className="w-36">
@@ -276,6 +276,7 @@ export default function InitialSetupPage() {
                       type={showPassword ? "text" : "password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      placeholder={t("setupPage.placeholderPassword")}
                       required
                       className="pr-10 focus-visible:ring-primary"
                     />
@@ -296,6 +297,7 @@ export default function InitialSetupPage() {
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder={t("setupPage.placeholderConfirmPassword")}
                       required
                       className="pr-10 focus-visible:ring-primary"
                     />

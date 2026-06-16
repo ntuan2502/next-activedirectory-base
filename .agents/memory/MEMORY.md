@@ -12,3 +12,5 @@
 - [project] Strictly forbid the use of 'any' type in all circumstances → project-conventions.md
 - [project] Use pnpm prisma migrate dev for schema drift/database updates → project-conventions.md
 - [project] Always record entity ID in target/details of audit logs when changes occur → project-conventions.md
+- [project] Always include a show/hide toggle for password fields → project-conventions.md
+- [project] Hardcoded text is forbidden; always apply i18n everywhere → project-conventions.md

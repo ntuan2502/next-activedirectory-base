@@ -238,7 +238,7 @@ export default function CompaniesPage() {
 
   const handleSave = async () => {
     if (!formCode.trim()) {
-      return toast.error(t("companiesPage.codePlaceholder") || "Mã công ty là bắt buộc.");
+      return toast.error(t("companiesPage.codePlaceholder"));
     }
 
     setIsSaving(true);
@@ -279,26 +279,26 @@ export default function CompaniesPage() {
 
   const handleDelete = async (company: CompanyRecord) => {
     confirmAction({
-      title: t("companiesPage.deleteConfirmTitle") || "Xác nhận xóa công ty?",
+      title: t("companiesPage.deleteConfirmTitle"),
       description: (
         <span>
-          {t("companiesPage.deleteConfirmDesc") || "Hành động này không thể hoàn tác."}
+          {t("companiesPage.deleteConfirmDesc")}
           <br />
           <strong>{company.code} - {company.nameVi || company.nameEn || t("common.none")}</strong>
         </span>
       ),
-      actionText: t("common.delete") || "Xóa",
+      actionText: t("common.delete"),
       variant: "destructive",
       onConfirm: async () => {
         try {
           const res = await fetch(`/api/companies/${company.id}`, { method: "DELETE" });
           if (res.ok) {
             setCompanies((prev) => prev.filter((c) => c.id !== company.id));
-            toast.success(t("companiesPage.successDelete") || "Xóa công ty thành công.");
+            toast.success(t("companiesPage.successDelete"));
             fetchCompanies();
           } else {
             const data = (await res.json()) as ApiErrorResponse;
-            toast.error(data.error || t("companiesPage.failedToDelete") || "Xóa công ty thất bại.");
+            toast.error(data.error || t("companiesPage.failedToDelete"));
           }
         } catch {
           toast.error(t("common.networkError"));
@@ -321,15 +321,15 @@ export default function CompaniesPage() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
             <Building2 className="w-8 h-8 text-primary" />
-            {t("companiesPage.title") || "Quản lý Công ty"}
+            {t("companiesPage.title")}
             {(totalCount > 0 || !isLoading) && (
               <Badge variant="secondary" className={`ml-2 translate-y-[2px] transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
-                {totalCount} {t("common.companies" as string)?.toLowerCase() || "công ty"}
+                {totalCount} {t("common.companies")?.toLowerCase()}
               </Badge>
             )}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {t("companiesPage.subtitle") || "Quản lý danh sách công ty thành viên, mã số thuế và thông tin địa chỉ."}
+            {t("companiesPage.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full sm:w-auto">
@@ -339,7 +339,7 @@ export default function CompaniesPage() {
               className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              {t("companiesPage.addCompany") || "Thêm công ty"}
+              {t("companiesPage.addCompany")}
             </Button>
           )}
           <Button
@@ -361,7 +361,7 @@ export default function CompaniesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={t("companiesPage.searchPlaceholder") || "Tìm kiếm công ty theo mã hoặc tên..."}
+                placeholder={t("companiesPage.searchPlaceholder")}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-9 h-8"
@@ -385,36 +385,36 @@ export default function CompaniesPage() {
                 <TableRow>
                   <TableHead className="w-1/6 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("code")}>
                     <div className="flex items-center">
-                      {t("companiesPage.tableHeaders.code") || "Mã công ty"}
+                      {t("companiesPage.tableHeaders.code")}
                       {sortConfig?.key === "code" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="w-1/4 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("nameVi")}>
                     <div className="flex items-center">
-                      {t("companiesPage.tableHeaders.nameVi") || "Tên tiếng Việt"}
+                      {t("companiesPage.tableHeaders.nameVi")}
                       {sortConfig?.key === "nameVi" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="w-1/4 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("nameEn")}>
                     <div className="flex items-center">
-                      {t("companiesPage.tableHeaders.nameEn") || "Tên tiếng Anh"}
+                      {t("companiesPage.tableHeaders.nameEn")}
                       {sortConfig?.key === "nameEn" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="w-1/6 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("taxCode")}>
                     <div className="flex items-center">
-                      {t("companiesPage.tableHeaders.taxCode") || "Mã số thuế"}
+                      {t("companiesPage.tableHeaders.taxCode")}
                       {sortConfig?.key === "taxCode" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="w-1/4 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("taxAddress")}>
                     <div className="flex items-center">
-                      {t("companiesPage.tableHeaders.taxAddress") || "Địa chỉ thuế"}
+                      {t("companiesPage.tableHeaders.taxAddress")}
                       {sortConfig?.key === "taxAddress" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
                   <TableHead className="w-28 text-center">
-                    {t("companiesPage.tableHeaders.usersCount") || "Số nhân viên"}
+                    {t("companiesPage.tableHeaders.usersCount")}
                   </TableHead>
                   {(hasPermission(PERMISSIONS.COMPANIES_UPDATE) || hasPermission(PERMISSIONS.COMPANIES_DELETE)) && (
                     <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
@@ -447,7 +447,7 @@ export default function CompaniesPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openEditDialog(company)}
-                                  title={t("companiesPage.editCompany") || "Sửa công ty"}
+                                  title={t("companiesPage.editCompany")}
                                   className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -461,7 +461,7 @@ export default function CompaniesPage() {
                                   disabled={hasUsers}
                                   title={
                                     hasUsers
-                                      ? t("companiesPage.failedToDeleteHasUsers") || "Không thể xóa công ty do đang có người dùng thuộc công ty này."
+                                      ? t("companiesPage.failedToDeleteHasUsers")
                                       : t("common.delete")
                                   }
                                   className="text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -490,7 +490,7 @@ export default function CompaniesPage() {
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t mt-2">
               <span className="text-sm text-muted-foreground">
-                {t("companiesPage.showingRecords", { count: companies.length, total: totalCount }) || `Hiển thị ${companies.length} trên tổng số ${totalCount} bản ghi`}
+                {t("companiesPage.showingRecords", { count: companies.length, total: totalCount })}
               </span>
               <Pagination className="w-auto mx-0">
                 <PaginationContent>
@@ -533,68 +533,80 @@ export default function CompaniesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-6 overflow-hidden">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} disablePointerDismissal={true}>
+        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-4 overflow-hidden">
           <DialogHeader className="shrink-0 mb-2">
             <DialogTitle>
               {editingCompany
-                ? (t("companiesPage.editCompany") || "Sửa công ty")
-                : (t("companiesPage.addCompany") || "Thêm công ty")}
+                ? (t("companiesPage.editCompany"))
+                : (t("companiesPage.addCompany"))}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-4 min-h-0">
+          <div className="flex-1 overflow-y-auto py-2 px-1 space-y-4 min-h-0">
             <div className="space-y-2">
-              <Label htmlFor="code">{t("companiesPage.form.code") || "Mã công ty"} <span className="text-destructive">*</span></Label>
+              <Label htmlFor="code">{t("companiesPage.form.code")} <span className="text-destructive">*</span></Label>
               <Input
                 id="code"
-                placeholder={t("companiesPage.codePlaceholder") || "Ví dụ: ACLT"}
+                placeholder={t("companiesPage.codePlaceholder")}
                 value={formCode}
                 onChange={(e) => setFormCode(e.target.value)}
                 disabled={editingCompany !== null} // Mã công ty không cho sửa khi chỉnh sửa để tránh lỗi liên kết khóa
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nameVi">{t("companiesPage.form.nameVi") || "Tên tiếng Việt"}</Label>
+              <Label htmlFor="nameVi">{t("companiesPage.form.nameVi")}</Label>
               <Input
                 id="nameVi"
-                placeholder={t("companiesPage.nameViPlaceholder") || "Nhập tên tiếng Việt đầy đủ..."}
+                placeholder={t("companiesPage.nameViPlaceholder")}
                 value={formNameVi}
                 onChange={(e) => setFormNameVi(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="nameEn">{t("companiesPage.form.nameEn") || "Tên tiếng Anh"}</Label>
+              <Label htmlFor="nameEn">{t("companiesPage.form.nameEn")}</Label>
               <Input
                 id="nameEn"
-                placeholder={t("companiesPage.nameEnPlaceholder") || "Nhập tên tiếng Anh đầy đủ..."}
+                placeholder={t("companiesPage.nameEnPlaceholder")}
                 value={formNameEn}
                 onChange={(e) => setFormNameEn(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="taxCode">{t("companiesPage.form.taxCode") || "Mã số thuế"}</Label>
+              <Label htmlFor="taxCode">{t("companiesPage.form.taxCode")}</Label>
               <Input
                 id="taxCode"
-                placeholder={t("companiesPage.taxCodePlaceholder") || "Ví dụ: 3603295006"}
+                placeholder={t("companiesPage.taxCodePlaceholder")}
                 value={formTaxCode}
                 onChange={(e) => setFormTaxCode(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="taxAddress">{t("companiesPage.form.taxAddress") || "Địa chỉ thuế"}</Label>
+              <Label htmlFor="taxAddress">{t("companiesPage.form.taxAddress")}</Label>
               <Input
                 id="taxAddress"
-                placeholder={t("companiesPage.taxAddressPlaceholder") || "Nhập địa chỉ đăng ký thuế..."}
+                placeholder={t("companiesPage.taxAddressPlaceholder")}
                 value={formTaxAddress}
                 onChange={(e) => setFormTaxAddress(e.target.value)}
               />
             </div>
           </div>
           <DialogFooter className="shrink-0 mt-4 border-t pt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isSaving}
+              className="h-10 px-5 font-semibold text-sm cursor-pointer border-muted/70"
+            >
               {t("common.cancel")}
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
+            >
+              {isSaving ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
               {isSaving ? t("common.loading") : t("common.save")}
             </Button>
           </DialogFooter>

@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         select: {
           id: true,
+          dn: true,
           username: true,
           displayName: true,
           firstName: true,
@@ -121,6 +122,142 @@ export async function GET(request: NextRequest) {
       { error: message },
       { status: 500 },
     );
+  }
+}
+
+import bcrypt from "bcryptjs";
+import { logAction } from "@/lib/audit";
+import { validatePassword } from "@/lib/password-validation";
+
+export async function POST(request: NextRequest) {
+  const authResponse = await requirePermission(PERMISSIONS.USERS_CREATE);
+  if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
+
+  try {
+    const body = await request.json();
+    const {
+      username,
+      displayName,
+      firstName,
+      lastName,
+      email,
+      phone,
+      title,
+      department,
+      companyId,
+      password,
+      roleIds,
+    } = body;
+
+    // Validation
+    if (!username || !displayName || !email || !password) {
+      return NextResponse.json({ error: t("errors.missingRequiredFields") }, { status: 400 });
+    }
+
+    const lowercaseUsername = username.toLowerCase();
+
+    // Check unique username
+    const existingUser = await prisma.user.findUnique({
+      where: { username: lowercaseUsername },
+    });
+
+    if (existingUser) {
+      return NextResponse.json({ error: t("errors.userAlreadyExists") }, { status: 400 });
+    }
+
+    // Password validation based on security settings
+    const settings = await prisma.systemSetting.findFirst();
+    if (settings) {
+      const validationErrors = validatePassword(
+        password,
+        {
+          passwordMinLength: settings.passwordMinLength,
+          passwordPreventCommon: settings.passwordPreventCommon,
+          passwordNoUserInfo: settings.passwordNoUserInfo,
+          passwordRequireLetter: settings.passwordRequireLetter,
+          passwordRequireNumber: settings.passwordRequireNumber,
+          passwordRequireSymbol: settings.passwordRequireSymbol,
+          passwordRequireMixedCase: settings.passwordRequireMixedCase,
+        },
+        {
+          username: lowercaseUsername,
+          email,
+          firstName,
+          lastName,
+        }
+      );
+
+      if (validationErrors.length > 0) {
+        return NextResponse.json(
+          {
+            error: t(validationErrors[0].key, validationErrors[0].variables),
+            validationErrors: validationErrors.map((err) => ({
+              message: t(err.key, err.variables) || err.key,
+              key: err.key,
+            })),
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Save to Database
+    const newUser = await prisma.user.create({
+      data: {
+        username: lowercaseUsername,
+        displayName,
+        firstName: firstName || "",
+        lastName: lastName || "",
+        email,
+        phone: phone || "",
+        title: title || "",
+        department: department || "",
+        companyId: companyId || null,
+        passwordHash,
+        dn: "", // Local user
+        disabled: false,
+        roles: roleIds && Array.isArray(roleIds) ? {
+          connect: roleIds.map((id: string) => ({ id })),
+        } : undefined,
+      },
+      include: {
+        companyObj: true,
+        roles: true,
+      },
+    });
+
+    // Write audit log
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _, ...userWithoutPassword } = newUser;
+    await logAction("user:create", lowercaseUsername, {
+      status: "success",
+      message: "auditLogsPage.messages.createUserSuccess",
+      data: {
+        before: null,
+        after: {
+          ...userWithoutPassword,
+          company: newUser.companyObj?.code || "",
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...userWithoutPassword,
+        company: newUser.companyObj?.code || "",
+      },
+    });
+  } catch (error: unknown) {
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    const message = t("errors.failedToCreateUser", { error: rawMessage });
+    console.error(error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

@@ -100,19 +100,26 @@ model Session {
 }
 
 model SystemSetting {
-  id               String    @id @default("default")
-  ldapUrl          String?
-  ldapPort         Int?
-  ldapBindDn       String?
-  ldapBindPassword String?
-  ldapBaseDn       String?
-  ldapFilter       String?
-  syncEnabled      Boolean   @default(false)
-  syncInterval     Int       @default(1440) // Số phút giữa mỗi lần đồng bộ, mặc định 1440 phút (24h)
-  lastSyncAt       DateTime?
-  lastSyncStatus   String?   @default("none")
-  lastSyncMessage  String?   @default("")
-  updatedAt        DateTime  @updatedAt
+  id                         String    @id @default("default")
+  ldapUrl                    String?
+  ldapPort                   Int?
+  ldapBindDn                 String?
+  ldapBindPassword           String?
+  ldapBaseDn                 String?
+  ldapFilter                 String?
+  syncEnabled                Boolean   @default(false)
+  syncInterval               Int       @default(1440) // Số phút giữa mỗi lần đồng bộ, mặc định 1440 phút (24h)
+  lastSyncAt                 DateTime?
+  lastSyncStatus             String?   @default("none")
+  lastSyncMessage            String?   @default("")
+  passwordMinLength          Int       @default(8) @map("password_min_length")
+  passwordPreventCommon      Boolean   @default(false) @map("password_prevent_common")
+  passwordNoUserInfo         Boolean   @default(false) @map("password_no_user_info")
+  passwordRequireLetter      Boolean   @default(false) @map("password_require_letter")
+  passwordRequireNumber      Boolean   @default(false) @map("password_require_number")
+  passwordRequireSymbol      Boolean   @default(false) @map("password_require_symbol")
+  passwordRequireMixedCase   Boolean   @default(false) @map("password_require_mixed_case")
+  updatedAt                  DateTime  @updatedAt
 
   @@map("system_settings")
 }

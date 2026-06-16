@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/lib/audit";
 import { checkAndRunSync } from "@/lib/scheduler";
@@ -31,6 +32,13 @@ export async function GET() {
           lastSyncAt: null,
           lastSyncStatus: "none",
           lastSyncMessage: "",
+          passwordMinLength: 8,
+          passwordPreventCommon: false,
+          passwordNoUserInfo: false,
+          passwordRequireLetter: false,
+          passwordRequireNumber: false,
+          passwordRequireSymbol: false,
+          passwordRequireMixedCase: false,
         },
       });
     }
@@ -49,6 +57,13 @@ export async function GET() {
         lastSyncAt: settings.lastSyncAt,
         lastSyncStatus: settings.lastSyncStatus,
         lastSyncMessage: settings.lastSyncMessage,
+        passwordMinLength: settings.passwordMinLength,
+        passwordPreventCommon: settings.passwordPreventCommon,
+        passwordNoUserInfo: settings.passwordNoUserInfo,
+        passwordRequireLetter: settings.passwordRequireLetter,
+        passwordRequireNumber: settings.passwordRequireNumber,
+        passwordRequireSymbol: settings.passwordRequireSymbol,
+        passwordRequireMixedCase: settings.passwordRequireMixedCase,
       },
     });
   } catch (error: unknown) {
@@ -69,6 +84,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
+      updateType,
       ldapUrl,
       ldapPort,
       ldapBindDn,
@@ -77,34 +93,54 @@ export async function POST(request: NextRequest) {
       ldapFilter,
       syncEnabled,
       syncInterval,
+      passwordMinLength,
+      passwordPreventCommon,
+      passwordNoUserInfo,
+      passwordRequireLetter,
+      passwordRequireNumber,
+      passwordRequireSymbol,
+      passwordRequireMixedCase,
     } = body;
 
-    // Validate inputs
-    if (!ldapUrl || !ldapBindDn || !ldapBaseDn) {
-      return NextResponse.json({ error: t("errors.missingRequiredLdapSettingsFields") }, { status: 400 });
-    }
-
-    const portNumber = ldapPort ? parseInt(ldapPort, 10) : null;
-    const intervalNumber = Math.max(1, parseInt(syncInterval || "1440", 10));
-
-    // Retrieve existing record
     const existing = await prisma.systemSetting.findFirst();
 
-    let passwordToSave = ldapBindPassword;
-    if (!passwordToSave) {
-      passwordToSave = existing ? (existing.ldapBindPassword || "") : (process.env.LDAP_PASSWORD || "");
-    }
+    let dataPayload: Prisma.SystemSettingCreateInput = {};
 
-    const dataPayload = {
-      ldapUrl,
-      ldapPort: portNumber,
-      ldapBindDn,
-      ldapBindPassword: passwordToSave,
-      ldapBaseDn,
-      ldapFilter: ldapFilter || null,
-      syncEnabled: !!syncEnabled,
-      syncInterval: intervalNumber,
-    };
+    if (updateType === "security") {
+      dataPayload = {
+        passwordMinLength: passwordMinLength ? Math.max(8, parseInt(passwordMinLength, 10)) : 8,
+        passwordPreventCommon: !!passwordPreventCommon,
+        passwordNoUserInfo: !!passwordNoUserInfo,
+        passwordRequireLetter: !!passwordRequireLetter,
+        passwordRequireNumber: !!passwordRequireNumber,
+        passwordRequireSymbol: !!passwordRequireSymbol,
+        passwordRequireMixedCase: !!passwordRequireMixedCase,
+      };
+    } else {
+      // Validate inputs for LDAP sync settings
+      if (!ldapUrl || !ldapBindDn || !ldapBaseDn) {
+        return NextResponse.json({ error: t("errors.missingRequiredLdapSettingsFields") }, { status: 400 });
+      }
+
+      const portNumber = ldapPort ? parseInt(ldapPort, 10) : null;
+      const intervalNumber = Math.max(1, parseInt(syncInterval || "1440", 10));
+
+      let passwordToSave = ldapBindPassword;
+      if (!passwordToSave) {
+        passwordToSave = existing ? (existing.ldapBindPassword || "") : (process.env.LDAP_PASSWORD || "");
+      }
+
+      dataPayload = {
+        ldapUrl,
+        ldapPort: portNumber,
+        ldapBindDn,
+        ldapBindPassword: passwordToSave,
+        ldapBaseDn,
+        ldapFilter: ldapFilter || null,
+        syncEnabled: !!syncEnabled,
+        syncInterval: intervalNumber,
+      };
+    }
 
     let updatedSettings;
     if (existing) {
@@ -164,6 +200,13 @@ export async function POST(request: NextRequest) {
         lastSyncAt: updatedSettings.lastSyncAt,
         lastSyncStatus: updatedSettings.lastSyncStatus,
         lastSyncMessage: updatedSettings.lastSyncMessage,
+        passwordMinLength: updatedSettings.passwordMinLength,
+        passwordPreventCommon: updatedSettings.passwordPreventCommon,
+        passwordNoUserInfo: updatedSettings.passwordNoUserInfo,
+        passwordRequireLetter: updatedSettings.passwordRequireLetter,
+        passwordRequireNumber: updatedSettings.passwordRequireNumber,
+        passwordRequireSymbol: updatedSettings.passwordRequireSymbol,
+        passwordRequireMixedCase: updatedSettings.passwordRequireMixedCase,
       },
     });
   } catch (error: unknown) {

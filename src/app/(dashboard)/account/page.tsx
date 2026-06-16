@@ -185,7 +185,7 @@ export default function AccountPage() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profileDisplayName.trim() || !profileEmail.trim()) {
-      toast.error(t("setupPage.errorRequiredFields") || "Please fill in all required fields.");
+      toast.error(t("setupPage.errorRequiredFields"));
       return;
     }
 
@@ -203,13 +203,13 @@ export default function AccountPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(t("accountPage.profileUpdated") || "Profile updated successfully.");
+        toast.success(t("accountPage.profileUpdated"));
         await refreshSession();
       } else {
-        toast.error(data.error || t("common.failedToSave") || "Failed to save.");
+        toast.error(data.error || t("common.failedToSave"));
       }
     } catch {
-      toast.error(t("common.networkError") || "Network error.");
+      toast.error(t("common.networkError"));
     } finally {
       setIsProfileSaving(false);
     }
@@ -218,17 +218,17 @@ export default function AccountPage() {
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword || !newPassword || !confirmNewPassword) {
-      toast.error(t("setupPage.errorRequiredFields") || "Please fill in all required fields.");
+      toast.error(t("setupPage.errorRequiredFields"));
       return;
     }
 
     if (newPassword !== confirmNewPassword) {
-      toast.error(t("setupPage.errorPasswordMismatch") || "Passwords do not match.");
+      toast.error(t("setupPage.errorPasswordMismatch"));
       return;
     }
 
     if (newPassword.length < 8) {
-      toast.error(t("accountPage.passwordMinLength") || "New password must be at least 8 characters long.");
+      toast.error(t("accountPage.passwordMinLength"));
       return;
     }
 
@@ -246,15 +246,15 @@ export default function AccountPage() {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        toast.success(t("accountPage.passwordUpdated") || "Password updated successfully.");
+        toast.success(t("accountPage.passwordUpdated"));
         setCurrentPassword("");
         setNewPassword("");
         setConfirmNewPassword("");
       } else {
-        toast.error(data.error || t("common.failedToSave") || "Failed to save.");
+        toast.error(data.error || t("common.failedToSave"));
       }
     } catch {
-      toast.error(t("common.networkError") || "Network error.");
+      toast.error(t("common.networkError"));
     } finally {
       setIsPasswordSaving(false);
     }
@@ -294,9 +294,9 @@ export default function AccountPage() {
 
   const handleRevokeSession = async (id: string) => {
     confirmAction({
-      title: t("common.confirm") || "Confirm",
-      description: t("accountPage.revokeSessionConfirm") || "Are you sure you want to sign out this active session?",
-      actionText: t("common.confirm") || "Confirm",
+      title: t("common.confirm"),
+      description: t("accountPage.revokeSessionConfirm"),
+      actionText: t("common.confirm"),
       variant: "destructive",
       onConfirm: async () => {
         try {
@@ -306,14 +306,14 @@ export default function AccountPage() {
             if (data.loggedOutCurrent) {
               logout();
             } else {
-              toast.success(t("accountPage.signOutOtherSuccessText") || "Session successfully signed out.");
+              toast.success(t("accountPage.signOutOtherSuccessText"));
               fetchSessions();
             }
           } else {
-            toast.error(t("common.failedToDelete") || "Failed to delete.");
+            toast.error(t("common.failedToDelete"));
           }
         } catch {
-          toast.error(t("common.networkError") || "Network error.");
+          toast.error(t("common.networkError"));
         }
       }
     });
@@ -321,21 +321,21 @@ export default function AccountPage() {
 
   const handleRevokeOtherSessions = async () => {
     confirmAction({
-      title: t("accountPage.signOutOtherSessions") || "Sign out other sessions",
-      description: t("accountPage.signOutOtherSessionsDesc") || "Revoke all other active sessions except this one?",
-      actionText: t("accountPage.signOutOtherSessionsButton") || "Sign out other devices",
+      title: t("accountPage.signOutOtherSessions"),
+      description: t("accountPage.signOutOtherSessionsDesc"),
+      actionText: t("accountPage.signOutOtherSessionsButton"),
       variant: "destructive",
       onConfirm: async () => {
         try {
           const res = await fetch("/api/auth/sessions?action=other", { method: "DELETE" });
           if (res.ok) {
-            toast.success(t("accountPage.signOutOtherSuccessText") || "Other sessions terminated.");
+            toast.success(t("accountPage.signOutOtherSuccessText"));
             fetchSessions();
           } else {
-            toast.error(t("common.failedToDelete") || "Failed to delete.");
+            toast.error(t("common.failedToDelete"));
           }
         } catch {
-          toast.error(t("common.networkError") || "Network error.");
+          toast.error(t("common.networkError"));
         }
       }
     });
@@ -343,9 +343,9 @@ export default function AccountPage() {
 
   const handleRevokeAllSessions = async () => {
     confirmAction({
-      title: t("accountPage.signOutAllSessions") || "Sign out all sessions",
-      description: t("accountPage.signOutAllSessionsDesc") || "Sign out all devices including this current device?",
-      actionText: t("accountPage.signOutAllSessionsButton") || "Sign out all devices",
+      title: t("accountPage.signOutAllSessions"),
+      description: t("accountPage.signOutAllSessionsDesc"),
+      actionText: t("accountPage.signOutAllSessionsButton"),
       variant: "destructive",
       onConfirm: async () => {
         try {
@@ -353,10 +353,10 @@ export default function AccountPage() {
           if (res.ok) {
             logout();
           } else {
-            toast.error(t("common.failedToDelete") || "Failed to delete.");
+            toast.error(t("common.failedToDelete"));
           }
         } catch {
-          toast.error(t("common.networkError") || "Network error.");
+          toast.error(t("common.networkError"));
         }
       }
     });
@@ -438,7 +438,7 @@ export default function AccountPage() {
                     {isLocal ? (
                       <Badge variant="secondary" className="flex items-center gap-1 bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 text-[10px] font-bold uppercase tracking-wider py-0.5 rounded-md">
                         <User className="h-3 w-3" />
-                        {t("accountPage.localAccount") || "Local Account"}
+                        {t("accountPage.localAccount")}
                       </Badge>
                     ) : (
                       <Badge variant="secondary" className="flex items-center gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider py-0.5 rounded-md">
@@ -471,7 +471,7 @@ export default function AccountPage() {
                         type="text"
                         value={user?.username || ""}
                         disabled
-                        className="pl-10 bg-muted/40 font-mono text-muted-foreground border-border cursor-not-allowed select-none"
+                        className="pl-10 bg-muted/40 font-mono text-muted-foreground cursor-not-allowed select-none"
                       />
                     </div>
                   </div>
@@ -492,7 +492,7 @@ export default function AccountPage() {
                         value={isLocal ? profileDisplayName : (user?.displayName || "")}
                         onChange={(e) => isLocal && setProfileDisplayName(e.target.value)}
                         disabled={!isLocal}
-                        className={isLocal ? "pl-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        className={isLocal ? "pl-10" : "pl-10 bg-muted/40 text-muted-foreground cursor-not-allowed select-none"}
                         required
                       />
                     </div>
@@ -514,7 +514,7 @@ export default function AccountPage() {
                         value={isLocal ? profileEmail : (user?.email || "")}
                         onChange={(e) => isLocal && setProfileEmail(e.target.value)}
                         disabled={!isLocal}
-                        className={isLocal ? "pl-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        className={isLocal ? "pl-10" : "pl-10 bg-muted/40 text-muted-foreground cursor-not-allowed select-none"}
                         required
                       />
                     </div>
@@ -525,7 +525,7 @@ export default function AccountPage() {
                   <div className="flex justify-end pt-2">
                     <Button type="submit" disabled={isProfileSaving || !isProfileChanged} className="font-semibold h-9 px-5">
                       {isProfileSaving && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-                      {t("accountPage.btnSave") || "Lưu thay đổi"}
+                      {t("accountPage.btnSave")}
                     </Button>
                   </div>
                 ) : (
@@ -570,8 +570,9 @@ export default function AccountPage() {
                         type={showCurrentPassword && isLocal ? "text" : "password"}
                         value={isLocal ? currentPassword : "••••••••••••"}
                         onChange={(e) => isLocal && setCurrentPassword(e.target.value)}
+                        placeholder={isLocal ? t("accountPage.placeholderCurrentPassword") : "••••••••••••"}
                         disabled={!isLocal}
-                        className={isLocal ? "pl-10 pr-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        className={isLocal ? "pl-10 pr-10" : "pl-10 bg-muted/40 text-muted-foreground cursor-not-allowed select-none"}
                         required={isLocal}
                       />
                       {isLocal && (
@@ -597,8 +598,9 @@ export default function AccountPage() {
                         type={showNewPassword && isLocal ? "text" : "password"}
                         value={isLocal ? newPassword : "••••••••••••"}
                         onChange={(e) => isLocal && setNewPassword(e.target.value)}
+                        placeholder={isLocal ? t("accountPage.placeholderNewPassword") : "••••••••••••"}
                         disabled={!isLocal}
-                        className={isLocal ? "pl-10 pr-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        className={isLocal ? "pl-10 pr-10" : "pl-10 bg-muted/40 text-muted-foreground cursor-not-allowed select-none"}
                         required={isLocal}
                       />
                       {isLocal && (
@@ -624,8 +626,9 @@ export default function AccountPage() {
                         type={showConfirmPassword && isLocal ? "text" : "password"}
                         value={isLocal ? confirmNewPassword : "••••••••••••"}
                         onChange={(e) => isLocal && setConfirmNewPassword(e.target.value)}
+                        placeholder={isLocal ? t("accountPage.placeholderConfirmNewPassword") : "••••••••••••"}
                         disabled={!isLocal}
-                        className={isLocal ? "pl-10 pr-10 focus-visible:ring-primary" : "pl-10 bg-muted/40 text-muted-foreground border-border cursor-not-allowed select-none"}
+                        className={isLocal ? "pl-10 pr-10" : "pl-10 bg-muted/40 text-muted-foreground cursor-not-allowed select-none"}
                         required={isLocal}
                       />
                       {isLocal && (
@@ -645,7 +648,7 @@ export default function AccountPage() {
                   <div className="flex justify-end pt-2">
                     <Button type="submit" disabled={isPasswordSaving || !isPasswordFilled} className="font-semibold h-9 px-5">
                       {isPasswordSaving && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
-                      {t("accountPage.updatePassword") || "Cập nhật mật khẩu"}
+                      {t("accountPage.updatePassword")}
                     </Button>
                   </div>
                 ) : (
@@ -1014,7 +1017,7 @@ export default function AccountPage() {
                                 )}
                               </div>
                               <span className="text-xs text-muted-foreground truncate mt-0.5">
-                                {session.ipAddress || "Unknown IP"} • {formatDateTime(session.lastActiveAt)}
+                                {session.ipAddress || t("accountPage.unknownIp")} • {formatDateTime(session.lastActiveAt)}
                               </span>
                               <span
                                 className="text-[10px] text-muted-foreground/60 font-mono truncate max-w-[240px] sm:max-w-[320px] mt-1 select-all cursor-help"

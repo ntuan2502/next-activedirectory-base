@@ -323,15 +323,15 @@ export default function RolesPage() {
     if (role.isSystem) return;
 
     confirmAction({
-      title: t("rolesPage.deleteConfirmTitle") || "Bạn có chắc chắn muốn xóa?",
+      title: t("rolesPage.deleteConfirmTitle"),
       description: (
         <span>
-          {t("rolesPage.deleteConfirmDesc") || "Hành động này không thể hoàn tác."}
+          {t("rolesPage.deleteConfirmDesc")}
           <br />
           <strong>{role.name}</strong>
         </span>
       ),
-      actionText: t("common.delete") || "Xóa",
+      actionText: t("common.delete"),
       variant: "destructive",
       onConfirm: async () => {
         try {
@@ -603,12 +603,12 @@ export default function RolesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-7xl max-h-[85vh] flex flex-col p-6 overflow-hidden">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} disablePointerDismissal={true}>
+        <DialogContent className="sm:max-w-7xl max-h-[85vh] flex flex-col p-4 overflow-hidden">
           <DialogHeader className="shrink-0 mb-2">
             <DialogTitle>{editingRole ? (isReadOnly ? t("rolesPage.viewRole") : t("rolesPage.editRole")) : t("rolesPage.createRole")}</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-2 pr-1 space-y-6 min-h-0">
+          <div className="flex-1 overflow-y-auto py-2 px-1 space-y-6 min-h-0">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">{t("rolesPage.roleName")} <span className="text-destructive">*</span></Label>
@@ -706,12 +706,24 @@ export default function RolesPage() {
             </div>
           </div>
           <DialogFooter className="shrink-0 mt-4 border-t pt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSaving}>
+            <Button
+              variant="outline"
+              onClick={() => setIsDialogOpen(false)}
+              disabled={isSaving}
+              className="h-10 px-5 font-semibold text-sm cursor-pointer border-muted/70"
+            >
               {isReadOnly ? t("common.close") : t("common.cancel")}
             </Button>
             {!isReadOnly && (
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? t("rolesPage.saving") : t("rolesPage.saveChanges")}
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
+              >
+                {isSaving ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                {isSaving ? t("rolesPage.saving") : t("common.save")}
               </Button>
             )}
           </DialogFooter>

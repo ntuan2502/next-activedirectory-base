@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { Users as UsersIcon, Search, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Shield } from "lucide-react";
+import { Users as UsersIcon, Search, RefreshCw, Trash2, Lock, Unlock, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, Pencil, Key, Plus, Eye, EyeOff } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/components/auth-provider";
 import { useLanguage } from "@/components/language-provider";
+import { useRouter } from "next/navigation";
 import { LoadingOverlay, LoadingSpinner } from "@/components/loading-overlay";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
@@ -42,6 +43,7 @@ import {
 
 type UserRecord = {
   id: string;
+  dn: string;
   username: string;
   displayName: string;
   firstName: string;
@@ -55,11 +57,6 @@ type UserRecord = {
   roles: { id: string; name: string; isSystem: boolean }[];
 };
 
-type RoleRecord = {
-  id: string;
-  name: string;
-  isSystem: boolean;
-};
 
 type ApiErrorResponse = {
   error: string;
@@ -84,6 +81,7 @@ type SyncSuccessResponse = {
 export default function UsersPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const router = useRouter();
 
   const hasPermission = useCallback((perm: string) => {
     if (!user?.permissions) return false;
@@ -97,12 +95,15 @@ export default function UsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [isBulkLoading, setIsBulkLoading] = useState(false);
-
-  const [availableRoles, setAvailableRoles] = useState<RoleRecord[]>([]);
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
-  const [roleDialogUser, setRoleDialogUser] = useState<UserRecord | null>(null);
-  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
-  const [isSavingRoles, setIsSavingRoles] = useState(false);
+  
+  // Reset Password states
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [selectedUserForResetPassword, setSelectedUserForResetPassword] = useState<UserRecord | null>(null);
+  const [resetPasswordVal, setResetPasswordVal] = useState("");
+  const [resetConfirmPasswordVal, setResetConfirmPasswordVal] = useState("");
+  const [isSavingResetPassword, setIsSavingResetPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
@@ -332,26 +333,8 @@ export default function UsersPage() {
     return filteredPreviewUsers.filter((u: LdapUserPreview) => isSyncableUser(u)).length;
   }, [filteredPreviewUsers, isSyncableUser]);
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const res = await fetch("/api/roles");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setAvailableRoles(data.data);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
-  useEffect(() => {
-    if (!isReady) return;
-    Promise.resolve().then(() => {
-      fetchRoles();
-    });
-  }, [fetchRoles, isReady]);
+
 
   useEffect(() => {
     if (!isReady) return;
@@ -362,15 +345,15 @@ export default function UsersPage() {
 
   const handleDelete = async (user: UserRecord) => {
     confirmAction({
-      title: t("rolesPage.deleteConfirmTitle") || "Bạn có chắc chắn muốn xóa?",
+      title: t("rolesPage.deleteConfirmTitle"),
       description: (
         <span>
-          {t("rolesPage.deleteConfirmDesc") || "Hành động này không thể hoàn tác."}
+          {t("rolesPage.deleteConfirmDesc")}
           <br />
           <strong>{user.displayName || user.username}</strong>
         </span>
       ),
-      actionText: t("common.delete") || "Xóa",
+      actionText: t("common.delete"),
       variant: "destructive",
       onConfirm: async () => {
         try {
@@ -397,13 +380,13 @@ export default function UsersPage() {
   const handleToggleStatus = async (user: UserRecord) => {
     const actionDesc = user.disabled ? t("usersPage.enableSelected") : t("usersPage.disableSelected");
     confirmAction({
-      title: t("common.confirm") || "Xác nhận",
+      title: t("common.confirm"),
       description: (
         <span>
           {actionDesc} <strong>{user.displayName || user.username}</strong>?
         </span>
       ),
-      actionText: t("common.confirm") || "Xác nhận",
+      actionText: t("common.confirm"),
       variant: user.disabled ? "default" : "destructive",
       onConfirm: async () => {
         try {
@@ -436,13 +419,13 @@ export default function UsersPage() {
         : t("usersPage.enableSelected");
 
     confirmAction({
-      title: t("common.confirm") || "Xác nhận",
+      title: t("common.confirm"),
       description: (
         <span>
           {actionDesc} <strong>{selectedUserIds.size}</strong> users?
         </span>
       ),
-      actionText: t("common.confirm") || "Xác nhận",
+      actionText: t("common.confirm"),
       variant: action === "delete" || action === "disable" ? "destructive" : "default",
       onConfirm: async () => {
         setIsBulkLoading(true);
@@ -495,36 +478,44 @@ export default function UsersPage() {
     setSelectedUserIds(newSet);
   };
 
-  const openRoleDialog = (user: UserRecord) => {
-    setRoleDialogUser(user);
-    setSelectedRoleIds(new Set(user.roles?.map(r => r.id) || []));
-    setIsRoleDialogOpen(true);
+  const openResetPasswordDialog = (user: UserRecord) => {
+    setSelectedUserForResetPassword(user);
+    setResetPasswordVal("");
+    setResetConfirmPasswordVal("");
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
+    setIsResetPasswordDialogOpen(true);
   };
 
-  const handleSaveRoles = async () => {
-    if (!roleDialogUser) return;
-    setIsSavingRoles(true);
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordVal) {
+      toast.error(t("usersPage.passwordRequired"));
+      return;
+    }
+    if (resetPasswordVal !== resetConfirmPasswordVal) {
+      toast.error(t("setupPage.errorPasswordMismatch"));
+      return;
+    }
+
+    setIsSavingResetPassword(true);
     try {
-      const res = await fetch(`/api/users/${roleDialogUser.id}/roles`, {
-        method: "PUT",
+      const res = await fetch(`/api/users/${selectedUserForResetPassword?.id}/reset-password`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roleIds: Array.from(selectedRoleIds) })
+        body: JSON.stringify({ password: resetPasswordVal })
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setUsers(prev => prev.map(u => u.id === data.data.id ? data.data : u));
-          setIsRoleDialogOpen(false);
-          toast.success(t("usersPage.successUpdateRoles"));
-        }
+        toast.success(t("usersPage.successResetPassword"));
+        setIsResetPasswordDialogOpen(false);
       } else {
-        const errorData = await res.json();
-        toast.error(errorData.error || t("usersPage.failedToUpdateRoles"));
+        toast.error(data.error || t("usersPage.failedToResetPassword"));
       }
     } catch {
       toast.error(t("common.networkError"));
     } finally {
-      setIsSavingRoles(false);
+      setIsSavingResetPassword(false);
     }
   };
 
@@ -553,17 +544,26 @@ export default function UsersPage() {
           {hasPermission(PERMISSIONS.LDAP_SYNC) && (
             <Button
               onClick={() => handleOpenSyncDialog(true)}
-              className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2"
+              className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-blue-600 hover:bg-blue-700 text-white shadow-sm cursor-pointer flex items-center justify-center gap-2 border-0 rounded-sm"
             >
               <UsersIcon className="w-4 h-4" />
               {t("usersPage.syncData")}
+            </Button>
+          )}
+          {hasPermission(PERMISSIONS.USERS_CREATE) && (
+            <Button
+              onClick={() => router.push("/users/new")}
+              className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2 rounded-sm"
+            >
+              <Plus className="w-4 h-4" />
+              {t("usersPage.addUser")}
             </Button>
           )}
           <Button
             variant="outline"
             onClick={fetchUsers}
             disabled={isLoading || isBulkLoading}
-            className="w-full sm:w-auto h-10 px-4 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
+            className="w-full sm:w-auto h-10 px-4 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2 rounded-sm"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
             {t("common.refresh")}
@@ -733,18 +733,28 @@ export default function UsersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => openRoleDialog(user)}
-                                  title={t("usersPage.updateRoles")}
-                                  className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
+                                  onClick={() => router.push(`/users/${user.id}/edit`)}
+                                  title={t("common.edit")}
+                                  className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 cursor-pointer"
                                 >
-                                  <Shield className="h-4 w-4" />
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openResetPasswordDialog(user)}
+                                  title={user.dn ? t("usersPage.cannotResetPasswordLdapUser") : t("usersPage.resetPassword")}
+                                  disabled={!!user.dn}
+                                  className="text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                                >
+                                  <Key className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleToggleStatus(user)}
                                   title={user.disabled ? t("usersPage.enableSelected") : t("usersPage.disableSelected")}
-                                  className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10"}
+                                  className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 cursor-pointer" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 cursor-pointer"}
                                 >
                                   {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                                 </Button>
@@ -824,43 +834,91 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
-        <DialogContent>
+      {/* Dialog Reset Password */}
+      <Dialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen} disablePointerDismissal={true}>
+        <DialogContent className="max-w-md w-full">
           <DialogHeader>
-            <DialogTitle>{t("usersPage.rolesTitle")} - {roleDialogUser?.displayName || roleDialogUser?.username}</DialogTitle>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Key className="w-5 h-5 text-amber-500" />
+              {t("usersPage.resetPassword")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("usersPage.resetPasswordForLocal", { username: selectedUserForResetPassword?.username || "" })}
+            </DialogDescription>
           </DialogHeader>
-          <div className="py-4 max-h-[60vh] overflow-y-auto space-y-2">
-            {availableRoles.map(role => (
-              <div key={role.id} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`role-${role.id}`}
-                  checked={selectedRoleIds.has(role.id)}
-                  onCheckedChange={(checked) => {
-                    const next = new Set(selectedRoleIds);
-                    if (checked) next.add(role.id);
-                    else next.delete(role.id);
-                    setSelectedRoleIds(next);
-                  }}
+
+          <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t("usersPage.newPassword")} <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <Input
+                  type={showResetPassword ? "text" : "password"}
+                  value={resetPasswordVal}
+                  onChange={(e) => setResetPasswordVal(e.target.value)}
+                  placeholder={t("usersPage.placeholderEnterPassword")}
+                  className="h-9 pr-10"
+                  required
                 />
-                <label htmlFor={`role-${role.id}`} className="text-sm font-medium leading-none cursor-pointer">
-                  {role.name} {role.isSystem && <Badge variant="outline" className="ml-2 text-xs py-0 h-4">{t("common.system")}</Badge>}
-                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground focus:outline-none cursor-pointer"
+                >
+                  {showResetPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
-            ))}
-            {availableRoles.length === 0 && (
-              <p className="text-muted-foreground text-sm">{t("rolesPage.noRolesAvailable")}</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRoleDialogOpen(false)} disabled={isSavingRoles}>{t("common.cancel")}</Button>
-            <Button onClick={handleSaveRoles} disabled={isSavingRoles}>{isSavingRoles ? t("rolesPage.saving") : t("usersPage.updateRoles")}</Button>
-          </DialogFooter>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t("usersPage.confirmNewPassword")} <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <Input
+                  type={showResetConfirmPassword ? "text" : "password"}
+                  value={resetConfirmPasswordVal}
+                  onChange={(e) => setResetConfirmPasswordVal(e.target.value)}
+                  placeholder={t("usersPage.placeholderConfirmPassword")}
+                  className="h-9 pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground focus:outline-none cursor-pointer"
+                >
+                  {showResetConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsResetPasswordDialogOpen(false)}
+                disabled={isSavingResetPassword}
+                className="h-10 px-5 font-semibold text-sm cursor-pointer"
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingResetPassword}
+                className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
+              >
+                {isSavingResetPassword ? t("rolesPage.saving") : t("common.save")}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog}>
-        <DialogContent className="max-w-[90vw] sm:max-w-7xl w-full max-h-[85vh] flex flex-col p-4 md:p-6 overflow-hidden">
-          <DialogHeader className="shrink-0 mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <Dialog open={isSyncDialogOpen} onOpenChange={handleOpenSyncDialog} disablePointerDismissal={true}>
+        <DialogContent className="max-w-[90vw] sm:max-w-7xl w-full max-h-[85vh] flex flex-col p-4 overflow-hidden">
+          <DialogHeader className="shrink-0 mb-3 flex flex-col gap-3">
             <div>
               <DialogTitle className="flex items-center gap-2">
                 {t("usersPage.syncPreviewTitle")}
@@ -868,19 +926,25 @@ export default function UsersPage() {
                   <Badge variant="secondary">{filteredPreviewUsers.length} {t("common.users").toLowerCase()}</Badge>
                 )}
               </DialogTitle>
-              <DialogDescription className="mt-1">
+              <DialogDescription className="mt-1 text-xs sm:text-sm">
                 {t("usersPage.syncPreviewDesc")}
               </DialogDescription>
             </div>
-            <div className="flex gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+            <div className="flex gap-2 justify-end w-full">
               <Input
                 placeholder={t("usersPage.syncSearchPlaceholder")}
                 value={syncSearch}
                 onChange={(e) => setSyncSearch(e.target.value)}
-                className="sm:w-64"
+                className="flex-1 h-8 text-xs sm:text-sm"
               />
-              <Button variant="outline" size="icon" onClick={fetchPreview} disabled={isPreviewLoading}>
+              <Button 
+                variant="outline" 
+                className="h-8 px-3 font-semibold text-xs sm:text-sm cursor-pointer shrink-0 flex items-center justify-center gap-2" 
+                onClick={fetchPreview} 
+                disabled={isPreviewLoading}
+              >
                 <RefreshCw className={`h-4 w-4 ${isPreviewLoading ? "animate-spin" : ""}`} />
+                {t("common.refresh")}
               </Button>
             </div>
           </DialogHeader>
@@ -994,11 +1058,17 @@ export default function UsersPage() {
                 {t("usersPage.validUsersSelected", { selected: selectedUsernames.size, total: syncableUsersCount })}
               </span>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setIsSyncDialogOpen(false)}>{t("common.cancel")}</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSyncDialogOpen(false)}
+                  className="h-10 px-5 font-semibold text-sm cursor-pointer border-muted/70"
+                >
+                  {t("common.cancel")}
+                </Button>
                 <Button
                   onClick={handleConfirmSync}
                   disabled={isSyncing || selectedUsernames.size === 0}
-                  className="bg-primary text-primary-foreground hover:bg-primary/95 font-semibold"
+                  className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
                 >
                   {isSyncing && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                   {isSyncing ? t("usersPage.syncing") : t("usersPage.confirmSync")}

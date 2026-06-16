@@ -29,7 +29,7 @@ export default function DashboardLayout({
             <ThemeToggle className="w-32" />
           </div>
         </header>
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4">
           {children}
         </div>
         <ScrollToTop />

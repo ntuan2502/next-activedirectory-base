@@ -25,3 +25,12 @@ updated: 2026-06-15
 
 ## Logging & Audit Logs
 - When any entity changes (create, update, delete), the ID of this entity must always be recorded in the target field or details of the audit log.
+
+## Password Inputs & Security UI
+- **ALWAYS** include a show/hide password toggle (eye icon / `Eye` and `EyeOff` from `lucide-react`) for all password input fields in the application (such as Login, Setup, Account Profile, and Add User / Reset Password dialogs).
+
+## Internationalization & Localization (i18n)
+- **STRICTLY FORBIDDEN** to use hardcoded (raw) text or strings anywhere in the project (including UI labels, placeholders, buttons, titles, alert messages, toast notifications, console logs, and backend API responses).
+- **ALWAYS** define translation keys in all supported locales (`vi.ts`, `en.ts`, `ja.ts`, `th.ts`) and fetch them dynamically using the translation function (`t(...)` or backend localization equivalent).
+
+

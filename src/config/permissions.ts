@@ -1,6 +1,7 @@
 export const PERMISSIONS = {
   // Users Group
   USERS_READ: "users:read",
+  USERS_CREATE: "users:create",
   USERS_UPDATE: "users:update",
   USERS_DELETE: "users:delete",
 
@@ -36,6 +37,7 @@ export interface PermissionItem {
 export const AVAILABLE_PERMISSIONS: PermissionItem[] = [
   // Users Management
   { id: PERMISSIONS.USERS_READ, name: "View Users", description: "Can view the list of users and active directory status.", group: "Users Management" },
+  { id: PERMISSIONS.USERS_CREATE, name: "Create Users", description: "Can create new local users.", group: "Users Management" },
   { id: PERMISSIONS.USERS_UPDATE, name: "Update Users", description: "Can update user roles and toggle status (enable/disable).", group: "Users Management" },
   { id: PERMISSIONS.USERS_DELETE, name: "Delete Users", description: "Can delete users from the system.", group: "Users Management" },
 
