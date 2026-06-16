@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logAction } from "@/lib/audit";
 import { getServerTranslator } from "@/lib/i18n";
+import { validatePassword } from "@/lib/password-validation";
 
 export async function PATCH(request: Request) {
   const session = await getSession();
@@ -113,16 +114,45 @@ export async function PATCH(request: Request) {
         );
       }
 
-      if (newPassword.length < 8) {
-        await logAction("user:change_password", user.username, {
-          status: "failed",
-          message: "errors.passwordTooShort",
-          data: null,
-        });
-        return NextResponse.json(
-          { error: t("errors.passwordTooShort") },
-          { status: 400 },
+      // Password validation based on security settings
+      const settings = await prisma.systemSetting.findFirst();
+      if (settings) {
+        const validationErrors = validatePassword(
+          newPassword,
+          {
+            passwordMinLength: settings.passwordMinLength,
+            passwordPreventCommon: settings.passwordPreventCommon,
+            passwordNoUserInfo: settings.passwordNoUserInfo,
+            passwordRequireLetter: settings.passwordRequireLetter,
+            passwordRequireNumber: settings.passwordRequireNumber,
+            passwordRequireSymbol: settings.passwordRequireSymbol,
+            passwordRequireMixedCase: settings.passwordRequireMixedCase,
+          },
+          {
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          }
         );
+
+        if (validationErrors.length > 0) {
+          await logAction("user:change_password", user.username, {
+            status: "failed",
+            message: validationErrors[0].key,
+            data: null,
+          });
+          return NextResponse.json(
+            {
+              error: t(validationErrors[0].key, validationErrors[0].variables),
+              validationErrors: validationErrors.map((err) => ({
+                message: t(err.key, err.variables) || err.key,
+                key: err.key,
+              })),
+            },
+            { status: 400 }
+          );
+        }
       }
 
       // If user has a passwordHash, verify it
