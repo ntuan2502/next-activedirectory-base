@@ -280,6 +280,8 @@ export const vi = {
     notification: "Thông báo",
     beforeState: "Trước thay đổi (Trạng thái ban đầu)",
     afterState: "Sau thay đổi (Trạng thái mới)",
+    showChangesOnly: "Chỉ hiện thay đổi",
+    showAllDetails: "Hiện toàn bộ",
     noneCreated: "Không có (Tạo mới)",
     noneDeleted: "Không có (Đã bị xóa)",
     noDetailAvailable: "Không có dữ liệu chi tiết",

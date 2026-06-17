@@ -280,6 +280,8 @@ export const th = {
     notification: "การแจ้งเตือน",
     beforeState: "ก่อนการเปลี่ยนแปลง (สถานะเดิม)",
     afterState: "หลังการเปลี่ยนแปลง (สถานะใหม่)",
+    showChangesOnly: "แสดงเฉพาะการเปลี่ยนแปลง",
+    showAllDetails: "แสดงทั้งหมด",
     noneCreated: "ไม่มี (สร้างใหม่)",
     noneDeleted: "ไม่มี (ลบแล้ว)",
     noDetailAvailable: "ไม่มีข้อมูลรายละเอียด",

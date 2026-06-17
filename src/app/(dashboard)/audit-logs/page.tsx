@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { ClipboardList, Search, RefreshCw, Eye, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { ClipboardList, Search, RefreshCw, Eye, EyeOff, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,8 @@ interface DiffViewerProps {
 }
 
 function DiffViewer({ before, after, t }: DiffViewerProps) {
+  const [showAll, setShowAll] = useState(false);
+
   const isBeforeObj = !!before && typeof before === "object" && !Array.isArray(before);
   const isAfterObj = !!after && typeof after === "object" && !Array.isArray(after);
 
@@ -144,136 +146,289 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
     return <div className="p-4 text-muted-foreground">{t("common.noData")}</div>;
   }
 
-  // Case 1: Creation (before is null/undefined)
-  if (!before && after) {
-    const keys = typeof after === "object" ? Object.keys(after) : [];
-    const afterObj = after as Record<string, unknown>;
-    const isAfterComplex = isComplex(after);
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-        {/* Before */}
-        <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
-          <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
-            {t("auditLogsPage.beforeState")}
-          </div>
-          <div className="p-4 flex-1 font-mono text-xs text-rose-600/70 italic flex items-center justify-center min-h-[120px]">
-            {t("auditLogsPage.noneCreated")}
-          </div>
-        </div>
-        {/* After */}
-        <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
-          <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {t("auditLogsPage.afterState")}
-          </div>
-          {isAfterComplex ? (
-            <pre className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] text-emerald-700 dark:text-emerald-300 whitespace-pre-wrap break-all flex-1">
-              {JSON.stringify(after, null, 2)}
-            </pre>
-          ) : (
-            <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5">
-              <div className="text-muted-foreground/60">{"{"}</div>
-              {keys.map((k) => (
-                <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs break-all whitespace-pre-wrap">
-                  &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(afterObj[k])}
-                </div>
-              ))}
-              <div className="text-muted-foreground/60">{"}"}</div>
+  const renderDiffContent = () => {
+    // Case 1: Creation (before is null/undefined)
+    if (!before && after) {
+      const keys = typeof after === "object" ? Object.keys(after) : [];
+      const afterObj = after as Record<string, unknown>;
+      const isAfterComplex = isComplex(after);
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+          {/* Before */}
+          <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
+            <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+              {t("auditLogsPage.beforeState")}
             </div>
-          )}
+            <div className="p-4 flex-1 font-mono text-xs text-rose-600/70 italic flex items-center justify-center min-h-[120px]">
+              {t("auditLogsPage.noneCreated")}
+            </div>
+          </div>
+          {/* After */}
+          <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
+            <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              {t("auditLogsPage.afterState")}
+            </div>
+            {isAfterComplex ? (
+              <pre className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] text-emerald-700 dark:text-emerald-300 whitespace-pre-wrap break-all flex-1">
+                {JSON.stringify(after, null, 2)}
+              </pre>
+            ) : (
+              <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-emerald-500/[0.02] space-y-0.5">
+                <div className="text-muted-foreground/60">{"{"}</div>
+                {keys.map((k) => (
+                  <div key={k} className="bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-700 dark:text-emerald-300 font-mono text-xs break-all whitespace-pre-wrap">
+                    &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(afterObj[k])}
+                  </div>
+                ))}
+                <div className="text-muted-foreground/60">{"}"}</div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Case 2: Deletion (after is null/undefined)
-  if (before && !after) {
-    const keys = typeof before === "object" ? Object.keys(before) : [];
+    // Case 2: Deletion (after is null/undefined)
+    if (before && !after) {
+      const keys = typeof before === "object" ? Object.keys(before) : [];
+      const beforeObj = before as Record<string, unknown>;
+      const isBeforeComplex = isComplex(before);
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+          {/* Before */}
+          <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
+            <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
+              {t("auditLogsPage.beforeState")}
+            </div>
+            {isBeforeComplex ? (
+              <pre className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] text-rose-700 dark:text-rose-300 whitespace-pre-wrap break-all flex-1">
+                {JSON.stringify(before, null, 2)}
+              </pre>
+            ) : (
+              <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5">
+                <div className="text-muted-foreground/60">{"{"}</div>
+                {keys.map((k) => (
+                  <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs break-all whitespace-pre-wrap">
+                    &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(beforeObj[k])}
+                  </div>
+                ))}
+                <div className="text-muted-foreground/60">{"}"}</div>
+              </div>
+            )}
+          </div>
+          {/* After */}
+          <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
+            <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+              {t("auditLogsPage.afterState")}
+            </div>
+            <div className="p-4 flex-1 font-mono text-xs text-emerald-600/70 italic flex items-center justify-center min-h-[120px]">
+              {t("auditLogsPage.noneDeleted")}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Case 3: Both exist but are not objects (e.g. primitives, arrays)
+    if (!isBeforeObj || !isAfterObj) {
+      const beforeStr = typeof before === "string"
+        ? (before.includes(".") && !before.includes(" ") ? t(before) : before)
+        : JSON.stringify(before, null, 2);
+      const afterStr = typeof after === "string"
+        ? (after.includes(".") && !after.includes(" ") ? t(after) : after)
+        : JSON.stringify(after, null, 2);
+
+      const beforeLines = beforeStr.split("\n");
+      const afterLines = afterStr.split("\n");
+      const maxLines = Math.max(beforeLines.length, afterLines.length);
+
+      const linesToRender: Array<{
+        index: number;
+        hasBefore: boolean;
+        hasAfter: boolean;
+        lineBefore: string;
+        lineAfter: string;
+        isLineChanged: boolean;
+      }> = [];
+
+      for (let i = 0; i < maxLines; i++) {
+        const hasBefore = i < beforeLines.length;
+        const hasAfter = i < afterLines.length;
+        const lineBefore = beforeLines[i] || "";
+        const lineAfter = afterLines[i] || "";
+        const isLineChanged = !hasBefore || !hasAfter || lineBefore !== lineAfter;
+
+        if (showAll || isLineChanged) {
+          linesToRender.push({
+            index: i,
+            hasBefore,
+            hasAfter,
+            lineBefore,
+            lineAfter,
+            isLineChanged,
+          });
+        }
+      }
+
+      if (linesToRender.length === 0) {
+        return (
+          <div className="flex flex-col border border-border rounded-lg overflow-hidden flex-1 bg-background w-full p-8 text-center text-muted-foreground text-xs italic">
+            {t("auditLogsPage.syncNoChanges")}
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-col border border-border rounded-lg overflow-hidden flex-1 min-h-0 bg-background w-full">
+          {/* Split Header */}
+          <div className="grid grid-cols-2 text-xs font-semibold shrink-0 border-b border-border">
+            <div className="bg-rose-500/10 px-3 py-2 text-rose-600 dark:text-rose-400 border-r border-border flex items-center min-h-[38px]">
+              {t("auditLogsPage.beforeState")}
+            </div>
+            <div className="bg-emerald-500/10 px-3 py-1.5 flex items-center justify-between text-emerald-600 dark:text-emerald-400 min-h-[38px]">
+              <span>{t("auditLogsPage.afterState")}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAll(!showAll)}
+                className="h-8 w-8 p-0 bg-background border-border flex items-center justify-center shadow-sm shrink-0"
+                title={showAll ? t("auditLogsPage.showChangesOnly") : t("auditLogsPage.showAllDetails")}
+              >
+                {showAll ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Split Content Body */}
+          <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 space-y-0.5 bg-background">
+            {linesToRender.map((line) => (
+              <div key={line.index} className="grid grid-cols-2 gap-4 items-stretch">
+                {/* Before Column Cell */}
+                <div className="border-r border-border pr-2 flex flex-col justify-stretch">
+                  {!line.hasBefore ? (
+                    <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
+                  ) : (
+                    <div
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${line.isLineChanged
+                          ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
+                          : "text-muted-foreground/85"
+                        }`}
+                    >
+                      {line.lineBefore}
+                    </div>
+                  )}
+                </div>
+
+                {/* After Column Cell */}
+                <div className="pl-2 flex flex-col justify-stretch">
+                  {!line.hasAfter ? (
+                    <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
+                  ) : (
+                    <div
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${line.isLineChanged
+                          ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
+                          : "text-muted-foreground/85"
+                        }`}
+                    >
+                      {line.lineAfter}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    // Case 4: Both are objects, line-by-line field comparison
     const beforeObj = before as Record<string, unknown>;
-    const isBeforeComplex = isComplex(before);
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
-        {/* Before */}
-        <div className="flex flex-col border border-rose-500/20 rounded-lg overflow-hidden bg-rose-500/[0.01]">
-          <div className="bg-rose-500/10 px-3 py-1.5 border-b border-rose-500/20 text-xs font-semibold text-rose-600 dark:text-rose-400">
-            {t("auditLogsPage.beforeState")}
-          </div>
-          {isBeforeComplex ? (
-            <pre className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] text-rose-700 dark:text-rose-300 whitespace-pre-wrap break-all flex-1">
-              {JSON.stringify(before, null, 2)}
-            </pre>
-          ) : (
-            <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] bg-rose-500/[0.02] space-y-0.5">
-              <div className="text-muted-foreground/60">{"{"}</div>
-              {keys.map((k) => (
-                <div key={k} className="bg-rose-500/10 dark:bg-rose-500/20 px-2 py-0.5 rounded text-rose-700 dark:text-rose-300 font-mono text-xs break-all whitespace-pre-wrap">
-                  &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(beforeObj[k])}
-                </div>
-              ))}
-              <div className="text-muted-foreground/60">{"}"}</div>
-            </div>
-          )}
-        </div>
-        {/* After */}
-        <div className="flex flex-col border border-emerald-500/20 rounded-lg overflow-hidden bg-emerald-500/[0.01]">
-          <div className="bg-emerald-500/10 px-3 py-1.5 border-b border-emerald-500/20 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            {t("auditLogsPage.afterState")}
-          </div>
-          <div className="p-4 flex-1 font-mono text-xs text-emerald-600/70 italic flex items-center justify-center min-h-[120px]">
-            {t("auditLogsPage.noneDeleted")}
-          </div>
-        </div>
-      </div>
-    );
-  }
+    const afterObj = after as Record<string, unknown>;
+    const beforeKeys = Object.keys(beforeObj);
+    const afterKeys = Object.keys(afterObj);
+    const allKeys = [...beforeKeys];
+    for (const k of afterKeys) {
+      if (!allKeys.includes(k)) {
+        allKeys.push(k);
+      }
+    }
 
-  // Case 3: Both exist but are not objects (e.g. primitives, arrays)
-  if (!isBeforeObj || !isAfterObj) {
-    const beforeStr = typeof before === "string"
-      ? (before.includes(".") && !before.includes(" ") ? t(before) : before)
-      : JSON.stringify(before, null, 2);
-    const afterStr = typeof after === "string"
-      ? (after.includes(".") && !after.includes(" ") ? t(after) : after)
-      : JSON.stringify(after, null, 2);
+    const keysToRender = allKeys.filter((k) => {
+      const hasBefore = k in beforeObj;
+      const hasAfter = k in afterObj;
+      const valBefore = beforeObj[k];
+      const valAfter = afterObj[k];
+      const isChanged = !hasBefore || !hasAfter || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
+      return showAll || isChanged;
+    });
 
-    const beforeLines = beforeStr.split("\n");
-    const afterLines = afterStr.split("\n");
-    const maxLines = Math.max(beforeLines.length, afterLines.length);
+    if (keysToRender.length === 0) {
+      return (
+        <div className="flex flex-col border border-border rounded-lg overflow-hidden flex-1 bg-background w-full p-8 text-center text-muted-foreground text-xs italic">
+          {t("auditLogsPage.syncNoChanges")}
+        </div>
+      );
+    }
 
     return (
-      <div className="flex flex-col border border-muted/50 rounded-lg overflow-hidden flex-1 min-h-0 bg-background w-full">
+      <div className="flex flex-col border border-border rounded-lg overflow-hidden flex-1 min-h-0 bg-background w-full">
         {/* Split Header */}
-        <div className="grid grid-cols-2 text-xs font-semibold shrink-0 border-b border-muted/30">
-          <div className="bg-rose-500/10 px-3 py-1.5 text-rose-600 dark:text-rose-400 border-r border-muted/30">
+        <div className="grid grid-cols-2 text-xs font-semibold shrink-0 border-b border-border">
+          <div className="bg-rose-500/10 px-3 py-2 text-rose-600 dark:text-rose-400 border-r border-border flex items-center min-h-[38px]">
             {t("auditLogsPage.beforeState")}
           </div>
-          <div className="bg-emerald-500/10 px-3 py-1.5 text-emerald-600 dark:text-emerald-400">
-            {t("auditLogsPage.afterState")}
+          <div className="bg-emerald-500/10 px-3 py-1.5 flex items-center justify-between text-emerald-600 dark:text-emerald-400 min-h-[38px]">
+            <span>{t("auditLogsPage.afterState")}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAll(!showAll)}
+              className="h-8 w-8 p-0 bg-background border-border flex items-center justify-center shadow-sm shrink-0"
+              title={showAll ? t("auditLogsPage.showChangesOnly") : t("auditLogsPage.showAllDetails")}
+            >
+              {showAll ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </div>
 
         {/* Split Content Body */}
         <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 space-y-0.5 bg-background">
-          {Array.from({ length: maxLines }).map((_, i) => {
-            const hasBefore = i < beforeLines.length;
-            const hasAfter = i < afterLines.length;
-            const lineBefore = beforeLines[i];
-            const lineAfter = afterLines[i];
-            const isLineChanged = !hasBefore || !hasAfter || lineBefore !== lineAfter;
+          {/* Open bracket row */}
+          <div className="grid grid-cols-2 gap-4 pb-1 mb-1 text-muted-foreground/50 select-none">
+            <div className="border-r border-border pr-2">{"{"}</div>
+            <div className="pl-2">{"{"}</div>
+          </div>
+
+          {/* Diff lines */}
+          {keysToRender.map((k) => {
+            const hasBefore = k in beforeObj;
+            const hasAfter = k in afterObj;
+            const valBefore = beforeObj[k];
+            const valAfter = afterObj[k];
+            const isChanged = !hasBefore || !hasAfter || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
 
             return (
-              <div key={i} className="grid grid-cols-2 gap-4 items-stretch">
+              <div key={k} className="grid grid-cols-2 gap-4 items-stretch">
                 {/* Before Column Cell */}
-                <div className="border-r border-muted/20 pr-2 flex flex-col justify-stretch">
+                <div className="border-r border-border pr-2 flex flex-col justify-stretch">
                   {!hasBefore ? (
                     <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
                   ) : (
                     <div
-                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isLineChanged
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isChanged
                           ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
                           : "text-muted-foreground/85"
                         }`}
                     >
-                      {lineBefore}
+                      &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valBefore)}
                     </div>
                   )}
                 </div>
@@ -284,108 +439,30 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
                     <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
                   ) : (
                     <div
-                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isLineChanged
+                      className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isChanged
                           ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
                           : "text-muted-foreground/85"
                         }`}
                     >
-                      {lineAfter}
+                      &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valAfter)}
                     </div>
                   )}
                 </div>
               </div>
             );
           })}
+
+          {/* Close bracket row */}
+          <div className="grid grid-cols-2 gap-4 pt-1 mt-1 text-muted-foreground/50 select-none">
+            <div className="border-r border-border pr-2">{"}"}</div>
+            <div className="pl-2">{"}"}</div>
+          </div>
         </div>
       </div>
     );
-  }
+  };
 
-  // Case 4: Both are objects, line-by-line field comparison
-  const beforeObj = before as Record<string, unknown>;
-  const afterObj = after as Record<string, unknown>;
-  const beforeKeys = Object.keys(beforeObj);
-  const afterKeys = Object.keys(afterObj);
-  const allKeys = [...beforeKeys];
-  for (const k of afterKeys) {
-    if (!allKeys.includes(k)) {
-      allKeys.push(k);
-    }
-  }
-
-  return (
-    <div className="flex flex-col border border-muted/50 rounded-lg overflow-hidden flex-1 min-h-0 bg-background w-full">
-      {/* Split Header */}
-      <div className="grid grid-cols-2 text-xs font-semibold shrink-0 border-b border-muted/30">
-        <div className="bg-rose-500/10 px-3 py-1.5 text-rose-600 dark:text-rose-400 border-r border-muted/30">
-          {t("auditLogsPage.beforeState")}
-        </div>
-        <div className="bg-emerald-500/10 px-3 py-1.5 text-emerald-600 dark:text-emerald-400">
-          {t("auditLogsPage.afterState")}
-        </div>
-      </div>
-
-      {/* Split Content Body */}
-      <div className="p-4 font-mono text-xs overflow-x-hidden overflow-y-auto max-h-[50vh] flex-1 space-y-0.5 bg-background">
-        {/* Open bracket row */}
-        <div className="grid grid-cols-2 gap-4 border-b border-muted/20 pb-1 mb-1 text-muted-foreground/50 select-none">
-          <div className="border-r border-muted/20 pr-2">{"{"}</div>
-          <div className="pl-2">{"{"}</div>
-        </div>
-
-        {/* Diff lines */}
-        {allKeys.map((k) => {
-          const hasBefore = k in beforeObj;
-          const hasAfter = k in afterObj;
-          const valBefore = beforeObj[k];
-          const valAfter = afterObj[k];
-          const isChanged = !hasBefore || !hasAfter || JSON.stringify(valBefore) !== JSON.stringify(valAfter);
-
-          return (
-            <div key={k} className="grid grid-cols-2 gap-4 items-stretch">
-              {/* Before Column Cell */}
-              <div className="border-r border-muted/20 pr-2 flex flex-col justify-stretch">
-                {!hasBefore ? (
-                  <div className="h-full w-full bg-rose-500/[0.03] dark:bg-rose-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-rose-500/10" />
-                ) : (
-                  <div
-                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isChanged
-                        ? "bg-rose-500/15 dark:bg-rose-500/25 text-rose-700 dark:text-rose-300 font-semibold"
-                        : "text-muted-foreground/85"
-                      }`}
-                  >
-                    &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valBefore)}
-                  </div>
-                )}
-              </div>
-
-              {/* After Column Cell */}
-              <div className="pl-2 flex flex-col justify-stretch">
-                {!hasAfter ? (
-                  <div className="h-full w-full bg-emerald-500/[0.03] dark:bg-emerald-500/[0.05] rounded min-h-[20px] select-none border border-dashed border-emerald-500/10" />
-                ) : (
-                  <div
-                    className={`px-2 py-0.5 rounded transition-colors font-mono text-xs break-all whitespace-pre-wrap h-full ${isChanged
-                        ? "bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 font-semibold"
-                        : "text-muted-foreground/85"
-                      }`}
-                  >
-                    &nbsp;&nbsp;&quot;{k}&quot;: {renderValue(valAfter)}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Close bracket row */}
-        <div className="grid grid-cols-2 gap-4 border-t border-muted/20 pt-1 mt-1 text-muted-foreground/50 select-none">
-          <div className="border-r border-muted/20 pr-2">{"}"}</div>
-          <div className="pl-2">{"}"}</div>
-        </div>
-      </div>
-    </div>
-  );
+  return renderDiffContent();
 }
 
 export default function AuditLogsPage() {

@@ -280,6 +280,8 @@ export const en = {
     notification: "Notification",
     beforeState: "Before Changes (Original State)",
     afterState: "After Changes (New State)",
+    showChangesOnly: "Show changes only",
+    showAllDetails: "Show all details",
     noneCreated: "None (New Created)",
     noneDeleted: "None (Deleted)",
     noDetailAvailable: "No detail data available",

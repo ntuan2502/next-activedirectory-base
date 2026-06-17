@@ -280,6 +280,8 @@ export const ja = {
     notification: "通知",
     beforeState: "変更前（元の状態）",
     afterState: "変更後（新しい状態）",
+    showChangesOnly: "変更のみ表示",
+    showAllDetails: "すべて表示",
     noneCreated: "なし（新規作成）",
     noneDeleted: "なし（削除済み）",
     noDetailAvailable: "利用可能な詳細データはありません",
