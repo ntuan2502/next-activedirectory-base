@@ -56,28 +56,62 @@ export async function POST(request: NextRequest) {
         data: { disabled: true },
       });
       const usersAfter = usersBefore.map((u) => ({ ...u, disabled: true }));
-      await logAction("users:bulk_disable", null, {
-        status: "success",
-        message: "auditLogsPage.messages.bulkDisableUsersSuccess",
-        data: {
-          before: usersBefore,
-          after: usersAfter,
-        },
-      });
+
+      if (userIds.length === 1) {
+        await logAction("user:lock", affectedUsers[0].username, {
+          status: "success",
+          message: "auditLogsPage.messages.lockUserSuccess",
+          data: {
+            before: usersBefore[0],
+            after: usersAfter[0],
+          },
+        });
+      } else {
+        await logAction("users:bulk_lock", null, {
+          status: "success",
+          message: "auditLogsPage.messages.bulkLockUsersSuccess",
+          data: {
+            usernames: usersBefore.map((u) => u.username),
+            details: usersBefore.map((u, i) => ({
+              username: u.username,
+              before: u,
+              after: usersAfter[i],
+            })),
+            count: usersBefore.length,
+          },
+        });
+      }
     } else if (action === "enable") {
       await prisma.user.updateMany({
         where: { id: { in: userIds } },
         data: { disabled: false },
       });
       const usersAfter = usersBefore.map((u) => ({ ...u, disabled: false }));
-      await logAction("users:bulk_enable", null, {
-        status: "success",
-        message: "auditLogsPage.messages.bulkEnableUsersSuccess",
-        data: {
-          before: usersBefore,
-          after: usersAfter,
-        },
-      });
+
+      if (userIds.length === 1) {
+        await logAction("user:unlock", affectedUsers[0].username, {
+          status: "success",
+          message: "auditLogsPage.messages.unlockUserSuccess",
+          data: {
+            before: usersBefore[0],
+            after: usersAfter[0],
+          },
+        });
+      } else {
+        await logAction("users:bulk_unlock", null, {
+          status: "success",
+          message: "auditLogsPage.messages.bulkUnlockUsersSuccess",
+          data: {
+            usernames: usersBefore.map((u) => u.username),
+            details: usersBefore.map((u, i) => ({
+              username: u.username,
+              before: u,
+              after: usersAfter[i],
+            })),
+            count: usersBefore.length,
+          },
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

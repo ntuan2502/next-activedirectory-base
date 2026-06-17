@@ -55,9 +55,13 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "user:update_roles": { label: "Update User Roles", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
   "user:update_profile": { label: "Update Profile", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
   "user:change_password": { label: "Change Password", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
+  "user:lock": { label: "Lock User", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+  "user:unlock": { label: "Unlock User", color: "bg-green-500/10 text-green-600 border-green-500/20" },
   "users:bulk_delete": { label: "Bulk Delete Users", color: "bg-red-500/10 text-red-500 border-red-500/20" },
   "users:bulk_disable": { label: "Bulk Disable Users", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
   "users:bulk_enable": { label: "Bulk Enable Users", color: "bg-green-500/10 text-green-500 border-green-500/20" },
+  "users:bulk_lock": { label: "Bulk Lock Users", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
+  "users:bulk_unlock": { label: "Bulk Unlock Users", color: "bg-green-500/10 text-green-500 border-green-500/20" },
   "role:create": { label: "Create Role", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
   "role:update": { label: "Update Role", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
   "role:delete": { label: "Delete Role", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
@@ -87,9 +91,13 @@ const getActionTranslationKey = (action: string): string => {
     "user:update_profile": "updateProfile",
     "user:update_settings": "updateSettings",
     "user:change_password": "changePassword",
+    "user:lock": "lockUser",
+    "user:unlock": "unlockUser",
     "users:bulk_delete": "bulkDelete",
     "users:bulk_disable": "bulkDisable",
     "users:bulk_enable": "bulkEnable",
+    "users:bulk_lock": "bulkLock",
+    "users:bulk_unlock": "bulkUnlock",
     "role:create": "createRole",
     "role:update": "updateRole",
     "role:delete": "deleteRole",
@@ -609,8 +617,8 @@ export default function AuditLogsPage() {
       const data = parsed.data as Record<string, unknown>;
       const items: BatchSyncItem[] = [];
 
-      // Phân tích danh sách user đồng bộ
-      if (log.action === "ldap:sync_users" && Array.isArray(data.details)) {
+      // Phân tích danh sách user đồng bộ hoặc khóa/mở khóa hàng loạt
+      if (["ldap:sync_users", "users:bulk_lock", "users:bulk_unlock"].includes(log.action) && Array.isArray(data.details)) {
         for (const detail of data.details) {
           if (detail && typeof detail === "object" && "username" in detail) {
             const uDetail = detail as {
@@ -827,10 +835,15 @@ export default function AuditLogsPage() {
                       {t("auditLogsPage.tableHeaders.status")}
                     </div>
                   </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort("target")}>
+                  <TableHead className="w-[180px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort("target")}>
                     <div className="flex items-center">
                       {t("auditLogsPage.tableHeaders.target")}
                       {sortConfig?.key === "target" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+                  <TableHead className="min-w-[320px]">
+                    <div className="flex items-center">
+                      {t("auditLogsPage.notification")}
                     </div>
                   </TableHead>
                   <TableHead className="w-[140px] cursor-pointer hover:bg-muted/50" onClick={() => handleSort("ipAddress")}>
@@ -914,9 +927,9 @@ export default function AuditLogsPage() {
                             })()}
                           </div>
                         </TableCell>
-                        <TableCell className="max-w-[250px] text-sm">
+                        <TableCell className="w-[180px] max-w-[180px] text-sm">
                           <div className="flex flex-col min-h-[2.5rem] justify-center">
-                            {["ldap:sync_users", "ldap:sync_companies"].includes(log.action) ? (() => {
+                            {["ldap:sync_users", "ldap:sync_companies", "users:bulk_lock", "users:bulk_unlock"].includes(log.action) ? (() => {
                               try {
                                 if (!log.details) return "-";
                                 const parsed = JSON.parse(log.details);
@@ -933,7 +946,7 @@ export default function AuditLogsPage() {
                                   const noChange = created === 0 && updated === 0;
                                   if (noChange) {
                                     return (
-                                      <span className="font-semibold truncate max-w-[200px]">
+                                      <span className="font-semibold truncate max-w-[160px]">
                                         {t("auditLogsPage.syncNoChanges")}
                                       </span>
                                     );
@@ -946,15 +959,29 @@ export default function AuditLogsPage() {
                                     parts.push(t("auditLogsPage.syncUserUpdated", { count: updated }));
                                   }
                                   return (
-                                    <span className="font-semibold truncate max-w-[250px]">
+                                    <span className="font-semibold truncate max-w-[160px]">
                                       {parts.join(", ")}
                                     </span>
                                   );
                                 } else if (log.action === "ldap:sync_companies") {
                                   const count = data.count || 0;
                                   return (
-                                    <span className="font-semibold truncate max-w-[250px]">
+                                    <span className="font-semibold truncate max-w-[160px]">
                                       {t("auditLogsPage.syncCompanyCreated", { count })}
+                                    </span>
+                                  );
+                                } else if (log.action === "users:bulk_lock") {
+                                  const count = data.count || 0;
+                                  return (
+                                    <span className="font-semibold truncate max-w-[160px]">
+                                      {t("auditLogsPage.bulkLockUsersSuccessCount", { count })}
+                                    </span>
+                                  );
+                                } else if (log.action === "users:bulk_unlock") {
+                                  const count = data.count || 0;
+                                  return (
+                                    <span className="font-semibold truncate max-w-[160px]">
+                                      {t("auditLogsPage.bulkUnlockUsersSuccessCount", { count })}
                                     </span>
                                   );
                                 }
@@ -962,7 +989,7 @@ export default function AuditLogsPage() {
                               return "-";
                             })() : (
                               <>
-                                <span className="font-semibold truncate max-w-[200px]">{getTargetTranslation(log.target)}</span>
+                                <span className="font-semibold truncate max-w-[160px]">{getTargetTranslation(log.target)}</span>
                                 {["auth:login", "auth:logout"].includes(log.action) && log.details && (() => {
                                   try {
                                     const detailsObj = JSON.parse(log.details!);
@@ -970,7 +997,7 @@ export default function AuditLogsPage() {
                                     const { browser, os } = ua ? parseUserAgent(ua) : { browser: "", os: "" };
                                     if (browser && os) {
                                       return (
-                                        <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[200px]" title={`${browser} on ${os}`}>
+                                        <span className="text-[10px] text-muted-foreground font-normal truncate max-w-[160px]">
                                           {browser} on {os}
                                         </span>
                                       );
@@ -980,6 +1007,24 @@ export default function AuditLogsPage() {
                                 })()}
                               </>
                             )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-[500px] text-sm">
+                          <div className="flex items-center min-h-[2.5rem] truncate">
+                            {(() => {
+                              if (!log.details) return "-";
+                              try {
+                                const parsed = JSON.parse(log.details);
+                                if (parsed && typeof parsed === "object" && parsed.message) {
+                                  return parsed.message.includes(".") && !parsed.message.includes(" ")
+                                    ? t(parsed.message)
+                                    : parsed.message;
+                                }
+                                return "-";
+                              } catch {
+                                return "-";
+                              }
+                            })()}
                           </div>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs font-mono">
@@ -1116,10 +1161,12 @@ export default function AuditLogsPage() {
                   {/* Left pane: Sync List */}
                   <div className="w-full md:w-1/3 flex flex-col border rounded-lg bg-muted/10 p-3 gap-2 min-h-0 md:overflow-hidden max-h-[45vh] md:max-h-none">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1 shrink-0">
-                      {selectedLog.action === "ldap:sync_companies"
-                        ? t("auditLogsPage.actions.ldapSyncCompanies")
-                        : t("auditLogsPage.actions.ldapSyncUsers")
-                      } ({batchSyncDetails.length})
+                      {(() => {
+                        if (selectedLog.action === "ldap:sync_companies") return t("auditLogsPage.actions.ldapSyncCompanies");
+                        if (selectedLog.action === "users:bulk_lock") return t("auditLogsPage.actions.bulkLock");
+                        if (selectedLog.action === "users:bulk_unlock") return t("auditLogsPage.actions.bulkUnlock");
+                        return t("auditLogsPage.actions.ldapSyncUsers");
+                      })()} ({batchSyncDetails.length})
                     </span>
                     <Input
                       placeholder={
@@ -1140,6 +1187,26 @@ export default function AuditLogsPage() {
                           const isSelected = activeBatchItem?.id === item.id;
                           const isCreated = !item.before;
 
+                          let statusBadgeText = "";
+                          let statusBadgeClass = "";
+
+                          if (selectedLog.action === "users:bulk_lock") {
+                            statusBadgeText = t("usersPage.status.disabled");
+                            statusBadgeClass = isSelected
+                              ? "bg-amber-600 text-white border-amber-500"
+                              : "bg-amber-500/10 text-amber-600 border-amber-500/20";
+                          } else if (selectedLog.action === "users:bulk_unlock") {
+                            statusBadgeText = t("usersPage.status.active");
+                            statusBadgeClass = isSelected
+                              ? "bg-green-600 text-white border-green-500"
+                              : "bg-green-500/10 text-green-600 border-green-500/20";
+                          } else {
+                            statusBadgeText = isCreated ? t("auditLogsPage.badgeCreated") : t("auditLogsPage.badgeUpdated");
+                            statusBadgeClass = isCreated
+                              ? (isSelected ? "bg-emerald-600 text-white border-emerald-500" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20")
+                              : (isSelected ? "bg-blue-600 text-white border-blue-500" : "bg-blue-500/10 text-blue-600 border-blue-500/20");
+                          }
+
                           return (
                             <button
                               key={item.id}
@@ -1153,25 +1220,9 @@ export default function AuditLogsPage() {
                                 }`}
                             >
                               <span className="font-mono truncate mr-2">{item.name}</span>
-                              {isCreated ? (
-                                <Badge
-                                  className={`text-[9px] px-1 py-0 h-4 border shrink-0 ${isSelected
-                                    ? "bg-emerald-600 text-white border-emerald-500"
-                                    : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                                    }`}
-                                >
-                                  {t("auditLogsPage.badgeCreated")}
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  className={`text-[9px] px-1 py-0 h-4 border shrink-0 ${isSelected
-                                    ? "bg-blue-600 text-white border-blue-500"
-                                    : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                                    }`}
-                                >
-                                  {t("auditLogsPage.badgeUpdated")}
-                                </Badge>
-                              )}
+                              <Badge className={`text-[9px] px-1 py-0 h-4 border shrink-0 ${statusBadgeClass}`}>
+                                {statusBadgeText}
+                              </Badge>
                             </button>
                           );
                         })

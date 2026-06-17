@@ -378,7 +378,7 @@ export default function UsersPage() {
   };
 
   const handleToggleStatus = async (user: UserRecord) => {
-    const actionDesc = user.disabled ? t("usersPage.enableSelected") : t("usersPage.disableSelected");
+    const actionDesc = user.disabled ? t("usersPage.enableUser") : t("usersPage.disableUser");
     confirmAction({
       title: t("common.confirm"),
       description: (
@@ -397,7 +397,7 @@ export default function UsersPage() {
           });
           if (res.ok) {
             setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, disabled: !u.disabled } : u));
-            toast.success(user.disabled ? t("usersPage.successBulkEnable") : t("usersPage.successBulkDisable"));
+            toast.success(user.disabled ? t("usersPage.successEnableUser") : t("usersPage.successDisableUser"));
           } else {
             const data: ApiErrorResponse = await res.json();
             toast.error(data.error || (user.disabled ? t("usersPage.failedToEnable") : t("usersPage.failedToDisable")));
@@ -753,7 +753,7 @@ export default function UsersPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleToggleStatus(user)}
-                                  title={user.disabled ? t("usersPage.enableSelected") : t("usersPage.disableSelected")}
+                                  title={user.disabled ? t("usersPage.enableUser") : t("usersPage.disableUser")}
                                   className={user.disabled ? "text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10 cursor-pointer" : "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 cursor-pointer"}
                                 >
                                   {user.disabled ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
