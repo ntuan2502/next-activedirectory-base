@@ -33,4 +33,10 @@ updated: 2026-06-15
 - **STRICTLY FORBIDDEN** to use hardcoded (raw) text or strings anywhere in the project (including UI labels, placeholders, buttons, titles, alert messages, toast notifications, console logs, and backend API responses).
 - **ALWAYS** define translation keys in all supported locales (`vi.ts`, `en.ts`, `ja.ts`, `th.ts`) and fetch them dynamically using the translation function (`t(...)` or backend localization equivalent).
 
+## UI Spacing & Card Layout
+- **ALWAYS** ensure card padding (khoảng cách tới viền) does not exceed Tailwind class value `4` (which is `1rem` or `16px`). Make sure NOT to double pad (nếu parent `<Card>` đã có padding thì `<CardContent>` giữ padding mặc định) để tránh vượt quá giới hạn 16px này.
+
+
+
+
 

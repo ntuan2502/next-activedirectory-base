@@ -14,3 +14,7 @@
 - [project] Always record entity ID in target/details of audit logs when changes occur → project-conventions.md
 - [project] Always include a show/hide toggle for password fields → project-conventions.md
 - [project] Hardcoded text is forbidden; always apply i18n everywhere → project-conventions.md
+- [project] Card padding must NOT exceed 16px; avoid nesting/double padding → project-conventions.md
+
+
+

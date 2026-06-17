@@ -5,6 +5,36 @@ import { logAction } from "@/lib/audit";
 import { sseManager } from "@/lib/sse";
 import { getServerTranslator } from "@/lib/i18n";
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const authResponse = await requirePermission(PERMISSIONS.ROLES_READ);
+  if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
+
+  try {
+    const { id } = await params;
+
+    const role = await prisma.role.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { users: true } },
+      },
+    });
+
+    if (!role) {
+      return NextResponse.json({ error: t("errors.roleNotFound") }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: role });
+  } catch (error: unknown) {
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    return NextResponse.json({ error: rawMessage }, { status: 500 });
+  }
+}
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
