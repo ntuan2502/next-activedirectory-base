@@ -127,6 +127,9 @@ export async function DELETE(
 
     const existingRole = await prisma.role.findUnique({
       where: { id },
+      include: {
+        _count: { select: { users: true } },
+      },
     });
 
     if (!existingRole) {
@@ -135,6 +138,10 @@ export async function DELETE(
 
     if (existingRole.isSystem) {
       return NextResponse.json({ error: t("errors.systemRoleNotDeleted") }, { status: 400 });
+    }
+
+    if (existingRole._count && existingRole._count.users > 0) {
+      return NextResponse.json({ error: t("errors.cannotDeleteRoleHasUsers") }, { status: 400 });
     }
 
     await logAction("role:delete", existingRole.name, {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useContext, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { Shield, Save, ArrowLeft, RefreshCw, CheckSquare, Square, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,21 +10,13 @@ import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/components/language-provider";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
-import { LoadingSpinner } from "@/components/loading-overlay";
 import { PERMISSIONS, AVAILABLE_PERMISSIONS } from "@/config/permissions";
 import { toast } from "sonner";
-
-type RoleRecord = {
-  id: string;
-  name: string;
-  description: string | null;
-  permissions: string;
-  isSystem: boolean;
-};
+import { RoleContext } from "./[id]/layout";
 
 interface RoleEditorProps {
-  roleId: string;
-  mode: "view" | "edit";
+  roleId?: string;
+  mode: "view" | "edit" | "create";
 }
 
 export function RoleEditor({ roleId, mode }: RoleEditorProps) {
@@ -32,25 +24,67 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
   const { t } = useLanguage();
   const router = useRouter();
 
+  // For create mode, context is null (no provider wrapping)
+  const roleContext = useContext(RoleContext);
+  const roleData = roleContext?.roleData ?? null;
+  const setRoleData = roleContext?.setRoleData ?? null;
+
+  const isCreateMode = mode === "create";
+
   const hasPermission = useCallback((perm: string) => {
     if (!user?.permissions) return false;
     if (user.permissions.includes("*")) return true;
     return user.permissions.includes(perm);
   }, [user]);
 
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [roleData, setRoleData] = useState<RoleRecord | null>(null);
 
-  // Form State
-  const [formName, setFormName] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formPermissions, setFormPermissions] = useState<Set<string>>(new Set());
+  // Parse permissions helper
+  const parsedPermissions = (() => {
+    if (!roleData?.permissions) return new Set<string>();
+    try {
+      const parsed = JSON.parse(roleData.permissions);
+      return new Set<string>(parsed);
+    } catch {
+      return new Set<string>();
+    }
+  })();
+
+  // Form State initialized directly from context to prevent first-render flash (blinking)
+  const [formName, setFormName] = useState(roleData?.name || "");
+  const [formDescription, setFormDescription] = useState(roleData?.description || "");
+  const [formPermissions, setFormPermissions] = useState<Set<string>>(parsedPermissions);
   const [initialState, setInitialState] = useState<{
     name: string;
     description: string;
     permissions: Set<string>;
-  } | null>(null);
+  } | null>(roleData ? {
+    name: roleData.name,
+    description: roleData.description || "",
+    permissions: new Set(parsedPermissions),
+  } : null);
+
+  useEffect(() => {
+    if (roleData) {
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setFormName(roleData.name);
+      setFormDescription(roleData.description || "");
+      let perms = new Set<string>();
+      try {
+        const parsed = JSON.parse(roleData.permissions);
+        perms = new Set(parsed);
+      } catch {
+        // ignore
+      }
+      setFormPermissions(perms);
+      setInitialState({
+        name: roleData.name,
+        description: roleData.description || "",
+        permissions: new Set(perms),
+      });
+      /* eslint-enable react-hooks/set-state-in-effect */
+    }
+  }, [roleData]);
 
   const isReadOnly = mode === "view" || (roleData ? (roleData.isSystem || !hasPermission(PERMISSIONS.ROLES_UPDATE)) : false);
 
@@ -62,10 +96,13 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
     return true;
   };
 
-  const isChanged = !initialState ? false : (
-    formName.trim() !== initialState.name ||
-    formDescription.trim() !== initialState.description ||
-    !isSetEqual(formPermissions, initialState.permissions)
+  // For create mode, always allow save if name is filled
+  const isChanged = isCreateMode ? true : (
+    !initialState ? false : (
+      formName.trim() !== initialState.name ||
+      formDescription.trim() !== initialState.description ||
+      !isSetEqual(formPermissions, initialState.permissions)
+    )
   );
 
   const groupedPermissions = AVAILABLE_PERMISSIONS.reduce((acc, perm) => {
@@ -77,50 +114,14 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
     return acc;
   }, {} as Record<string, typeof AVAILABLE_PERMISSIONS>);
 
-  const fetchRole = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`/api/roles/${roleId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.data) {
-          const role = data.data;
-          setRoleData(role);
-          setFormName(role.name);
-          setFormDescription(role.description || "");
-          let perms = new Set<string>();
-          try {
-            const parsed = JSON.parse(role.permissions);
-            perms = new Set(parsed);
-          } catch {
-            // ignore
-          }
-          setFormPermissions(perms);
-          setInitialState({
-            name: role.name,
-            description: role.description || "",
-            permissions: new Set(perms),
-          });
-        } else {
-          toast.error(data.error || t("errors.roleNotFound"));
-          router.push("/roles");
-        }
-      } else {
-        toast.error(t("errors.roleNotFound"));
-        router.push("/roles");
-      }
-    } catch {
-      toast.error(t("common.networkError"));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [roleId, t, router]);
-
-  useEffect(() => {
-    if (hasPermission(PERMISSIONS.ROLES_READ)) {
-      Promise.resolve().then(() => fetchRole());
-    }
-  }, [fetchRole, hasPermission]);
+  const groupEntries = Object.entries(groupedPermissions);
+  const groupPairs: [[string, typeof AVAILABLE_PERMISSIONS], [string, typeof AVAILABLE_PERMISSIONS] | null][] = [];
+  for (let i = 0; i < groupEntries.length; i += 2) {
+    groupPairs.push([
+      groupEntries[i],
+      groupEntries[i + 1] || null
+    ]);
+  }
 
   const togglePermission = (permId: string) => {
     setFormPermissions((prev) => {
@@ -161,8 +162,11 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
 
     setIsSaving(true);
     try {
-      const res = await fetch(`/api/roles/${roleId}`, {
-        method: "PUT",
+      const url = isCreateMode ? "/api/roles" : `/api/roles/${roleId}`;
+      const method = isCreateMode ? "POST" : "PUT";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formName.trim(),
@@ -172,12 +176,20 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
       });
 
       if (res.ok) {
-        toast.success(t("rolesPage.successUpdate"));
-        setInitialState({
-          name: formName.trim(),
-          description: formDescription.trim(),
-          permissions: new Set(formPermissions),
-        });
+        toast.success(isCreateMode ? t("rolesPage.successCreate") : t("rolesPage.successUpdate"));
+        if (!isCreateMode) {
+          setInitialState({
+            name: formName.trim(),
+            description: formDescription.trim(),
+            permissions: new Set(formPermissions),
+          });
+          setRoleData?.((prev) => prev ? {
+            ...prev,
+            name: formName.trim(),
+            description: formDescription.trim(),
+            permissions: JSON.stringify(Array.from(formPermissions)),
+          } : null);
+        }
         router.push("/roles");
       } else {
         const data = await res.json();
@@ -190,17 +202,27 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
     }
   };
 
-  if (!hasPermission(PERMISSIONS.ROLES_READ)) {
+  // Permission check: create needs ROLES_CREATE, view/edit needs ROLES_READ
+  if (isCreateMode && !hasPermission(PERMISSIONS.ROLES_CREATE)) {
+    return <AccessDenied />;
+  }
+  if (!isCreateMode && !hasPermission(PERMISSIONS.ROLES_READ)) {
     return <AccessDenied />;
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <LoadingSpinner />
-      </div>
-    );
-  }
+  // Header title/description based on mode
+  const headerTitle = isCreateMode
+    ? t("rolesPage.createRole")
+    : isReadOnly
+      ? t("rolesPage.viewRole")
+      : t("rolesPage.editRole");
+
+  const headerDescription = isCreateMode
+    ? t("rolesPage.createRoleDesc")
+    : isReadOnly
+      ? t("rolesPage.viewRoleDesc")
+      : t("rolesPage.editRoleDesc");
+
 
   return (
     <div className="space-y-6 w-full">
@@ -218,18 +240,22 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
               <Shield className="w-8 h-8 text-primary" />
-              {isReadOnly ? t("rolesPage.viewRole") : t("rolesPage.editRole")}
+              {headerTitle}
             </h1>
             <p className="text-muted-foreground mt-1">
-              {isReadOnly ? t("rolesPage.viewRoleDesc") : t("rolesPage.editRoleDesc")}: <strong className="text-foreground">{roleData?.name}</strong>
+              {headerDescription}
+              {!isCreateMode && roleData?.name && (
+                <>: <strong className="text-foreground">{roleData.name}</strong></>
+              )}
             </p>
           </div>
         </div>
 
-        {mode === "view" && !roleData?.isSystem && hasPermission(PERMISSIONS.ROLES_UPDATE) && (
+        {mode === "view" && hasPermission(PERMISSIONS.ROLES_UPDATE) && (
           <Button
             onClick={() => router.push(`/roles/${roleId}/edit`)}
-            className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0 flex items-center gap-2 self-start sm:self-center"
+            disabled={roleData?.isSystem}
+            className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0 flex items-center gap-2 self-start sm:self-center disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
           >
             <Edit className="h-4 w-4" />
             {t("common.edit")}
@@ -238,12 +264,13 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+        {/* Role Info */}
         <Card className="shadow-lg">
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="font-semibold">
-                  {t("rolesPage.roleName")} <span className="text-destructive">*</span>
+                  {t("rolesPage.roleName")} {!isReadOnly && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
                   id="name"
@@ -271,6 +298,7 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
           </CardContent>
         </Card>
 
+        {/* Permissions */}
         <Card className="shadow-lg">
           <CardHeader className="border-b bg-muted/20 pb-4">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -281,64 +309,188 @@ export function RoleEditor({ roleId, mode }: RoleEditorProps) {
                 {t("rolesPage.systemRoleNotice")}
               </CardDescription>
             )}
-            {!roleData?.isSystem && isReadOnly && (
-              <CardDescription>
-                {t("rolesPage.readOnlyNotice")}
-              </CardDescription>
-            )}
           </CardHeader>
           <CardContent className="space-y-6">
-            {Object.entries(groupedPermissions).map(([groupName, perms]) => {
-              const allChecked = isAllGroupChecked(perms);
-              return (
-                <div key={groupName} className="space-y-3">
-                  <div className="flex items-center justify-between border-b pb-1.5">
-                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      {t("permissions.groups." + groupName, { defaultValue: groupName })}
-                    </h4>
-                    {!isReadOnly && (
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="h-auto p-0 text-xs text-primary hover:text-primary/80"
-                        onClick={() => handleToggleGroupPermissions(perms)}
-                      >
-                        {allChecked ? t("rolesPage.deselectAll") : t("rolesPage.selectAll")}
-                      </Button>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {perms.map((perm) => {
-                      const isChecked = roleData?.isSystem ? true : formPermissions.has(perm.id);
-                      return (
-                        <div
-                          key={perm.id}
-                          className={`flex items-start space-x-3 p-3 rounded-md border transition-colors ${isReadOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
-                            } ${isChecked ? "bg-primary/5 border-primary/20" : ""}`}
-                          onClick={() => !isReadOnly && togglePermission(perm.id)}
+            <div className="space-y-6">
+              {groupPairs.map(([groupA, groupB], pairIndex) => {
+                const [groupNameA, permsA] = groupA;
+                const [groupNameB, permsB] = groupB || [null, null];
+
+                const allCheckedA = isAllGroupChecked(permsA);
+                const allCheckedB = permsB ? isAllGroupChecked(permsB) : false;
+
+                const rowsA = Math.ceil(permsA.length / 2);
+                const rowsB = permsB ? Math.ceil(permsB.length / 2) : 0;
+                const maxRows = Math.max(rowsA, rowsB);
+
+                const rowIndices = Array.from({ length: maxRows }, (_, i) => i);
+
+                return (
+                  <div key={pairIndex} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-3 lg:gap-y-4 pb-6 last:pb-0 border-b border-border/50 last:border-b-0">
+                    {/* Headers */}
+                    <div className="flex items-center justify-between border-b pb-1.5 col-span-1 sm:col-span-2 order-1 lg:order-none">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        {t("permissions.groups." + groupNameA, { defaultValue: groupNameA })}
+                      </h4>
+                      {!isReadOnly && (
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="h-auto p-0 text-xs text-primary hover:text-primary/80"
+                          onClick={() => handleToggleGroupPermissions(permsA)}
                         >
-                          <div className="mt-0.5">
-                            {isChecked ? (
-                              <CheckSquare className="w-5 h-5 text-primary" />
-                            ) : (
-                              <Square className="w-5 h-5 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex flex-col space-y-1">
-                            <span className="text-sm font-medium leading-none">
-                              {t("permissions.names." + perm.id, { defaultValue: perm.name })}
-                            </span>
-                            <span className="text-xs text-muted-foreground leading-normal">
-                              {t("permissions.descriptions." + perm.id, { defaultValue: perm.description })}
-                            </span>
-                          </div>
-                        </div>
+                          {allCheckedA ? t("rolesPage.deselectAll") : t("rolesPage.selectAll")}
+                        </Button>
+                      )}
+                    </div>
+
+                    {groupNameB && permsB ? (
+                      <div className="flex items-center justify-between border-b pb-1.5 col-span-1 sm:col-span-2 order-3 lg:order-none">
+                        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          {t("permissions.groups." + groupNameB, { defaultValue: groupNameB })}
+                        </h4>
+                        {!isReadOnly && (
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="h-auto p-0 text-xs text-primary hover:text-primary/80"
+                            onClick={() => handleToggleGroupPermissions(permsB)}
+                          >
+                            {allCheckedB ? t("rolesPage.deselectAll") : t("rolesPage.selectAll")}
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="hidden lg:block lg:col-span-2 lg:order-none" />
+                    )}
+
+                    {/* Rows of items */}
+                    {rowIndices.map((r) => {
+                      const itemA1 = permsA[r * 2];
+                      const itemA2 = permsA[r * 2 + 1];
+                      const itemB1 = permsB ? permsB[r * 2] : null;
+                      const itemB2 = permsB ? permsB[r * 2 + 1] : null;
+
+                      return (
+                        <Fragment key={r}>
+                          {/* Group A Item 1 */}
+                          {itemA1 ? (
+                            <div
+                              className={`flex items-start space-x-3 p-3 rounded-md border transition-colors h-full col-span-1 order-2 lg:order-none ${
+                                isReadOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
+                              } ${roleData?.isSystem || formPermissions.has(itemA1.id) ? "bg-primary/5 border-primary/20" : ""}`}
+                              onClick={() => !isReadOnly && togglePermission(itemA1.id)}
+                            >
+                              <div className="mt-0.5">
+                                {roleData?.isSystem || formPermissions.has(itemA1.id) ? (
+                                  <CheckSquare className="w-5 h-5 text-primary" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-sm font-medium leading-none">
+                                  {t("permissions.names." + itemA1.id, { defaultValue: itemA1.name })}
+                                </span>
+                                <span className="text-xs text-muted-foreground leading-normal">
+                                  {t("permissions.descriptions." + itemA1.id, { defaultValue: itemA1.description })}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="hidden lg:block lg:col-span-1 lg:order-none" />
+                          )}
+
+                          {/* Group A Item 2 */}
+                          {itemA2 ? (
+                            <div
+                              className={`flex items-start space-x-3 p-3 rounded-md border transition-colors h-full col-span-1 order-2 lg:order-none ${
+                                isReadOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
+                              } ${roleData?.isSystem || formPermissions.has(itemA2.id) ? "bg-primary/5 border-primary/20" : ""}`}
+                              onClick={() => !isReadOnly && togglePermission(itemA2.id)}
+                            >
+                              <div className="mt-0.5">
+                                {roleData?.isSystem || formPermissions.has(itemA2.id) ? (
+                                  <CheckSquare className="w-5 h-5 text-primary" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-sm font-medium leading-none">
+                                  {t("permissions.names." + itemA2.id, { defaultValue: itemA2.name })}
+                                </span>
+                                <span className="text-xs text-muted-foreground leading-normal">
+                                  {t("permissions.descriptions." + itemA2.id, { defaultValue: itemA2.description })}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="hidden lg:block lg:col-span-1 lg:order-none" />
+                          )}
+
+                          {/* Group B Item 1 */}
+                          {itemB1 ? (
+                            <div
+                              className={`flex items-start space-x-3 p-3 rounded-md border transition-colors h-full col-span-1 order-4 lg:order-none ${
+                                isReadOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
+                              } ${roleData?.isSystem || formPermissions.has(itemB1.id) ? "bg-primary/5 border-primary/20" : ""}`}
+                              onClick={() => !isReadOnly && togglePermission(itemB1.id)}
+                            >
+                              <div className="mt-0.5">
+                                {roleData?.isSystem || formPermissions.has(itemB1.id) ? (
+                                  <CheckSquare className="w-5 h-5 text-primary" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-sm font-medium leading-none">
+                                  {t("permissions.names." + itemB1.id, { defaultValue: itemB1.name })}
+                                </span>
+                                <span className="text-xs text-muted-foreground leading-normal">
+                                  {t("permissions.descriptions." + itemB1.id, { defaultValue: itemB1.description })}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="hidden lg:block lg:col-span-1 lg:order-none" />
+                          )}
+
+                          {/* Group B Item 2 */}
+                          {itemB2 ? (
+                            <div
+                              className={`flex items-start space-x-3 p-3 rounded-md border transition-colors h-full col-span-1 order-4 lg:order-none ${
+                                isReadOnly ? "cursor-not-allowed opacity-80" : "cursor-pointer hover:bg-muted/50"
+                              } ${roleData?.isSystem || formPermissions.has(itemB2.id) ? "bg-primary/5 border-primary/20" : ""}`}
+                              onClick={() => !isReadOnly && togglePermission(itemB2.id)}
+                            >
+                              <div className="mt-0.5">
+                                {roleData?.isSystem || formPermissions.has(itemB2.id) ? (
+                                  <CheckSquare className="w-5 h-5 text-primary" />
+                                ) : (
+                                  <Square className="w-5 h-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex flex-col space-y-1">
+                                <span className="text-sm font-medium leading-none">
+                                  {t("permissions.names." + itemB2.id, { defaultValue: itemB2.name })}
+                                </span>
+                                <span className="text-xs text-muted-foreground leading-normal">
+                                  {t("permissions.descriptions." + itemB2.id, { defaultValue: itemB2.description })}
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="hidden lg:block lg:col-span-1 lg:order-none" />
+                          )}
+                        </Fragment>
                       );
                     })}
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 

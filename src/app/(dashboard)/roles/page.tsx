@@ -211,7 +211,7 @@ export default function RolesPage() {
   };
 
   const handleDelete = async (role: RoleRecord) => {
-    if (role.isSystem) return;
+    if (role.isSystem || (role._count?.users ?? 0) > 0) return;
 
     confirmAction({
       title: t("rolesPage.deleteConfirmTitle"),
@@ -408,13 +408,14 @@ export default function RolesPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {!role.isSystem && hasPermission(PERMISSIONS.ROLES_UPDATE) && (
+                          {hasPermission(PERMISSIONS.ROLES_UPDATE) && (
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => router.push(`/roles/${role.id}/edit`)}
-                              title={t("rolesPage.editRole")}
-                              className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 cursor-pointer"
+                              disabled={role.isSystem}
+                              title={role.isSystem ? t("rolesPage.systemRoleWarning") : t("rolesPage.editRole")}
+                              className={role.isSystem ? "opacity-30 cursor-not-allowed" : "text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 cursor-pointer"}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -424,9 +425,19 @@ export default function RolesPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleDelete(role)}
-                              disabled={role.isSystem}
-                              title={role.isSystem ? t("rolesPage.cannotDeleteSystemRole") : t("common.delete")}
-                              className={role.isSystem ? "opacity-30 cursor-not-allowed" : "text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"}
+                              disabled={role.isSystem || (role._count?.users ?? 0) > 0}
+                              title={
+                                role.isSystem
+                                  ? t("rolesPage.cannotDeleteSystemRole")
+                                  : (role._count?.users ?? 0) > 0
+                                  ? t("rolesPage.cannotDeleteRoleHasUsers")
+                                  : t("common.delete")
+                              }
+                              className={
+                                (role.isSystem || (role._count?.users ?? 0) > 0)
+                                  ? "opacity-30 cursor-not-allowed"
+                                  : "text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                              }
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
