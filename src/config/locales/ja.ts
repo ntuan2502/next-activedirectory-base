@@ -98,7 +98,11 @@ export const ja = {
       nameEn: "英語名",
       taxCode: "税務コード",
       taxAddress: "納税住所",
-    }
+    },
+    viewCompany: "会社を表示",
+    viewCompanyDesc: "グループ会社の詳細情報を表示します。",
+    editCompanyDesc: "グループ会社の詳細情報を更新します。",
+    addCompanyDesc: "システムに新しいグループ会社を追加します。",
   },
   usersPage: {
     title: "ユーザー管理",

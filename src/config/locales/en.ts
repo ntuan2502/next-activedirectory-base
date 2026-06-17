@@ -98,7 +98,11 @@ export const en = {
       nameEn: "English Name",
       taxCode: "Tax Code",
       taxAddress: "Tax Address",
-    }
+    },
+    viewCompany: "View Company",
+    viewCompanyDesc: "View detailed information of the member company.",
+    editCompanyDesc: "Update detailed information of the member company.",
+    addCompanyDesc: "Add a new member company to the system.",
   },
   usersPage: {
     title: "Users Management",

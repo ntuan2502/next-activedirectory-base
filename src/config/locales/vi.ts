@@ -98,7 +98,11 @@ export const vi = {
       nameEn: "Tên tiếng Anh",
       taxCode: "Mã số thuế",
       taxAddress: "Địa chỉ thuế",
-    }
+    },
+    viewCompany: "Xem công ty",
+    viewCompanyDesc: "Xem thông tin chi tiết của công ty thành viên.",
+    editCompanyDesc: "Cập nhật thông tin chi tiết của công ty thành viên.",
+    addCompanyDesc: "Thêm công ty thành viên mới vào hệ thống.",
   },
   usersPage: {
     title: "Quản lý Người dùng",

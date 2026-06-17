@@ -98,7 +98,11 @@ export const th = {
       nameEn: "ชื่อภาษาอังกฤษ",
       taxCode: "รหัสผู้เสียภาษี",
       taxAddress: "ที่อยู่ภาษี",
-    }
+    },
+    viewCompany: "ดูข้อมูลบริษัท",
+    viewCompanyDesc: "ดูข้อมูลรายละเอียดของบริษัทสมาชิก",
+    editCompanyDesc: "อัปเดตข้อมูลรายละเอียดของบริษัทสมาชิก",
+    addCompanyDesc: "เพิ่มบริษัทสมาชิกใหม่เข้าสู่ระบบ",
   },
   usersPage: {
     title: "การจัดการผู้ใช้",

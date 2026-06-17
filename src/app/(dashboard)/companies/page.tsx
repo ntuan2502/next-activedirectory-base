@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { Building2, Plus, Edit, Trash2, RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Building2, Plus, Edit, Trash2, RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown, Eye } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { useLanguage } from "@/components/language-provider";
@@ -68,14 +67,10 @@ type GetCompaniesSuccessResponse = {
   };
 };
 
-type SaveCompanySuccessResponse = {
-  success: boolean;
-  data: CompanyRecord;
-};
-
 export default function CompaniesPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const router = useRouter();
 
   const hasPermission = useCallback((perm: string): boolean => {
     if (!user?.permissions) return false;
@@ -95,18 +90,6 @@ export default function CompaniesPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>({ key: "code", direction: "asc" });
   const [isReady, setIsReady] = useState(false);
-
-  // Dialog State
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<CompanyRecord | null>(null);
-
-  // Form State
-  const [formCode, setFormCode] = useState("");
-  const [formNameVi, setFormNameVi] = useState("");
-  const [formNameEn, setFormNameEn] = useState("");
-  const [formTaxCode, setFormTaxCode] = useState("");
-  const [formTaxAddress, setFormTaxAddress] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
 
   // Confirmation state
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -216,67 +199,6 @@ export default function CompaniesPage() {
     setPage(1);
   };
 
-  const openCreateDialog = () => {
-    setEditingCompany(null);
-    setFormCode("");
-    setFormNameVi("");
-    setFormNameEn("");
-    setFormTaxCode("");
-    setFormTaxAddress("");
-    setIsDialogOpen(true);
-  };
-
-  const openEditDialog = (company: CompanyRecord) => {
-    setEditingCompany(company);
-    setFormCode(company.code);
-    setFormNameVi(company.nameVi);
-    setFormNameEn(company.nameEn);
-    setFormTaxCode(company.taxCode);
-    setFormTaxAddress(company.taxAddress);
-    setIsDialogOpen(true);
-  };
-
-  const handleSave = async () => {
-    if (!formCode.trim()) {
-      return toast.error(t("companiesPage.codePlaceholder"));
-    }
-
-    setIsSaving(true);
-    try {
-      const url = editingCompany ? `/api/companies/${editingCompany.id}` : "/api/companies";
-      const method = editingCompany ? "PATCH" : "POST";
-      const body = JSON.stringify({
-        code: formCode.trim().toUpperCase(),
-        nameVi: formNameVi.trim(),
-        nameEn: formNameEn.trim(),
-        taxCode: formTaxCode.trim(),
-        taxAddress: formTaxAddress.trim(),
-      });
-
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body,
-      });
-
-      if (res.ok) {
-        const data = (await res.json()) as SaveCompanySuccessResponse;
-        if (data.success) {
-          await fetchCompanies();
-          setIsDialogOpen(false);
-          toast.success(editingCompany ? t("companiesPage.successUpdate") : t("companiesPage.successCreate"));
-        }
-      } else {
-        const data = (await res.json()) as ApiErrorResponse;
-        toast.error(data.error || t("common.failedToSave"));
-      }
-    } catch {
-      toast.error(t("common.networkError"));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleDelete = async (company: CompanyRecord) => {
     confirmAction({
       title: t("companiesPage.deleteConfirmTitle"),
@@ -311,6 +233,10 @@ export default function CompaniesPage() {
     return getPageNumbers(page, totalPages);
   }, [page, totalPages]);
 
+  const showActions = hasPermission(PERMISSIONS.COMPANIES_READ) || 
+                      hasPermission(PERMISSIONS.COMPANIES_UPDATE) || 
+                      hasPermission(PERMISSIONS.COMPANIES_DELETE);
+
   if (!hasPermission(PERMISSIONS.COMPANIES_READ)) {
     return <AccessDenied />;
   }
@@ -335,7 +261,7 @@ export default function CompaniesPage() {
         <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full sm:w-auto">
           {hasPermission(PERMISSIONS.COMPANIES_CREATE) && (
             <Button
-              onClick={openCreateDialog}
+              onClick={() => router.push("/companies/new")}
               className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -416,7 +342,7 @@ export default function CompaniesPage() {
                   <TableHead className="w-28 text-center">
                     {t("companiesPage.tableHeaders.usersCount")}
                   </TableHead>
-                  {(hasPermission(PERMISSIONS.COMPANIES_UPDATE) || hasPermission(PERMISSIONS.COMPANIES_DELETE)) && (
+                  {showActions && (
                     <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
                   )}
                 </TableRow>
@@ -439,14 +365,25 @@ export default function CompaniesPage() {
                             {company._count?.users ?? 0}
                           </Badge>
                         </TableCell>
-                        {(hasPermission(PERMISSIONS.COMPANIES_UPDATE) || hasPermission(PERMISSIONS.COMPANIES_DELETE)) && (
+                        {showActions && (
                           <TableCell className="text-center">
                             <div className="flex justify-center items-center gap-1">
+                              {hasPermission(PERMISSIONS.COMPANIES_READ) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => router.push(`/companies/${company.id}`)}
+                                  title={t("companiesPage.viewCompany")}
+                                  className="text-zinc-500 hover:text-zinc-600 hover:bg-zinc-500/10"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                              )}
                               {hasPermission(PERMISSIONS.COMPANIES_UPDATE) && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => openEditDialog(company)}
+                                  onClick={() => router.push(`/companies/${company.id}/edit`)}
                                   title={t("companiesPage.editCompany")}
                                   className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10"
                                 >
@@ -532,86 +469,6 @@ export default function CompaniesPage() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen} disablePointerDismissal={true}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-4 overflow-hidden">
-          <DialogHeader className="shrink-0 mb-2">
-            <DialogTitle>
-              {editingCompany
-                ? (t("companiesPage.editCompany"))
-                : (t("companiesPage.addCompany"))}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-2 px-1 space-y-4 min-h-0">
-            <div className="space-y-2">
-              <Label htmlFor="code">{t("companiesPage.form.code")} <span className="text-destructive">*</span></Label>
-              <Input
-                id="code"
-                placeholder={t("companiesPage.codePlaceholder")}
-                value={formCode}
-                onChange={(e) => setFormCode(e.target.value)}
-                disabled={editingCompany !== null} // Mã công ty không cho sửa khi chỉnh sửa để tránh lỗi liên kết khóa
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nameVi">{t("companiesPage.form.nameVi")}</Label>
-              <Input
-                id="nameVi"
-                placeholder={t("companiesPage.nameViPlaceholder")}
-                value={formNameVi}
-                onChange={(e) => setFormNameVi(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nameEn">{t("companiesPage.form.nameEn")}</Label>
-              <Input
-                id="nameEn"
-                placeholder={t("companiesPage.nameEnPlaceholder")}
-                value={formNameEn}
-                onChange={(e) => setFormNameEn(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="taxCode">{t("companiesPage.form.taxCode")}</Label>
-              <Input
-                id="taxCode"
-                placeholder={t("companiesPage.taxCodePlaceholder")}
-                value={formTaxCode}
-                onChange={(e) => setFormTaxCode(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="taxAddress">{t("companiesPage.form.taxAddress")}</Label>
-              <Input
-                id="taxAddress"
-                placeholder={t("companiesPage.taxAddressPlaceholder")}
-                value={formTaxAddress}
-                onChange={(e) => setFormTaxAddress(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter className="shrink-0 mt-4 border-t pt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isSaving}
-              className="h-10 px-5 font-semibold text-sm cursor-pointer border-muted/70"
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
-            >
-              {isSaving ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
-              {isSaving ? t("common.loading") : t("common.save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

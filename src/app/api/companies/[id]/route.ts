@@ -12,6 +12,45 @@ interface UpdateCompanyBody {
   taxCode?: string;
 }
 
+// GET: Lấy thông tin chi tiết một công ty
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const authResponse = await requirePermission(PERMISSIONS.COMPANIES_READ);
+  if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
+
+  try {
+    const { id } = await params;
+
+    const company = await prisma.company.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { users: true },
+        },
+      },
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: t("errors.companyNotFound") }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: company,
+    });
+  } catch (error: unknown) {
+    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    return NextResponse.json(
+      { error: t("errors.failedToFetchCompanies", { error: rawMessage }) },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH: Cập nhật thông tin công ty
 export async function PATCH(
   request: NextRequest,
