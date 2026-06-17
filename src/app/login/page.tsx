@@ -68,7 +68,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-2">
               <Label htmlFor="username">{t("loginPage.username")}</Label>
               <Input
@@ -112,7 +112,11 @@ export default function LoginPage() {
             </div>
 
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading || !username.trim() || !password.trim()}
+            >
               {isLoading ? (
                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
               ) : (

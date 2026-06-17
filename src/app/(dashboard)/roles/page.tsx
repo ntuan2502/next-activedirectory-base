@@ -83,6 +83,25 @@ export default function RolesPage() {
   const [formDescription, setFormDescription] = useState("");
   const [formPermissions, setFormPermissions] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
+  const [initialDialogState, setInitialDialogState] = useState<{
+    name: string;
+    description: string;
+    permissions: Set<string>;
+  } | null>(null);
+
+  const isSetEqual = (a: Set<string>, b: Set<string>) => {
+    if (a.size !== b.size) return false;
+    for (const x of a) {
+      if (!b.has(x)) return false;
+    }
+    return true;
+  };
+
+  const isChanged = !initialDialogState ? false : (
+    formName.trim() !== initialDialogState.name ||
+    formDescription.trim() !== initialDialogState.description ||
+    !isSetEqual(formPermissions, initialDialogState.permissions)
+  );
 
   // Confirmation state
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -236,6 +255,11 @@ export default function RolesPage() {
     setFormName("");
     setFormDescription("");
     setFormPermissions(new Set());
+    setInitialDialogState({
+      name: "",
+      description: "",
+      permissions: new Set(),
+    });
     setIsDialogOpen(true);
   };
 
@@ -243,12 +267,19 @@ export default function RolesPage() {
     setEditingRole(role);
     setFormName(role.name);
     setFormDescription(role.description || "");
+    let perms = new Set<string>();
     try {
-      const perms = JSON.parse(role.permissions);
-      setFormPermissions(new Set(perms));
+      const parsed = JSON.parse(role.permissions);
+      perms = new Set(parsed);
+      setFormPermissions(perms);
     } catch {
       setFormPermissions(new Set());
     }
+    setInitialDialogState({
+      name: role.name,
+      description: role.description || "",
+      permissions: perms,
+    });
     setIsDialogOpen(true);
   };
 
@@ -717,7 +748,7 @@ export default function RolesPage() {
             {!isReadOnly && (
               <Button
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || !formName.trim() || !isChanged}
                 className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
               >
                 {isSaving ? (

@@ -457,7 +457,7 @@ export default function AccountPage() {
               </div>
             </CardHeader>
 
-            <form onSubmit={handleSaveProfile}>
+            <form onSubmit={handleSaveProfile} noValidate>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Username */}
@@ -523,7 +523,7 @@ export default function AccountPage() {
 
                 {isLocal ? (
                   <div className="flex justify-end pt-2">
-                    <Button type="submit" disabled={isProfileSaving || !isProfileChanged} className="font-semibold h-9 px-5">
+                    <Button type="submit" disabled={isProfileSaving || !isProfileChanged || !profileDisplayName.trim() || !profileEmail.trim()} className="font-semibold h-9 px-5">
                       {isProfileSaving && <RefreshCw className="w-4 h-4 mr-2 animate-spin" />}
                       {t("accountPage.btnSave")}
                     </Button>
@@ -556,7 +556,7 @@ export default function AccountPage() {
                 </div>
               </div>
             </CardHeader>
-            <form onSubmit={handleUpdatePassword}>
+            <form onSubmit={handleUpdatePassword} noValidate>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Current Password */}

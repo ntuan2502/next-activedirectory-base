@@ -142,6 +142,18 @@ export default function LdapSettingsPage() {
   const [lastSyncMessage, setLastSyncMessage] = useState("");
   const [hasExistingConfig, setHasExistingConfig] = useState(false);
   const [lastTestedConfig, setLastTestedConfig] = useState<string>("");
+  const [initialSettings, setInitialSettings] = useState<SettingsData | null>(null);
+
+  const isChanged = !initialSettings ? false : (
+    ldapUrl !== (initialSettings.ldapUrl || "") ||
+    ldapPort !== (initialSettings.ldapPort !== null && initialSettings.ldapPort !== undefined ? String(initialSettings.ldapPort) : "") ||
+    ldapBindDn !== (initialSettings.ldapBindDn || "") ||
+    ldapBindPassword !== "" ||
+    ldapBaseDn !== (initialSettings.ldapBaseDn || "") ||
+    ldapFilter !== (initialSettings.ldapFilter || "") ||
+    syncEnabled !== !!initialSettings.syncEnabled ||
+    syncInterval !== initialSettings.syncInterval
+  );
 
   const currentLdapConfig = JSON.stringify({
     ldapUrl,
@@ -192,6 +204,7 @@ export default function LdapSettingsPage() {
           setLastSyncStatus(d.lastSyncStatus);
           setLastSyncMessage(d.lastSyncMessage);
           hasLoadedRef.current = true;
+          setInitialSettings(d);
 
           // Set initial tested config to avoid forcing test connection on load
           setLastTestedConfig(JSON.stringify({
@@ -291,6 +304,29 @@ export default function LdapSettingsPage() {
           setLastSyncAt(d.lastSyncAt);
           setLastSyncStatus(d.lastSyncStatus);
           setLastSyncMessage(d.lastSyncMessage);
+          setInitialSettings({
+            ...d,
+            ldapUrl,
+            ldapPort: parseInt(ldapPort, 10),
+            ldapBindDn,
+            ldapBaseDn,
+            ldapFilter,
+            syncEnabled,
+            syncInterval,
+          });
+        } else {
+          setInitialSettings({
+            ldapUrl,
+            ldapPort: parseInt(ldapPort, 10),
+            ldapBindDn,
+            ldapBaseDn,
+            ldapFilter,
+            syncEnabled,
+            syncInterval,
+            lastSyncAt,
+            lastSyncStatus,
+            lastSyncMessage,
+          });
         }
       } else {
         toast.error(result.error || t("settingsPage.saveFailed"));
@@ -358,7 +394,7 @@ export default function LdapSettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <form id="ldap-settings-form" onSubmit={handleSaveSettings}>
+          <form id="ldap-settings-form" onSubmit={handleSaveSettings} noValidate>
             <Card className="shadow-lg">
               <CardHeader className="border-b bg-muted/20 pb-4">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -590,7 +626,7 @@ export default function LdapSettingsPage() {
         <Button
           type="submit"
           form="ldap-settings-form"
-          disabled={isSaving || isTesting || !isLdapConfigValid || !isConfigTested}
+          disabled={isSaving || isTesting || !isLdapConfigValid || !isConfigTested || !isChanged}
           className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
         >
           {isSaving ? (

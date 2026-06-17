@@ -177,7 +177,7 @@ export default function NewUserPage() {
         </div>
       </div>
  
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: Personal info & Password */}
           <div className="lg:col-span-2 space-y-6">
@@ -438,7 +438,14 @@ export default function NewUserPage() {
           </Button>
           <Button
             type="submit"
-            disabled={isSaving}
+            disabled={
+              isSaving ||
+              !username.trim() ||
+              !displayName.trim() ||
+              !email.trim() ||
+              !password ||
+              !confirmPassword
+            }
             className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
           >
             {isSaving ? (

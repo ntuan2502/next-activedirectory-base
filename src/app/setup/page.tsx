@@ -222,7 +222,7 @@ export default function InitialSetupPage() {
 
         {/* Wizard step 1: Admin Account Creation */}
         {step === 1 && (
-          <form onSubmit={handleRegisterAdmin}>
+          <form onSubmit={handleRegisterAdmin} noValidate>
             <Card className="shadow-xl border-muted/70 animate-fade-in">
               <CardHeader className="bg-muted/10 border-b">
                 <CardTitle className="flex items-center gap-2">

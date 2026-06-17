@@ -60,6 +60,35 @@ export default function EditUserPage() {
   const [department, setDepartment] = useState("");
   const [companyId, setCompanyId] = useState("");
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  const [initialUser, setInitialUser] = useState<{
+    displayName: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    title: string;
+    department: string;
+    companyId: string;
+    roleIds: string[];
+  } | null>(null);
+
+  const areRoleIdsEqual = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false;
+    const setA = new Set(a);
+    return b.every(x => setA.has(x));
+  };
+
+  const isChanged = !initialUser ? false : (
+    displayName !== initialUser.displayName ||
+    firstName !== initialUser.firstName ||
+    lastName !== initialUser.lastName ||
+    email !== initialUser.email ||
+    phone !== initialUser.phone ||
+    title !== initialUser.title ||
+    department !== initialUser.department ||
+    companyId !== initialUser.companyId ||
+    !areRoleIdsEqual(Array.from(selectedRoleIds), initialUser.roleIds)
+  );
  
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -98,7 +127,19 @@ export default function EditUserPage() {
           setDepartment(u.department || "");
           setCompanyId(u.companyId || "");
           setIsLdapUser(u.dn !== "");
-          setSelectedRoleIds(new Set(u.roles?.map((r: { id: string }) => r.id) || []));
+          const roleIds = u.roles?.map((r: { id: string }) => r.id) || [];
+          setSelectedRoleIds(new Set(roleIds));
+          setInitialUser({
+            displayName: u.displayName || "",
+            firstName: u.firstName || "",
+            lastName: u.lastName || "",
+            email: u.email || "",
+            phone: u.phone || "",
+            title: u.title || "",
+            department: u.department || "",
+            companyId: u.companyId || "",
+            roleIds,
+          });
         } else {
           toast.error(userData.error || t("errors.userNotFound"));
           router.push("/users");
@@ -150,6 +191,17 @@ export default function EditUserPage() {
       const data = await res.json();
       if (res.ok) {
         toast.success(t("usersPage.successUpdateUser"));
+        setInitialUser({
+          displayName,
+          firstName,
+          lastName,
+          email,
+          phone,
+          title,
+          department,
+          companyId,
+          roleIds: Array.from(selectedRoleIds),
+        });
         router.push("/users");
       } else {
         toast.error(data.error || t("usersPage.failedToUpdateUser"));
@@ -206,7 +258,7 @@ export default function EditUserPage() {
         </Alert>
       )}
  
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: User Profile info */}
           <div className="lg:col-span-2 space-y-6">
@@ -419,7 +471,7 @@ export default function EditUserPage() {
           </Button>
           <Button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || (!isLdapUser && (!displayName.trim() || !email.trim())) || !isChanged}
             className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
           >
             {isSaving ? (

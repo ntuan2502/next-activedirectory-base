@@ -42,6 +42,17 @@ export default function SecuritySettingsPage() {
   const [passwordRequireNumber, setPasswordRequireNumber] = useState(false);
   const [passwordRequireSymbol, setPasswordRequireSymbol] = useState(false);
   const [passwordRequireMixedCase, setPasswordRequireMixedCase] = useState(false);
+  const [initialSettings, setInitialSettings] = useState<SettingsData | null>(null);
+
+  const isChanged = !initialSettings ? false : (
+    passwordMinLength !== (initialSettings.passwordMinLength || 8) ||
+    passwordPreventCommon !== !!initialSettings.passwordPreventCommon ||
+    passwordNoUserInfo !== !!initialSettings.passwordNoUserInfo ||
+    passwordRequireLetter !== !!initialSettings.passwordRequireLetter ||
+    passwordRequireNumber !== !!initialSettings.passwordRequireNumber ||
+    passwordRequireSymbol !== !!initialSettings.passwordRequireSymbol ||
+    passwordRequireMixedCase !== !!initialSettings.passwordRequireMixedCase
+  );
 
   const hasPermission = useCallback((perm: string) => {
     if (!user?.permissions) return false;
@@ -67,6 +78,7 @@ export default function SecuritySettingsPage() {
           setPasswordRequireSymbol(!!d.passwordRequireSymbol);
           setPasswordRequireMixedCase(!!d.passwordRequireMixedCase);
           hasLoadedRef.current = true;
+          setInitialSettings(d);
         }
       }
     } catch {
@@ -102,19 +114,30 @@ export default function SecuritySettingsPage() {
         }),
       });
       const result = await res.json();
-      if (res.ok && result.success) {
-        toast.success(t("settingsPage.saveSuccess"));
-        if (result.data) {
-          const d: SettingsData = result.data;
-          setPasswordMinLength(d.passwordMinLength || 8);
-          setPasswordPreventCommon(!!d.passwordPreventCommon);
-          setPasswordNoUserInfo(!!d.passwordNoUserInfo);
-          setPasswordRequireLetter(!!d.passwordRequireLetter);
-          setPasswordRequireNumber(!!d.passwordRequireNumber);
-          setPasswordRequireSymbol(!!d.passwordRequireSymbol);
-          setPasswordRequireMixedCase(!!d.passwordRequireMixedCase);
-        }
-      } else {
+        if (res.ok && result.success) {
+          toast.success(t("settingsPage.saveSuccess"));
+          if (result.data) {
+            const d: SettingsData = result.data;
+            setPasswordMinLength(d.passwordMinLength || 8);
+            setPasswordPreventCommon(!!d.passwordPreventCommon);
+            setPasswordNoUserInfo(!!d.passwordNoUserInfo);
+            setPasswordRequireLetter(!!d.passwordRequireLetter);
+            setPasswordRequireNumber(!!d.passwordRequireNumber);
+            setPasswordRequireSymbol(!!d.passwordRequireSymbol);
+            setPasswordRequireMixedCase(!!d.passwordRequireMixedCase);
+            setInitialSettings(d);
+          } else {
+            setInitialSettings({
+              passwordMinLength,
+              passwordPreventCommon,
+              passwordNoUserInfo,
+              passwordRequireLetter,
+              passwordRequireNumber,
+              passwordRequireSymbol,
+              passwordRequireMixedCase,
+            });
+          }
+        } else {
         toast.error(result.error || t("settingsPage.saveFailed"));
       }
     } catch {
@@ -158,7 +181,7 @@ export default function SecuritySettingsPage() {
         </div>
       </div>
  
-      <form onSubmit={handleSaveSettings} className="space-y-6">
+      <form onSubmit={handleSaveSettings} className="space-y-6" noValidate>
         <Card className="shadow-lg">
           <CardHeader className="border-b bg-muted/20 pb-4">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -274,7 +297,7 @@ export default function SecuritySettingsPage() {
           </Button>
           <Button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || !isChanged}
             className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
           >
             {isSaving ? (

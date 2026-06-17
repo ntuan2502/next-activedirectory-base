@@ -847,7 +847,7 @@ export default function UsersPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+          <form onSubmit={handleResetPasswordSubmit} className="space-y-4" noValidate>
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {t("usersPage.newPassword")} <span className="text-destructive">*</span>
@@ -906,7 +906,7 @@ export default function UsersPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={isSavingResetPassword}
+                disabled={isSavingResetPassword || !resetPasswordVal || !resetConfirmPasswordVal}
                 className="h-10 px-5 font-semibold text-sm bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-50 dark:hover:bg-zinc-200 dark:text-zinc-900 cursor-pointer border-0"
               >
                 {isSavingResetPassword ? t("rolesPage.saving") : t("common.save")}
