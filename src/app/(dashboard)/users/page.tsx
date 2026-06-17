@@ -681,7 +681,7 @@ export default function UsersPage() {
                       {sortConfig?.key === "disabled" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
+                  {(hasPermission(PERMISSIONS.USERS_READ) || hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                     <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
                   )}
                 </TableRow>
@@ -725,9 +725,20 @@ export default function UsersPage() {
                           <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600">{t("usersPage.status.active")}</Badge>
                         )}
                       </TableCell>
-                      {(hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
+                      {(hasPermission(PERMISSIONS.USERS_READ) || hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                         <TableCell className="text-center">
                           <div className="flex justify-center items-center gap-1">
+                            {hasPermission(PERMISSIONS.USERS_READ) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => router.push(`/users/${user.id}`)}
+                                title={t("usersPage.viewUser")}
+                                className="text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            )}
                             {hasPermission(PERMISSIONS.USERS_UPDATE) && (
                               <>
                                 <Button

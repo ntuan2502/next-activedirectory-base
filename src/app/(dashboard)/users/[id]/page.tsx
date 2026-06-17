@@ -4,9 +4,9 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { AccessDenied } from "@/components/access-denied";
 import { PERMISSIONS } from "@/config/permissions";
-import { UserEditor } from "../../user-editor";
+import { UserEditor } from "../user-editor";
 
-export default function EditUserPage() {
+export default function ViewUserPage() {
   const { user } = useAuth();
   const params = useParams();
   const userId = params.id as string;
@@ -17,9 +17,9 @@ export default function EditUserPage() {
     return user.permissions.includes(perm);
   };
 
-  if (!hasPermission(PERMISSIONS.USERS_UPDATE)) {
+  if (!hasPermission(PERMISSIONS.USERS_READ)) {
     return <AccessDenied />;
   }
 
-  return <UserEditor userId={userId} mode="edit" />;
+  return <UserEditor userId={userId} mode="view" />;
 }
