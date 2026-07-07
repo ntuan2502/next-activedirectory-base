@@ -28,6 +28,7 @@ interface FormattedDepartmentLog {
   parentDepartment: string;
   manager: string;
   subDepartments: string;
+  users: string;
 }
 
 interface DepartmentWithRelations {
@@ -53,6 +54,9 @@ function formatDepartmentForLog(dept: DepartmentWithRelations): FormattedDepartm
     manager: dept.managerObj ? `${dept.managerObj.displayName || dept.managerObj.username} (${dept.managerObj.username})` : "None",
     subDepartments: dept.subDepartments && dept.subDepartments.length > 0
       ? dept.subDepartments.map((d) => `${d.code} - ${d.nameVi}`).join(", ")
+      : "None",
+    users: dept.users && dept.users.length > 0
+      ? dept.users.map((u) => `${u.displayName || u.username} (${u.username})`).join(", ")
       : "None",
   };
 }
@@ -148,6 +152,13 @@ export async function PATCH(
         parentObj: true,
         managerObj: true,
         subDepartments: true,
+        users: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
       },
     });
 
@@ -501,6 +512,13 @@ export async function DELETE(
         parentObj: true,
         managerObj: true,
         subDepartments: true,
+        users: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
         _count: {
           select: {
             users: true,

@@ -127,6 +127,7 @@ interface FormattedDepartmentLog {
   parentDepartment: string;
   manager: string;
   subDepartments: string;
+  users: string;
 }
 
 interface DepartmentWithRelations {
@@ -138,6 +139,7 @@ interface DepartmentWithRelations {
   parentObj?: { code: string; nameVi: string } | null;
   managerObj?: { displayName: string | null; username: string } | null;
   subDepartments?: { code: string; nameVi: string }[] | null;
+  users?: { id: string; username: string; displayName: string }[] | null;
 }
 
 function formatDepartmentForLog(dept: DepartmentWithRelations): FormattedDepartmentLog {
@@ -151,6 +153,9 @@ function formatDepartmentForLog(dept: DepartmentWithRelations): FormattedDepartm
     manager: dept.managerObj ? `${dept.managerObj.displayName || dept.managerObj.username} (${dept.managerObj.username})` : "None",
     subDepartments: dept.subDepartments && dept.subDepartments.length > 0
       ? dept.subDepartments.map((d) => `${d.code} - ${d.nameVi}`).join(", ")
+      : "None",
+    users: dept.users && dept.users.length > 0
+      ? dept.users.map((u) => `${u.displayName || u.username} (${u.username})`).join(", ")
       : "None",
   };
 }
@@ -271,6 +276,13 @@ export async function POST(request: NextRequest) {
         parentObj: true,
         managerObj: true,
         subDepartments: true,
+        users: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
       },
     });
 

@@ -89,6 +89,8 @@ export async function DELETE(
       where: { id },
       include: {
         companies: true,
+        departments: true,
+        roles: true,
       },
     });
 
@@ -97,14 +99,16 @@ export async function DELETE(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, companies, ...userWithoutPassword } = existingUser;
+    const { passwordHash: _, companies, departments, roles, ...userWithoutPassword } = existingUser;
     await logAction("user:delete", existingUser.username, {
       status: "success",
       message: "auditLogsPage.messages.deleteUserSuccess",
       data: {
         before: {
           ...userWithoutPassword,
-          company: existingUser.companies[0]?.code || "",
+          company: existingUser.companies.map((c) => c.code).join(", ") || "None",
+          department: existingUser.departments.map((d) => `${d.code} - ${d.nameVi}`).join(", ") || "None",
+          roles: existingUser.roles.map((r) => r.name).join(", ") || "None",
         },
         after: null,
       },
@@ -246,12 +250,14 @@ export async function PUT(
       data: {
         before: {
           ...userBefore,
-          company: existingUser.companies.map((c) => c.code).join(", "),
+          company: existingUser.companies.map((c) => c.code).join(", ") || "None",
+          department: existingUser.departments.map((d) => `${d.code} - ${d.nameVi}`).join(", ") || "None",
           roles: existingUser.roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem })),
         },
         after: {
           ...userAfter,
-          company: updatedUser.companies.map((c) => c.code).join(", "),
+          company: updatedUser.companies.map((c) => c.code).join(", ") || "None",
+          department: updatedUser.departments.map((d) => `${d.code} - ${d.nameVi}`).join(", ") || "None",
           roles: updatedUser.roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem })),
         },
       },
