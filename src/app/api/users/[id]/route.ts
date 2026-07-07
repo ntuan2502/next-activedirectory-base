@@ -20,7 +20,15 @@ export async function GET(
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
-        companyObj: {
+        companies: {
+          select: {
+            id: true,
+            code: true,
+            nameVi: true,
+            nameEn: true,
+          }
+        },
+        departments: {
           select: {
             id: true,
             code: true,
@@ -43,7 +51,14 @@ export async function GET(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { passwordHash, companies, departments, ...rest } = user;
+    const userWithoutPassword = {
+      ...rest,
+      companyIds: user.companies.map((c) => c.id),
+      departmentIds: user.departments.map((d) => d.id),
+      companyId: user.companies[0]?.id || "",
+      department: user.departments[0]?.nameVi || user.departments[0]?.nameEn || "",
+    };
 
     return NextResponse.json({
       success: true,
@@ -73,7 +88,7 @@ export async function DELETE(
     const existingUser = await prisma.user.findUnique({
       where: { id },
       include: {
-        companyObj: true,
+        companies: true,
       },
     });
 
@@ -82,14 +97,14 @@ export async function DELETE(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, ...userWithoutPassword } = existingUser;
+    const { passwordHash: _, companies, ...userWithoutPassword } = existingUser;
     await logAction("user:delete", existingUser.username, {
       status: "success",
       message: "auditLogsPage.messages.deleteUserSuccess",
       data: {
         before: {
           ...userWithoutPassword,
-          company: existingUser.companyObj?.code || "",
+          company: existingUser.companies[0]?.code || "",
         },
         after: null,
       },
@@ -130,8 +145,9 @@ export async function PUT(
       email,
       phone,
       title,
-      department,
       companyId,
+      companyIds,
+      departmentIds,
       disabled,
       roleIds,
     } = body;
@@ -139,7 +155,8 @@ export async function PUT(
     const existingUser = await prisma.user.findUnique({
       where: { id },
       include: {
-        companyObj: true,
+        companies: true,
+        departments: true,
         roles: true,
       },
     });
@@ -157,7 +174,7 @@ export async function PUT(
 
     // Extract beforeState for log
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, ...userBefore } = existingUser;
+    const { passwordHash: _, companies, departments, ...userBefore } = existingUser;
 
     // Determine roles update payload
     let rolesUpdate = undefined;
@@ -178,16 +195,37 @@ export async function PUT(
       updateData.email = email;
       updateData.phone = phone || "";
       updateData.title = title || "";
-      updateData.department = department || "";
-      updateData.companyObj = companyId ? { connect: { id: companyId } } : { disconnect: true };
       updateData.disabled = disabled !== undefined ? !!disabled : existingUser.disabled;
+    }
+
+    // Luôn cho phép cập nhật công ty (kể cả tài khoản AD sync)
+    if (companyIds !== undefined || companyId !== undefined) {
+      const finalCompanyIds: string[] = companyIds && Array.isArray(companyIds)
+        ? companyIds
+        : (companyId ? [companyId] : []);
+
+      updateData.companies = {
+        set: finalCompanyIds.map((cid: string) => ({ id: cid }))
+      };
+    }
+
+    // Luôn cho phép cập nhật phòng ban (kể cả tài khoản AD sync)
+    if (departmentIds !== undefined) {
+      const finalDepartmentIds: string[] = departmentIds && Array.isArray(departmentIds)
+        ? departmentIds
+        : [];
+
+      updateData.departments = {
+        set: finalDepartmentIds.map((did: string) => ({ id: did }))
+      };
     }
 
     const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
       include: {
-        companyObj: true,
+        companies: true,
+        departments: true,
         roles: {
           select: {
             id: true,
@@ -200,7 +238,7 @@ export async function PUT(
 
     // Extract afterState for log
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: __, ...userAfter } = updatedUser;
+    const { passwordHash: __, companies: _c, departments: _d, ...userAfter } = updatedUser;
 
     await logAction("user:update", existingUser.username, {
       status: "success",
@@ -208,12 +246,12 @@ export async function PUT(
       data: {
         before: {
           ...userBefore,
-          company: existingUser.companyObj?.code || "",
+          company: existingUser.companies.map((c) => c.code).join(", "),
           roles: existingUser.roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem })),
         },
         after: {
           ...userAfter,
-          company: updatedUser.companyObj?.code || "",
+          company: updatedUser.companies.map((c) => c.code).join(", "),
           roles: updatedUser.roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem })),
         },
       },
@@ -223,7 +261,10 @@ export async function PUT(
       success: true,
       data: {
         ...userAfter,
-        company: updatedUser.companyObj?.code || "",
+        companyIds: updatedUser.companies.map((c) => c.id),
+        departmentIds: updatedUser.departments.map((d) => d.id),
+        companyId: updatedUser.companies[0]?.id || "",
+        department: updatedUser.departments[0]?.nameVi || updatedUser.departments[0]?.nameEn || "",
       },
     });
   } catch (error: unknown) {

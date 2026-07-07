@@ -17,6 +17,7 @@ import { LoadingSpinner } from "@/components/loading-overlay";
 import { PERMISSIONS } from "@/config/permissions";
 import { toast } from "sonner";
 import { UserContext } from "./[id]/layout";
+import { MultiSelectCombobox } from "@/components/multi-select-combobox";
 
 type RoleRecord = {
   id: string;
@@ -29,6 +30,14 @@ type CompanyRecord = {
   code: string;
   nameVi: string;
   nameEn: string;
+};
+
+type DepartmentRecord = {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  companyId: string;
 };
 
 interface UserEditorProps {
@@ -74,11 +83,42 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
   const [email, setEmail] = useState(contextUserData?.email || "");
   const [phone, setPhone] = useState(contextUserData?.phone || "");
   const [title, setTitle] = useState(contextUserData?.title || "");
-  const [department, setDepartment] = useState(contextUserData?.department || "");
-  const [companyId, setCompanyId] = useState(contextUserData?.companyId || "");
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<string[]>(contextUserData?.companyIds || []);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<string[]>(contextUserData?.departmentIds || []);
   const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(
     new Set(contextUserData?.roles?.map((r) => r.id) || [])
   );
+
+  const [availableDepartments, setAvailableDepartments] = useState<DepartmentRecord[]>([]);
+
+  // Fetch all departments for selection list
+  useEffect(() => {
+    async function fetchDepartments() {
+      try {
+        const res = await fetch("/api/departments?limit=1000");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setAvailableDepartments(data.data || []);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch departments list", err);
+      }
+    }
+    fetchDepartments();
+  }, []);
+
+  const handleCompanyChange = (newCompanyIds: string[]) => {
+    setSelectedCompanyIds(newCompanyIds);
+    // Tự động bỏ chọn các phòng ban của công ty bị loại bỏ (giữ lại phòng ban không thuộc công ty nào)
+    setSelectedDepartmentIds((prevDeptIds) => {
+      return prevDeptIds.filter((deptId) => {
+        const dept = availableDepartments.find((d) => d.id === deptId);
+        return dept ? (!dept.companyId || newCompanyIds.includes(dept.companyId)) : false;
+      });
+    });
+  };
 
   // Password fields (create mode only)
   const [password, setPassword] = useState("");
@@ -94,8 +134,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
     email: string;
     phone: string;
     title: string;
-    department: string;
-    companyId: string;
+    companyIds: string[];
+    departmentIds: string[];
     roleIds: string[];
   } | null>(contextUserData ? {
     displayName: contextUserData.displayName || "",
@@ -104,8 +144,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
     email: contextUserData.email || "",
     phone: contextUserData.phone || "",
     title: contextUserData.title || "",
-    department: contextUserData.department || "",
-    companyId: contextUserData.companyId || "",
+    companyIds: contextUserData.companyIds || [],
+    departmentIds: contextUserData.departmentIds || [],
     roleIds: contextUserData.roles?.map((r) => r.id) || [],
   } : null);
 
@@ -120,8 +160,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
       setEmail(contextUserData.email || "");
       setPhone(contextUserData.phone || "");
       setTitle(contextUserData.title || "");
-      setDepartment(contextUserData.department || "");
-      setCompanyId(contextUserData.companyId || "");
+      setSelectedCompanyIds(contextUserData.companyIds || []);
+      setSelectedDepartmentIds(contextUserData.departmentIds || []);
       const roleIds = contextUserData.roles?.map((r) => r.id) || [];
       setSelectedRoleIds(new Set(roleIds));
       setInitialUser({
@@ -131,8 +171,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
         email: contextUserData.email || "",
         phone: contextUserData.phone || "",
         title: contextUserData.title || "",
-        department: contextUserData.department || "",
-        companyId: contextUserData.companyId || "",
+        companyIds: contextUserData.companyIds || [],
+        departmentIds: contextUserData.departmentIds || [],
         roleIds,
       });
       /* eslint-enable react-hooks/set-state-in-effect */
@@ -176,6 +216,12 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
     return b.every((x) => setA.has(x));
   };
 
+  const areArraysEqual = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false;
+    const setA = new Set(a);
+    return b.every((x) => setA.has(x));
+  };
+
   const isChanged = isCreateMode ? true : (
     !initialUser ? false : (
       displayName !== initialUser.displayName ||
@@ -184,8 +230,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
       email !== initialUser.email ||
       phone !== initialUser.phone ||
       title !== initialUser.title ||
-      department !== initialUser.department ||
-      companyId !== initialUser.companyId ||
+      !areArraysEqual(selectedCompanyIds, initialUser.companyIds) ||
+      !areArraysEqual(selectedDepartmentIds, initialUser.departmentIds) ||
       !areRoleIdsEqual(Array.from(selectedRoleIds), initialUser.roleIds)
     )
   );
@@ -222,8 +268,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
             email,
             phone,
             title,
-            department,
-            companyId: companyId || null,
+            companyIds: selectedCompanyIds,
+            departmentIds: selectedDepartmentIds,
             roleIds: Array.from(selectedRoleIds),
             password,
           }
@@ -234,8 +280,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
             email,
             phone,
             title,
-            department,
-            companyId: companyId || null,
+            companyIds: selectedCompanyIds,
+            departmentIds: selectedDepartmentIds,
             roleIds: Array.from(selectedRoleIds),
           };
 
@@ -256,8 +302,8 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
             email,
             phone,
             title,
-            department,
-            companyId,
+            companyIds: selectedCompanyIds,
+            departmentIds: selectedDepartmentIds,
             roleIds: Array.from(selectedRoleIds),
           });
         }
@@ -279,6 +325,10 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
   if (!isCreateMode && !hasPermission(PERMISSIONS.USERS_READ)) {
     return <AccessDenied />;
   }
+
+  const filteredDepartments = availableDepartments.filter(
+    (dept) => !dept.companyId || selectedCompanyIds.includes(dept.companyId)
+  );
 
   // Show loading for create mode data
   if (isCreateMode && isCreateLoading) {
@@ -356,7 +406,7 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column: User Profile info & Password */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-lg">
+            <Card className="shadow-lg !overflow-visible">
               <CardHeader className="border-b bg-muted/20 pb-4">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
                   {t("usersPage.userInfo")}
@@ -474,37 +524,37 @@ export function UserEditor({ userId, mode }: UserEditorProps) {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="department" className="font-semibold">
-                      {t("usersPage.tableHeaders.department")}
+                    <Label htmlFor="company" className="font-semibold">
+                      {t("usersPage.tableHeaders.company")}
                     </Label>
-                    <Input
-                      id="department"
-                      value={department}
-                      onChange={(e) => setDepartment(e.target.value)}
-                      disabled={isFieldDisabled}
-                      placeholder={t("usersPage.placeholderDepartment")}
-                      className="disabled:bg-muted/30"
+                    <MultiSelectCombobox
+                      options={availableCompanies.map((c) => ({
+                        id: c.id,
+                        label: `${c.code} - ${locale === "vi" ? c.nameVi : c.nameEn}`,
+                        code: c.code,
+                      }))}
+                      selectedIds={selectedCompanyIds}
+                      onChange={handleCompanyChange}
+                      placeholder={t("usersPage.placeholderCompany")}
+                      disabled={isReadOnly}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="company" className="font-semibold">
-                      {t("usersPage.tableHeaders.company")}
+                    <Label htmlFor="department" className="font-semibold">
+                      {t("usersPage.tableHeaders.department")}
                     </Label>
-                    <select
-                      id="company"
-                      value={companyId}
-                      onChange={(e) => setCompanyId(e.target.value)}
-                      disabled={isFieldDisabled}
-                      className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted/30 cursor-pointer"
-                    >
-                      <option value="">-- {t("common.none")} --</option>
-                      {availableCompanies.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.code} - {locale === "vi" ? c.nameVi : c.nameEn}
-                        </option>
-                      ))}
-                    </select>
+                    <MultiSelectCombobox
+                      options={filteredDepartments.map((d) => ({
+                        id: d.id,
+                        label: `${d.code} - ${locale === "vi" ? d.nameVi : d.nameEn}`,
+                        code: d.code,
+                      }))}
+                      selectedIds={selectedDepartmentIds}
+                      onChange={setSelectedDepartmentIds}
+                      placeholder={t("usersPage.placeholderDepartment")}
+                      disabled={isReadOnly}
+                    />
                   </div>
                 </div>
               </CardContent>

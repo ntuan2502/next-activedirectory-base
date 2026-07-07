@@ -49,6 +49,7 @@ type CompanyRecord = {
   updatedAt: string;
   _count?: {
     users: number;
+    departments: number;
   };
 };
 
@@ -290,7 +291,7 @@ export default function CompaniesPage() {
                 placeholder={t("companiesPage.searchPlaceholder")}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9 h-8"
+                className="pl-9 h-10"
               />
             </div>
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
@@ -340,6 +341,9 @@ export default function CompaniesPage() {
                     </div>
                   </TableHead>
                   <TableHead className="w-28 text-center">
+                    {t("companiesPage.tableHeaders.departmentsCount")}
+                  </TableHead>
+                  <TableHead className="w-28 text-center">
                     {t("companiesPage.tableHeaders.usersCount")}
                   </TableHead>
                   {showActions && (
@@ -359,6 +363,11 @@ export default function CompaniesPage() {
                         <TableCell>{company.taxCode || "-"}</TableCell>
                         <TableCell className="text-muted-foreground text-sm truncate max-w-[200px]" title={company.taxAddress}>
                           {company.taxAddress || "-"}
+                        </TableCell>
+                        <TableCell className="text-center font-mono font-medium">
+                          <Badge variant="secondary" className="px-2.5 py-0.5 font-semibold text-xs bg-muted text-muted-foreground">
+                            {company._count?.departments ?? 0}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-center font-mono font-medium">
                           <Badge variant="secondary" className="px-2.5 py-0.5 font-semibold text-xs bg-muted text-muted-foreground">
@@ -414,7 +423,7 @@ export default function CompaniesPage() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                       {!isLoading && (search ? t("companiesPage.noCompaniesMatch") : t("companiesPage.noCompaniesFound"))}
                     </TableCell>
                   </TableRow>

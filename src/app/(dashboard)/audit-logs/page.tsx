@@ -51,6 +51,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "ldap:fetch_data": { label: "Fetch LDAP Data", color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20" },
   "ldap:sync_users": { label: "LDAP User Sync", color: "bg-sky-500/10 text-sky-600 border-sky-500/20" },
   "ldap:sync_companies": { label: "LDAP Company Sync", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
+  "ldap:sync_departments": { label: "LDAP Department Sync", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
   "user:delete": { label: "Delete User", color: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
   "user:update_roles": { label: "Update User Roles", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
   "user:update_profile": { label: "Update Profile", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
@@ -75,6 +76,9 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   "session:revoke_all": { label: "Revoke All Sessions", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
   "session:revoke_other": { label: "Revoke Other Sessions", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
   "session:revoke_specific": { label: "Revoke Specific Session", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
+  "department:create": { label: "Create Department", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
+  "department:update": { label: "Update Department", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
+  "department:delete": { label: "Delete Department", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
 };
 
 const getActionTranslationKey = (action: string): string => {
@@ -86,6 +90,7 @@ const getActionTranslationKey = (action: string): string => {
     "ldap:fetch_data": "ldapFetch",
     "ldap:sync_users": "ldapSyncUsers",
     "ldap:sync_companies": "ldapSyncCompanies",
+    "ldap:sync_departments": "ldapSyncDepartments",
     "user:delete": "deleteUser",
     "user:update_roles": "updateUserRoles",
     "user:update_profile": "updateProfile",
@@ -110,6 +115,9 @@ const getActionTranslationKey = (action: string): string => {
     "session:revoke_all": "revokeAllSessions",
     "session:revoke_other": "revokeOtherSessions",
     "session:revoke_specific": "revokeSpecificSession",
+    "department:create": "createDepartment",
+    "department:update": "updateDepartment",
+    "department:delete": "deleteDepartment",
   };
   return mapping[action] ? `auditLogsPage.actions.${mapping[action]}` : "";
 };
@@ -138,6 +146,13 @@ function DiffViewer({ before, after, t }: DiffViewerProps) {
   const renderValue = (val: unknown) => {
     if (typeof val === "string" && val.includes(".") && !val.includes(" ")) {
       return JSON.stringify(t(val));
+    }
+    if (val !== null && typeof val === "object") {
+      const formatted = JSON.stringify(val, null, 2);
+      return formatted
+        .split("\n")
+        .map((line, idx) => (idx === 0 ? line : "  " + line))
+        .join("\n");
     }
     return JSON.stringify(val);
   };
@@ -680,7 +695,7 @@ export default function AuditLogsPage() {
 
   interface BatchSyncItem {
     id: string;
-    type: "user" | "company";
+    type: "user" | "company" | "department";
     name: string;
     before: Record<string, unknown> | null;
     after: Record<string, unknown>;
@@ -729,6 +744,26 @@ export default function AuditLogsPage() {
               name: cDetail.code,
               before: cDetail.before,
               after: cDetail.after,
+            });
+          }
+        }
+      }
+
+      // Phân tích danh sách phòng ban đồng bộ
+      if (log.action === "ldap:sync_departments" && Array.isArray(data.departments)) {
+        for (const dept of data.departments) {
+          if (dept && typeof dept === "object" && "code" in dept) {
+            const dDetail = dept as {
+              code: string;
+              before: Record<string, unknown> | null;
+              after: Record<string, unknown>;
+            };
+            items.push({
+              id: `department-${dDetail.code}`,
+              type: "department",
+              name: dDetail.code,
+              before: dDetail.before,
+              after: dDetail.after,
             });
           }
         }
@@ -832,7 +867,7 @@ export default function AuditLogsPage() {
                 placeholder={t("auditLogsPage.searchPlaceholder")}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9 h-8"
+                className="pl-9 h-10"
               />
             </div>
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
@@ -840,7 +875,7 @@ export default function AuditLogsPage() {
                 <select
                   value={actionFilter}
                   onChange={(e) => handleFilterChange(e.target.value)}
-                  className="w-full h-8 pl-3 pr-8 rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full h-10 pl-3 pr-8 rounded-md border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="all">{t("auditLogsPage.allActivities")}</option>
                   <option value="auth:login">{t("auditLogsPage.actions.login")}</option>
@@ -852,6 +887,7 @@ export default function AuditLogsPage() {
                   <option value="ldap:test_connection">{t("auditLogsPage.actions.ldapTest")}</option>
                   <option value="ldap:sync_users">{t("auditLogsPage.actions.ldapSyncUsers")}</option>
                   <option value="ldap:sync_companies">{t("auditLogsPage.actions.ldapSyncCompanies")}</option>
+                  <option value="ldap:sync_departments">{t("auditLogsPage.actions.ldapSyncDepartments")}</option>
                   <option value="user:delete">{t("auditLogsPage.actions.deleteUser")}</option>
                   <option value="user:update_roles">{t("auditLogsPage.actions.updateUserRoles")}</option>
                   <option value="user:update_profile">{t("auditLogsPage.actions.updateProfile")}</option>
@@ -1006,7 +1042,7 @@ export default function AuditLogsPage() {
                         </TableCell>
                         <TableCell className="w-[180px] max-w-[180px] text-sm">
                           <div className="flex flex-col min-h-[2.5rem] justify-center">
-                            {["ldap:sync_users", "ldap:sync_companies", "users:bulk_lock", "users:bulk_unlock"].includes(log.action) ? (() => {
+                            {["ldap:sync_users", "ldap:sync_companies", "ldap:sync_departments", "users:bulk_lock", "users:bulk_unlock"].includes(log.action) ? (() => {
                               try {
                                 if (!log.details) return "-";
                                 const parsed = JSON.parse(log.details);
@@ -1045,6 +1081,13 @@ export default function AuditLogsPage() {
                                   return (
                                     <span className="font-semibold truncate max-w-[160px]">
                                       {t("auditLogsPage.syncCompanyCreated", { count })}
+                                    </span>
+                                  );
+                                } else if (log.action === "ldap:sync_departments") {
+                                  const count = data.count || 0;
+                                  return (
+                                    <span className="font-semibold truncate max-w-[160px]">
+                                      {t("auditLogsPage.syncDepartmentCreated", { count })}
                                     </span>
                                   );
                                 } else if (log.action === "users:bulk_lock") {
@@ -1240,6 +1283,7 @@ export default function AuditLogsPage() {
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-1 shrink-0">
                       {(() => {
                         if (selectedLog.action === "ldap:sync_companies") return t("auditLogsPage.actions.ldapSyncCompanies");
+                        if (selectedLog.action === "ldap:sync_departments") return t("auditLogsPage.actions.ldapSyncDepartments");
                         if (selectedLog.action === "users:bulk_lock") return t("auditLogsPage.actions.bulkLock");
                         if (selectedLog.action === "users:bulk_unlock") return t("auditLogsPage.actions.bulkUnlock");
                         return t("auditLogsPage.actions.ldapSyncUsers");
@@ -1249,6 +1293,8 @@ export default function AuditLogsPage() {
                       placeholder={
                         selectedLog.action === "ldap:sync_companies"
                           ? `${t("common.search")} ${t("auditLogsPage.badgeCompany").toLowerCase()}...`
+                          : selectedLog.action === "ldap:sync_departments"
+                          ? `${t("common.search")} ${t("auditLogsPage.badgeDepartment").toLowerCase()}...`
                           : t("auditLogsPage.searchUserPlaceholder")
                       }
                       value={batchUserSearch}
@@ -1324,10 +1370,12 @@ export default function AuditLogsPage() {
                             variant="outline"
                             className={`text-[9px] px-1 py-0 h-4 ${activeBatchItem.type === "company"
                                 ? "bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400"
+                                : activeBatchItem.type === "department"
+                                ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400"
                                 : "bg-muted text-muted-foreground"
                               }`}
                           >
-                            {t(`auditLogsPage.badge${activeBatchItem.type === "company" ? "Company" : "User"}`)}
+                            {t(`auditLogsPage.badge${activeBatchItem.type === "company" ? "Company" : activeBatchItem.type === "department" ? "Department" : "User"}`)}
                           </Badge>
                         </div>
                         <DiffViewer before={activeBatchItem.before} after={activeBatchItem.after} t={t} />
@@ -1336,6 +1384,8 @@ export default function AuditLogsPage() {
                       <div className="flex-1 flex items-center justify-center border rounded-lg bg-muted/5 text-muted-foreground text-xs font-medium min-h-[120px]">
                         {selectedLog.action === "ldap:sync_companies"
                           ? t("auditLogsPage.selectCompanyToViewDiff")
+                          : selectedLog.action === "ldap:sync_departments"
+                          ? t("auditLogsPage.selectDepartmentToViewDiff")
                           : t("auditLogsPage.selectUserToViewDiff")
                         }
                       </div>
@@ -1343,7 +1393,10 @@ export default function AuditLogsPage() {
                   </div>
                 </div>
               ) : diffData ? (
-                <DiffViewer before={diffData.before} after={diffData.after} t={t} />
+                <div className="space-y-4">
+                  <DiffViewer before={diffData.before} after={diffData.after} t={t} />
+                </div>
+
               ) : logDetailsParsed && logDetailsParsed.data !== null && logDetailsParsed.data !== undefined ? (
                 <div className="space-y-1.5">
                   <span className="text-xs text-muted-foreground block font-semibold uppercase tracking-wider">{t("auditLogsPage.detailData")}</span>

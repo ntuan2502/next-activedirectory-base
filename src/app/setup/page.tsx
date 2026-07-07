@@ -42,6 +42,25 @@ export default function InitialSetupPage() {
 
   const [lastTestedConfig, setLastTestedConfig] = useState<string>("not_tested");
 
+  const [showAdminDemo, setShowAdminDemo] = useState(false);
+  const [showLdapDemo, setShowLdapDemo] = useState(false);
+  const [demoData, setDemoData] = useState<{
+    admin?: {
+      username?: string;
+      displayName?: string;
+      email?: string;
+      password?: string;
+    };
+    ldap?: {
+      ldapUrl?: string;
+      ldapPort?: string;
+      ldapBindDn?: string;
+      ldapBindPassword?: string;
+      ldapBaseDn?: string;
+      ldapFilter?: string;
+    };
+  }>({});
+
   const currentLdapConfig = JSON.stringify({
     ldapUrl,
     ldapPort,
@@ -76,6 +95,25 @@ export default function InitialSetupPage() {
     };
     checkStatus();
   }, [router]);
+
+  useEffect(() => {
+    const fetchDemoConfig = async () => {
+      try {
+        const res = await fetch("/api/setup/demo-config");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setShowAdminDemo(data.hasAdminDemo);
+            setShowLdapDemo(data.hasLdapDemo);
+            setDemoData({ admin: data.admin, ldap: data.ldap });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load demo config", err);
+      }
+    };
+    fetchDemoConfig();
+  }, []);
 
   const handleRegisterAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +216,31 @@ export default function InitialSetupPage() {
     }
   };
 
+  const handleFillDemoAdmin = () => {
+    if (demoData.admin) {
+      if (demoData.admin.username !== undefined) setUsername(demoData.admin.username);
+      if (demoData.admin.displayName !== undefined) setDisplayName(demoData.admin.displayName);
+      if (demoData.admin.email !== undefined) setEmail(demoData.admin.email);
+      if (demoData.admin.password !== undefined) {
+        setPassword(demoData.admin.password);
+        setConfirmPassword(demoData.admin.password);
+      }
+      toast.success(t("common.success"));
+    }
+  };
+
+  const handleFillDemoLdap = () => {
+    if (demoData.ldap) {
+      if (demoData.ldap.ldapUrl !== undefined) setLdapUrl(demoData.ldap.ldapUrl);
+      if (demoData.ldap.ldapPort !== undefined) setLdapPort(demoData.ldap.ldapPort);
+      if (demoData.ldap.ldapBindDn !== undefined) setLdapBindDn(demoData.ldap.ldapBindDn);
+      if (demoData.ldap.ldapBindPassword !== undefined) setLdapBindPassword(demoData.ldap.ldapBindPassword);
+      if (demoData.ldap.ldapBaseDn !== undefined) setLdapBaseDn(demoData.ldap.ldapBaseDn);
+      if (demoData.ldap.ldapFilter !== undefined) setLdapFilter(demoData.ldap.ldapFilter);
+      toast.success(t("common.success"));
+    }
+  };
+
   if (!isReady) {
     return <LoadingOverlay show={true} variant="full" />;
   }
@@ -224,14 +287,27 @@ export default function InitialSetupPage() {
         {step === 1 && (
           <form onSubmit={handleRegisterAdmin} noValidate>
             <Card className="shadow-xl border-muted/70 animate-fade-in">
-              <CardHeader className="bg-muted/10 border-b">
-                <CardTitle className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-primary" />
-                  {t("setupPage.step1Title")}
-                </CardTitle>
-                <CardDescription>
-                  {t("setupPage.step1Desc")}
-                </CardDescription>
+              <CardHeader className="bg-muted/10 border-b flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5 text-primary" />
+                    {t("setupPage.step1Title")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("setupPage.step1Desc")}
+                  </CardDescription>
+                </div>
+                {showAdminDemo && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFillDemoAdmin}
+                    className="font-semibold h-8 text-xs cursor-pointer flex items-center gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                  >
+                    {t("common.fillDemo")}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="pt-0 pb-0 space-y-4">
                 <div className="space-y-2">
@@ -329,14 +405,27 @@ export default function InitialSetupPage() {
         {/* Wizard step 2: LDAP connection configuration */}
         {step === 2 && (
           <Card className="shadow-xl border-muted/70 animate-fade-in">
-            <CardHeader className="bg-muted/10 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-primary" />
-                {t("setupPage.step2Title")}
-              </CardTitle>
-              <CardDescription>
-                {t("setupPage.step2Desc")}
-              </CardDescription>
+            <CardHeader className="bg-muted/10 border-b flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="flex items-center gap-2">
+                  <KeyRound className="w-5 h-5 text-primary" />
+                  {t("setupPage.step2Title")}
+                </CardTitle>
+                <CardDescription>
+                  {t("setupPage.step2Desc")}
+                </CardDescription>
+              </div>
+              {showLdapDemo && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFillDemoLdap}
+                  className="font-semibold h-8 text-xs cursor-pointer flex items-center gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                >
+                  {t("common.fillDemo")}
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="pt-0 pb-0 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">

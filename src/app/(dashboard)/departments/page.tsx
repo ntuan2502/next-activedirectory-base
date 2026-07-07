@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchDebounce } from "@/hooks/use-search-debounce";
-import { Shield, Plus, Edit, Trash2, RefreshCw, Eye, Search, ChevronDown, ShieldAlert, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Network, Plus, Edit, Trash2, RefreshCw, Eye, Search, ChevronDown, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -38,20 +38,44 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type RoleRecord = {
+type DepartmentRecord = {
   id: string;
-  name: string;
-  description: string | null;
-  permissions: string;
-  isSystem: boolean;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  companyId: string | null;
+  parentId: string | null;
+  managerId: string | null;
+  companyObj?: {
+    code: string;
+    nameVi: string;
+    nameEn: string;
+  } | null;
+  parentObj?: {
+    code: string;
+    nameVi: string;
+    nameEn: string;
+  };
+  managerObj?: {
+    username: string;
+    displayName: string;
+  };
   _count?: {
     users: number;
+    children: number;
   };
 };
 
-export default function RolesPage() {
+type CompanyRecord = {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+};
+
+export default function DepartmentsPage() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const router = useRouter();
 
   const hasPermission = (perm: string) => {
@@ -60,13 +84,14 @@ export default function RolesPage() {
     return user.permissions.includes(perm);
   };
 
-  const [roles, setRoles] = useState<RoleRecord[]>([]);
+  const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
+  const [companies, setCompanies] = useState<CompanyRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Search, Filter & Pagination States
   const [search, setSearch] = useState("");
   const [localSearch, setLocalSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [companyFilter, setCompanyFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [totalPages, setTotalPages] = useState(1);
@@ -89,7 +114,25 @@ export default function RolesPage() {
     setConfirmOpen(true);
   };
 
-  const fetchRoles = useCallback(async () => {
+  // Fetch Companies for filter dropdown
+  useEffect(() => {
+    async function fetchCompanies() {
+      try {
+        const res = await fetch("/api/companies?limit=100");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setCompanies(data.data || []);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch companies list", err);
+      }
+    }
+    fetchCompanies();
+  }, []);
+
+  const fetchDepartments = useCallback(async () => {
     if (!isReady) return;
     setIsLoading(true);
     try {
@@ -99,29 +142,29 @@ export default function RolesPage() {
       if (search.trim()) {
         params.set("search", search.trim());
       }
-      if (typeFilter !== "all") {
-        params.set("type", typeFilter);
+      if (companyFilter !== "all") {
+        params.set("companyId", companyFilter);
       }
       if (sortConfig) {
         params.set("sortBy", sortConfig.key);
         params.set("sortOrder", sortConfig.direction);
       }
 
-      const res = await fetch(`/api/roles?${params.toString()}`);
+      const res = await fetch(`/api/departments?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
-          setRoles(data.data);
-          setTotalPages(data.pagination.totalPages);
-          setTotalCount(data.pagination.totalCount);
+          setDepartments(data.data || []);
+          setTotalPages(data.pagination?.totalPages || 1);
+          setTotalCount(data.pagination?.totalCount || 0);
         }
       }
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error("Failed to fetch departments", err);
     } finally {
       setIsLoading(false);
     }
-  }, [page, limit, search, typeFilter, sortConfig, isReady]);
+  }, [page, limit, search, companyFilter, sortConfig, isReady]);
 
   // Load initial state from URL search params on mount
   useEffect(() => {
@@ -130,15 +173,15 @@ export default function RolesPage() {
       const p = parseInt(params.get("page") || "1", 10);
       const l = parseInt(params.get("limit") || DEFAULT_LIMIT.toString(), 10);
       const s = params.get("search") || "";
-      const tParam = params.get("type") || "all";
-      const sb = params.get("sortBy") || "name";
+      const cParam = params.get("companyId") || "all";
+      const sb = params.get("sortBy") || "code";
       const so = params.get("sortOrder") || "asc";
 
       setPage(p);
       setLimit(l);
       setLocalSearch(s);
       setSearch(s);
-      setTypeFilter(tParam);
+      setCompanyFilter(cParam);
       setSortConfig({ key: sb, direction: so as "asc" | "desc" });
       setIsReady(true);
     });
@@ -147,13 +190,13 @@ export default function RolesPage() {
   // Debounce search query input (1s delay)
   useSearchDebounce({ localSearch, isReady, setSearch, setPage });
 
-  // Fetch roles when ready or query states change
+  // Fetch departments when ready or query states change
   useEffect(() => {
     if (!isReady) return;
     Promise.resolve().then(() => {
-      fetchRoles();
+      fetchDepartments();
     });
-  }, [fetchRoles, isReady]);
+  }, [fetchDepartments, isReady]);
 
   // Synchronize state changes to URL query string
   useEffect(() => {
@@ -162,7 +205,7 @@ export default function RolesPage() {
     if (page > 1) params.set("page", page.toString());
     if (limit !== DEFAULT_LIMIT) params.set("limit", limit.toString());
     if (search.trim()) params.set("search", search.trim());
-    if (typeFilter !== "all") params.set("type", typeFilter);
+    if (companyFilter !== "all") params.set("companyId", companyFilter);
     if (sortConfig) {
       params.set("sortBy", sortConfig.key);
       params.set("sortOrder", sortConfig.direction);
@@ -172,14 +215,14 @@ export default function RolesPage() {
     const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
 
     window.history.replaceState(null, "", newUrl);
-  }, [page, limit, search, typeFilter, sortConfig, isReady]);
+  }, [page, limit, search, companyFilter, sortConfig, isReady]);
 
   const handleSearchChange = (val: string) => {
     setLocalSearch(val);
   };
 
-  const handleFilterChange = (val: string) => {
-    setTypeFilter(val);
+  const handleCompanyFilterChange = (val: string) => {
+    setCompanyFilter(val);
     setPage(1);
   };
 
@@ -193,46 +236,40 @@ export default function RolesPage() {
     setPage(1);
   };
 
-  const getRolePermissionsList = (permissionsStr: string): string[] => {
-    try {
-      const parsed = JSON.parse(permissionsStr);
-      if (Array.isArray(parsed)) return parsed;
-      return [];
-    } catch {
-      return [];
+  const handleDelete = async (dept: DepartmentRecord) => {
+    const userCount = dept._count?.users || 0;
+    const childCount = dept._count?.children || 0;
+
+    if (userCount > 0) {
+      return toast.error(t("errors.cannotDeleteDepartmentHasUsers"));
     }
-  };
+    if (childCount > 0) {
+      return toast.error(t("errors.cannotDeleteDepartmentHasSubDepartments"));
+    }
 
-  const getPermissionName = (permId: string): string => {
-    if (permId === "*") return t("accountPage.allPermissionsGranted");
-    const nameKey = `permissions.names.${permId}`;
-    const translated = t(nameKey);
-    return translated !== nameKey ? translated : permId;
-  };
-
-  const handleDelete = async (role: RoleRecord) => {
-    if (role.isSystem || (role._count?.users ?? 0) > 0) return;
+    const deptName = locale === "vi" ? dept.nameVi : dept.nameEn;
 
     confirmAction({
-      title: t("rolesPage.deleteConfirmTitle"),
+      title: t("departmentsPage.deleteConfirmTitle"),
       description: (
         <span>
-          {t("rolesPage.deleteConfirmDesc")}
+          {t("departmentsPage.deleteConfirmDesc")}
           <br />
-          <strong>{role.name}</strong>
+          <strong>{dept.code} - {deptName}</strong>
         </span>
       ),
       actionText: t("common.delete"),
       variant: "destructive",
       onConfirm: async () => {
         try {
-          const res = await fetch(`/api/roles/${role.id}`, { method: "DELETE" });
+          const res = await fetch(`/api/departments/${dept.id}`, { method: "DELETE" });
           if (res.ok) {
-            setRoles((prev) => prev.filter((r) => r.id !== role.id));
-            toast.success(t("rolesPage.successDelete"));
+            setDepartments((prev) => prev.filter((d) => d.id !== dept.id));
+            setTotalCount((c) => Math.max(0, c - 1));
+            toast.success(t("departmentsPage.successDelete"));
           } else {
             const data = await res.json();
-            toast.error(data.error || t("common.failedToDelete"));
+            toast.error(data.error || t("departmentsPage.failedToDelete"));
           }
         } catch {
           toast.error(t("common.networkError"));
@@ -241,7 +278,7 @@ export default function RolesPage() {
     });
   };
 
-  if (!hasPermission(PERMISSIONS.ROLES_READ)) {
+  if (!hasPermission(PERMISSIONS.DEPARTMENTS_READ)) {
     return <AccessDenied />;
   }
 
@@ -250,31 +287,31 @@ export default function RolesPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <Shield className="w-8 h-8 text-primary" />
-            {t("rolesPage.title")}
+            <Network className="w-8 h-8 text-primary" />
+            {t("departmentsPage.title")}
             {(totalCount > 0 || !isLoading) && (
               <Badge variant="secondary" className={`ml-2 translate-y-[2px] transition-opacity duration-200 ${isLoading ? "opacity-50" : ""}`}>
-                {totalCount} {t("common.roles").toLowerCase()}
+                {totalCount} {t("permissions.groups.Departments Management").toLowerCase()}
               </Badge>
             )}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {t("rolesPage.description")}
+            {t("departmentsPage.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap sm:flex-nowrap gap-3 w-full sm:w-auto">
-          {hasPermission(PERMISSIONS.ROLES_CREATE) && (
+          {hasPermission(PERMISSIONS.DEPARTMENTS_CREATE) && (
             <Button
-              onClick={() => router.push("/roles/new")}
+              onClick={() => router.push("/departments/new")}
               className="w-full sm:w-auto h-10 px-4 font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/95 shadow-sm cursor-pointer flex items-center justify-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              {t("rolesPage.createRole")}
+              {t("departmentsPage.addDepartment")}
             </Button>
           )}
           <Button
             variant="outline"
-            onClick={fetchRoles}
+            onClick={fetchDepartments}
             disabled={isLoading}
             className="w-full sm:w-auto h-10 px-4 font-semibold text-sm cursor-pointer flex items-center justify-center gap-2"
           >
@@ -291,7 +328,7 @@ export default function RolesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder={t("rolesPage.searchPlaceholder")}
+                placeholder={t("departmentsPage.searchPlaceholder")}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-9 h-10"
@@ -300,13 +337,16 @@ export default function RolesPage() {
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
               <div className="relative w-full sm:w-[220px]">
                 <select
-                  value={typeFilter}
-                  onChange={(e) => handleFilterChange(e.target.value)}
+                  value={companyFilter}
+                  onChange={(e) => handleCompanyFilterChange(e.target.value)}
                   className="w-full h-10 pl-3 pr-8 rounded-md border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="all">{t("rolesPage.filters.all")}</option>
-                  <option value="system">{t("rolesPage.filters.system")}</option>
-                  <option value="custom">{t("rolesPage.filters.custom")}</option>
+                  <option value="all">{t("companiesPage.allCompanies")}</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} - {locale === "vi" ? c.nameVi : c.nameEn}
+                    </option>
+                  ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60 pointer-events-none" />
               </div>
@@ -326,115 +366,128 @@ export default function RolesPage() {
             <Table wrapperClassName="mb-0" className="mb-0">
               <TableHeader className="bg-background sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="w-1/5 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("name")}>
+                  {/* Code */}
+                  <TableHead className="w-1/6 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("code")}>
                     <div className="flex items-center">
-                      {t("rolesPage.tableHeaders.name")}
-                      {sortConfig?.key === "name" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                      {t("departmentsPage.tableHeaders.code")}
+                      {sortConfig?.key === "code" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  <TableHead className="w-1/4 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("description")}>
+
+                  {/* Name VI */}
+                  <TableHead className="w-1/5 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("nameVi")}>
                     <div className="flex items-center">
-                      {t("rolesPage.tableHeaders.description")}
-                      {sortConfig?.key === "description" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                      {t("departmentsPage.tableHeaders.nameVi")}
+                      {sortConfig?.key === "nameVi" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  <TableHead className="max-w-[400px]">{t("rolesPage.tableHeaders.permissions")}</TableHead>
-                  <TableHead className="w-32 text-center cursor-pointer hover:bg-muted/50" onClick={() => handleSort("usersCount")}>
+
+                  {/* Name EN */}
+                  <TableHead className="w-1/5 cursor-pointer hover:bg-muted/50" onClick={() => handleSort("nameEn")}>
+                    <div className="flex items-center">
+                      {t("departmentsPage.tableHeaders.nameEn")}
+                      {sortConfig?.key === "nameEn" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
+                    </div>
+                  </TableHead>
+
+                  {/* Company */}
+                  <TableHead className="w-1/6">{t("departmentsPage.tableHeaders.company")}</TableHead>
+
+                  {/* Parent */}
+                  <TableHead className="w-1/6">{t("departmentsPage.tableHeaders.parent")}</TableHead>
+
+                  {/* Manager */}
+                  <TableHead className="w-1/6">{t("departmentsPage.tableHeaders.manager")}</TableHead>
+
+                  {/* Users Count */}
+                  <TableHead className="w-24 text-center cursor-pointer hover:bg-muted/50" onClick={() => handleSort("usersCount")}>
                     <div className="flex items-center justify-center">
-                      {t("rolesPage.tableHeaders.usersCount")}
+                      {t("departmentsPage.tableHeaders.usersCount")}
                       {sortConfig?.key === "usersCount" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
                     </div>
                   </TableHead>
-                  <TableHead className="w-28 text-center cursor-pointer hover:bg-muted/50" onClick={() => handleSort("isSystem")}>
-                    <div className="flex items-center justify-center">
-                      {t("rolesPage.tableHeaders.system")}
-                      {sortConfig?.key === "isSystem" ? (sortConfig.direction === "asc" ? <ArrowUp className="ml-2 h-4 w-4" /> : <ArrowDown className="ml-2 h-4 w-4" />) : <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />}
-                    </div>
-                  </TableHead>
+
                   <TableHead className="w-24 text-center">{t("common.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody className={`transition-opacity duration-200 ${isLoading && roles.length > 0 ? "opacity-50" : ""}`}>
-                {roles.length > 0 ? (
-                  roles.map((role) => (
-                    <TableRow key={role.id}>
+              <TableBody className={`transition-opacity duration-200 ${isLoading && departments.length > 0 ? "opacity-50" : ""}`}>
+                {departments.length > 0 ? (
+                  departments.map((dept) => (
+                    <TableRow key={dept.id}>
+                      <TableCell className="font-bold">
+                        {dept.code}
+                      </TableCell>
                       <TableCell className="font-medium">
-                        {role.name}
+                        {dept.nameVi}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {role.description || "-"}
+                      <TableCell className="font-medium">
+                        {dept.nameEn}
                       </TableCell>
-                      <TableCell className="max-w-[400px]">
-                        <div className="flex flex-wrap gap-1">
-                          {(() => {
-                            const perms = getRolePermissionsList(role.permissions);
-                            if (perms.includes("*")) {
-                              return (
-                                <Badge variant="destructive" className="flex items-center gap-1 bg-rose-500 hover:bg-rose-600 text-white font-semibold">
-                                  <ShieldAlert className="h-3 w-3" />
-                                  {t("accountPage.allPermissionsGranted")}
-                                </Badge>
-                              );
-                            }
-                            if (perms.length > 0) {
-                              return perms.map((perm) => (
-                                <Badge key={perm} variant="outline" className="text-xs">
-                                  {getPermissionName(perm)}
-                                </Badge>
-                              ));
-                            }
-                            return <span className="text-muted-foreground text-xs italic">{t("common.none")}</span>;
-                          })()}
-                        </div>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {dept.companyObj ? (
+                          <span className="font-semibold text-foreground" title={locale === "vi" ? dept.companyObj.nameVi : dept.companyObj.nameEn}>
+                            {dept.companyObj.code}
+                          </span>
+                        ) : "-"}
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary">{role._count?.users || 0}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {role.isSystem ? (
-                          <Badge variant="default" className="bg-purple-500 hover:bg-purple-600">{t("common.yes")}</Badge>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {dept.parentObj ? (
+                          <span className="font-medium text-foreground">
+                            {dept.parentObj.code} - {locale === "vi" ? dept.parentObj.nameVi : dept.parentObj.nameEn}
+                          </span>
                         ) : (
-                          <Badge variant="outline">{t("common.no")}</Badge>
+                          <span className="text-muted-foreground/50 italic text-xs">{t("departmentsPage.none")}</span>
                         )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {dept.managerObj ? (
+                          <span className="font-semibold text-foreground">
+                            {dept.managerObj.username}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/50 italic text-xs">{t("departmentsPage.none")}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="secondary">{dept._count?.users || 0}</Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex justify-center items-center gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => router.push(`/roles/${role.id}`)}
-                            title={t("rolesPage.viewRole")}
+                            onClick={() => router.push(`/departments/${dept.id}`)}
+                            title={t("departmentsPage.viewDepartment")}
                             className="text-muted-foreground hover:text-foreground cursor-pointer"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {hasPermission(PERMISSIONS.ROLES_UPDATE) && (
+                          {hasPermission(PERMISSIONS.DEPARTMENTS_UPDATE) && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => router.push(`/roles/${role.id}/edit`)}
-                              disabled={role.isSystem}
-                              title={role.isSystem ? t("rolesPage.systemRoleWarning") : t("rolesPage.editRole")}
-                              className={role.isSystem ? "opacity-30 cursor-not-allowed" : "text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 cursor-pointer"}
+                              onClick={() => router.push(`/departments/${dept.id}/edit`)}
+                              title={t("departmentsPage.editDepartment")}
+                              className="text-blue-500 hover:text-blue-600 hover:bg-blue-500/10 cursor-pointer"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
                           )}
-                          {hasPermission(PERMISSIONS.ROLES_DELETE) && (
+                          {hasPermission(PERMISSIONS.DEPARTMENTS_DELETE) && (
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(role)}
-                              disabled={role.isSystem || (role._count?.users ?? 0) > 0}
+                              onClick={() => handleDelete(dept)}
+                              disabled={(dept._count?.users || 0) > 0 || (dept._count?.children || 0) > 0}
                               title={
-                                role.isSystem
-                                  ? t("rolesPage.cannotDeleteSystemRole")
-                                  : (role._count?.users ?? 0) > 0
-                                  ? t("rolesPage.cannotDeleteRoleHasUsers")
+                                (dept._count?.users || 0) > 0
+                                  ? t("errors.cannotDeleteDepartmentHasUsers")
+                                  : (dept._count?.children || 0) > 0
+                                  ? t("errors.cannotDeleteDepartmentHasSubDepartments")
                                   : t("common.delete")
                               }
                               className={
-                                (role.isSystem || (role._count?.users ?? 0) > 0)
+                                ((dept._count?.users || 0) > 0 || (dept._count?.children || 0) > 0)
                                   ? "opacity-30 cursor-not-allowed"
                                   : "text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
                               }
@@ -448,8 +501,8 @@ export default function RolesPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      {!isLoading && (search ? t("rolesPage.noRolesMatch") : t("rolesPage.noRolesAvailable"))}
+                    <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
+                      {!isLoading && (search ? t("departmentsPage.noDepartmentsMatch") : t("departmentsPage.noDepartmentsFound"))}
                     </TableCell>
                   </TableRow>
                 )}
@@ -461,7 +514,7 @@ export default function RolesPage() {
           {totalPages > 1 && (
             <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t mt-2">
               <span className="text-sm text-muted-foreground">
-                {t("rolesPage.showingRecords", { count: roles.length, total: totalCount })}
+                {t("rolesPage.showingRecords", { count: departments.length, total: totalCount })}
               </span>
               <Pagination className="w-auto mx-0">
                 <PaginationContent>

@@ -31,24 +31,31 @@ export async function GET() {
     });
 
     // 2. Department Breakdown
-    const deptGroup = await prisma.user.groupBy({
-      by: ["department"],
-      _count: {
-        id: true,
-      },
+    const depts = await prisma.department.findMany({
       where: {
-        department: { not: "" },
+        users: {
+          some: {}
+        }
+      },
+      select: {
+        nameVi: true,
+        nameEn: true,
+        _count: {
+          select: {
+            users: true
+          }
+        }
       },
       orderBy: {
-        _count: {
-          id: "desc",
-        },
-      },
+        users: {
+          _count: "desc"
+        }
+      }
     });
 
-    const departmentStats = deptGroup.map((d) => ({
-      name: d.department,
-      count: d._count.id,
+    const departmentStats = depts.map((d) => ({
+      name: d.nameVi || d.nameEn || "Unknown",
+      count: d._count.users,
     }));
 
     return NextResponse.json({

@@ -142,3 +142,10 @@
     cursor: pointer !important;
   }
 }
+
+/* Force absolute height of 40px (2.5rem) on all custom inputs to match select triggers */
+input[data-slot="input"] {
+  height: 40px !important;
+  min-height: 40px !important;
+  box-sizing: border-box !important;
+}

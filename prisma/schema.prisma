@@ -7,52 +7,96 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  dn           String    @default("")
-  username     String    @unique
-  displayName  String    @default("")
-  firstName    String    @default("")
-  lastName     String    @default("")
-  email        String    @default("")
-  phone        String    @default("")
-  title        String    @default("")
-  department   String    @default("")
-  companyId    String?   @map("company_id")
-  companyObj   Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  employeeId   String    @default("")
-  manager      String    @default("")
-  passwordHash String?
-  disabled     Boolean   @default(false)
-  lastSyncAt   DateTime?
-  lastLoginAt  DateTime?
-  theme        String    @default("system")
-  locale       String    @default("en")
-  fontSize     Int       @default(14)
-  fontFamily   String    @default("sans")
-  dateFormat   String    @default("YYYY-MM-DD")
-  timeFormat   String    @default("24h")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String       @id @default(cuid())
+  dn                String       @default("")
+  username          String       @unique
+  displayName       String       @default("")
+  firstName         String       @default("")
+  lastName          String       @default("")
+  email             String       @default("")
+  phone             String       @default("")
+  title             String       @default("")
+  
+  // Quan hệ Nhiều-Nhiều với Company và Department
+  companies         Company[]    @relation("UserCompanies")
+  departments       Department[] @relation("UserDepartments")
+  
+  employeeId        String       @default("")
+  manager           String       @default("")
+  passwordHash      String?
+  disabled          Boolean      @default(false)
+  lastSyncAt        DateTime?
+  lastLoginAt       DateTime?
+  theme             String       @default("system")
+  locale            String       @default("en")
+  fontSize          Int          @default(14)
+  fontFamily        String       @default("sans")
+  dateFormat        String       @default("YYYY-MM-DD")
+  timeFormat        String       @default("24h")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
-  roles        Role[]
-  auditLogs    AuditLog[]
-  sessions     Session[]
+  roles             Role[]
+  auditLogs         AuditLog[]
+  sessions          Session[]
+  
+  // Quan hệ ngược làm lãnh đạo
+  directedCompanies  Company[]    @relation("CompanyDirector")
+  managedDepartments Department[] @relation("DepartmentManager")
 
   @@map("users")
 }
 
 model Company {
-  id          String   @id @default(cuid())
-  code        String   @unique // Ví dụ: ACLT, ACBH, ACHL, ATLT, ACPT
-  nameVi      String   // Tên tiếng Việt: CÔNG TY CỔ PHẦN ĐÔ THỊ AMATA LONG THÀNH
-  nameEn      String   // Tên tiếng Anh: AMATA CITY LONGTHANH JOINT STOCK COMPANY
-  taxAddress  String   // Địa chỉ thuế
-  taxCode     String   // Mã số thuế
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  users       User[]
+  id                String       @id @default(cuid())
+  code              String       @unique // Ví dụ: ACLT, ACBH, ACHL, ATLT, ACPT
+  nameVi            String       // Tên tiếng Việt: CÔNG TY CỔ PHẦN ĐÔ THỊ AMATA LONG THÀNH
+  nameEn            String       // Tên tiếng Anh: AMATA CITY LONGTHANH JOINT STOCK COMPANY
+  taxAddress        String       // Địa chỉ thuế
+  taxCode           String       // Mã số thuế
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  // Quan hệ 1-n với Department
+  departments       Department[]
+  
+  // Quan hệ Nhiều-Nhiều với User
+  users             User[]       @relation("UserCompanies")
+  
+  // Tổng giám đốc (General Director) của công ty
+  generalDirectorId String?      @map("general_director_id")
+  generalDirector   User?        @relation("CompanyDirector", fields: [generalDirectorId], references: [id], onDelete: SetNull)
 
   @@map("companies")
+}
+
+model Department {
+  id             String       @id @default(cuid())
+  code           String       // Ví dụ: IT, HR, ADMIN, SALES
+  nameVi         String       // Tên tiếng Việt: Phòng Công nghệ thông tin
+  nameEn         String       // Tên tiếng Anh: Information Technology Department
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  
+  // Quan hệ với Công ty
+  companyId      String?      @map("company_id")
+  companyObj     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  // Tự liên kết tạo cấu trúc phòng ban Đa cấp (Parent - Child)
+  parentId       String?      @map("parent_id")
+  parentObj      Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  subDepartments Department[] @relation("DepartmentHierarchy")
+  
+  // Trưởng phòng / Manager / Head of Department của cấp này
+  managerId      String?      @map("manager_id")
+  managerObj     User?        @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  
+  // Quan hệ Nhiều-Nhiều với nhân viên
+  users          User[]       @relation("UserDepartments")
+
+  // Mã phòng ban phải là duy nhất trong cùng một công ty
+  @@unique([companyId, code])
+  @@map("departments")
 }
 
 model Role {

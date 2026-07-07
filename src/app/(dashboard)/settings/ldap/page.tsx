@@ -144,6 +144,16 @@ export default function LdapSettingsPage() {
   const [lastTestedConfig, setLastTestedConfig] = useState<string>("");
   const [initialSettings, setInitialSettings] = useState<SettingsData | null>(null);
 
+  const [showLdapDemo, setShowLdapDemo] = useState(false);
+  const [demoLdapData, setDemoLdapData] = useState<{
+    ldapUrl?: string;
+    ldapPort?: string;
+    ldapBindDn?: string;
+    ldapBindPassword?: string;
+    ldapBaseDn?: string;
+    ldapFilter?: string;
+  }>({});
+
   const isChanged = !initialSettings ? false : (
     ldapUrl !== (initialSettings.ldapUrl || "") ||
     ldapPort !== (initialSettings.ldapPort !== null && initialSettings.ldapPort !== undefined ? String(initialSettings.ldapPort) : "") ||
@@ -229,6 +239,26 @@ export default function LdapSettingsPage() {
       Promise.resolve().then(() => loadSettings());
     }
   }, [loadSettings, hasPermission]);
+
+  useEffect(() => {
+    const fetchDemoConfig = async () => {
+      try {
+        const res = await fetch("/api/setup/demo-config");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setShowLdapDemo(data.hasLdapDemo);
+            setDemoLdapData(data.ldap || {});
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load demo config", err);
+      }
+    };
+    if (hasPermission(PERMISSIONS.LDAP_SYNC)) {
+      fetchDemoConfig();
+    }
+  }, [hasPermission]);
 
   const handleTestConnection = async () => {
     setIsTesting(true);
@@ -338,6 +368,18 @@ export default function LdapSettingsPage() {
     }
   };
 
+  const handleFillDemo = () => {
+    if (demoLdapData) {
+      if (demoLdapData.ldapUrl !== undefined) setLdapUrl(demoLdapData.ldapUrl);
+      if (demoLdapData.ldapPort !== undefined) setLdapPort(demoLdapData.ldapPort);
+      if (demoLdapData.ldapBindDn !== undefined) setLdapBindDn(demoLdapData.ldapBindDn);
+      if (demoLdapData.ldapBindPassword !== undefined) setLdapBindPassword(demoLdapData.ldapBindPassword);
+      if (demoLdapData.ldapBaseDn !== undefined) setLdapBaseDn(demoLdapData.ldapBaseDn);
+      if (demoLdapData.ldapFilter !== undefined) setLdapFilter(demoLdapData.ldapFilter);
+      toast.success(t("common.success"));
+    }
+  };
+
   const handleSyncNow = async () => {
     setIsSimulatingSync(true);
     try {
@@ -396,14 +438,27 @@ export default function LdapSettingsPage() {
         <div className="lg:col-span-2 space-y-6">
           <form id="ldap-settings-form" onSubmit={handleSaveSettings} noValidate>
             <Card className="shadow-lg">
-              <CardHeader className="border-b bg-muted/20 pb-4">
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <Server className="w-5 h-5 text-primary" />
-                  {t("settingsPage.ldapParameters")}
-                </CardTitle>
-                <CardDescription>
-                  {t("settingsPage.ldapParametersDesc")}
-                </CardDescription>
+              <CardHeader className="border-b bg-muted/20 pb-4 flex flex-row items-center justify-between space-y-0">
+                <div className="space-y-1">
+                  <CardTitle className="text-lg font-bold flex items-center gap-2">
+                    <Server className="w-5 h-5 text-primary" />
+                    {t("settingsPage.ldapParameters")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("settingsPage.ldapParametersDesc")}
+                  </CardDescription>
+                </div>
+                {showLdapDemo && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleFillDemo}
+                    className="font-semibold h-8 text-xs cursor-pointer flex items-center gap-1 border-primary/30 text-primary hover:bg-primary/5"
+                  >
+                    {t("common.fillDemo")}
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

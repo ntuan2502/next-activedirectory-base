@@ -908,7 +908,7 @@ export default function AccountPage() {
                       <select
                         value={dateFormat}
                         onChange={(e) => updateSetting("dateFormat", e.target.value)}
-                        className="w-full pl-3 pr-9 py-2.5 text-sm rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground"
+                        className="w-full h-10 pl-3 pr-9 text-sm rounded-md border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground"
                       >
                         <option value="YYYY-MM-DD" className="bg-card text-foreground">{t("accountPage.dateFormatOptions.YYYY-MM-DD")}</option>
                         <option value="DD/MM/YYYY" className="bg-card text-foreground">{t("accountPage.dateFormatOptions.DD/MM/YYYY")}</option>
@@ -931,7 +931,7 @@ export default function AccountPage() {
                       <select
                         value={timeFormat}
                         onChange={(e) => updateSetting("timeFormat", e.target.value)}
-                        className="w-full pl-3 pr-9 py-2.5 text-sm rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground"
+                        className="w-full h-10 pl-3 pr-9 text-sm rounded-md border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground"
                       >
                         <option value="24h" className="bg-card text-foreground">
                           {t("accountPage.timeFormatOptions.24h")}

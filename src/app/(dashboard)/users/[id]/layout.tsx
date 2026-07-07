@@ -33,6 +33,8 @@ type UserRecord = {
   title: string;
   department: string;
   companyId: string;
+  companyIds?: string[];
+  departmentIds?: string[];
   dn: string;
   roles: RoleRecord[];
 };

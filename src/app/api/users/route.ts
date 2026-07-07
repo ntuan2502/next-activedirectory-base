@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || DEFAULT_LIMIT.toString(), 10)));
+    const limit = Math.max(1, Math.min(10000, parseInt(searchParams.get("limit") || DEFAULT_LIMIT.toString(), 10)));
     const search = searchParams.get("search") || "";
     const sortBy = searchParams.get("sortBy") || "username";
     const sortOrder = searchParams.get("sortOrder") || "asc";
@@ -30,28 +30,38 @@ export async function GET(request: NextRequest) {
         { username: { contains: search, mode: "insensitive" } },
         { displayName: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
-        { department: { contains: search, mode: "insensitive" } },
         { title: { contains: search, mode: "insensitive" } },
         {
-          companyObj: {
-            OR: [
-              { nameVi: { contains: search, mode: "insensitive" } },
-              { nameEn: { contains: search, mode: "insensitive" } },
-              { code: { contains: search, mode: "insensitive" } },
-            ],
+          departments: {
+            some: {
+              OR: [
+                { nameVi: { contains: search, mode: "insensitive" } },
+                { nameEn: { contains: search, mode: "insensitive" } },
+                { code: { contains: search, mode: "insensitive" } },
+              ]
+            }
+          }
+        },
+        {
+          companies: {
+            some: {
+              OR: [
+                { nameVi: { contains: search, mode: "insensitive" } },
+                { nameEn: { contains: search, mode: "insensitive" } },
+                { code: { contains: search, mode: "insensitive" } },
+              ],
+            },
           },
         },
       ];
     }
 
     // Determine sorting
-    const allowedSortFields = ["username", "displayName", "email", "title", "department", "disabled"];
+    const allowedSortFields = ["username", "displayName", "email", "title", "disabled"];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : "username";
     const sortDirection = sortOrder === "desc" ? "desc" : "asc";
 
-    const orderBy: Prisma.UserOrderByWithRelationInput = sortBy === "company"
-      ? { companyObj: { code: sortDirection } }
-      : { [sortField]: sortDirection };
+    const orderBy: Prisma.UserOrderByWithRelationInput = { [sortField]: sortDirection };
 
     // Execute parallel queries for count and data
     const [total, users] = await Promise.all([
@@ -71,17 +81,21 @@ export async function GET(request: NextRequest) {
           email: true,
           phone: true,
           title: true,
-          department: true,
-          companyId: true,
-          companyObj: {
+          companies: {
             select: {
               id: true,
               code: true,
               nameVi: true,
               nameEn: true,
-              taxAddress: true,
-              taxCode: true,
-            },
+            }
+          },
+          departments: {
+            select: {
+              id: true,
+              code: true,
+              nameVi: true,
+              nameEn: true,
+            }
           },
           disabled: true,
           roles: {
@@ -96,9 +110,14 @@ export async function GET(request: NextRequest) {
     ]);
 
     const formattedUsers = users.map((user) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { companies, departments, ...rest } = user;
       return {
-        ...user,
-        company: user.companyObj?.code || "",
+        ...rest,
+        company: user.companies.map((c) => c.code).join(", "),
+        companyIds: user.companies.map((c) => c.id),
+        department: user.departments.map((d) => d.nameVi || d.nameEn).join(", "),
+        departmentIds: user.departments.map((d) => d.id),
       };
     });
 
@@ -145,8 +164,9 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       title,
-      department,
       companyId,
+      companyIds,
+      departmentIds,
       password,
       roleIds,
     } = body;
@@ -207,6 +227,14 @@ export async function POST(request: NextRequest) {
     const passwordHash = await bcrypt.hash(password, 12);
 
     // Save to Database
+    const finalCompanyIds: string[] = companyIds && Array.isArray(companyIds)
+      ? companyIds
+      : (companyId ? [companyId] : []);
+
+    const finalDepartmentIds: string[] = departmentIds && Array.isArray(departmentIds)
+      ? departmentIds
+      : [];
+
     const newUser = await prisma.user.create({
       data: {
         username: lowercaseUsername,
@@ -216,8 +244,12 @@ export async function POST(request: NextRequest) {
         email,
         phone: phone || "",
         title: title || "",
-        department: department || "",
-        companyId: companyId || null,
+        companies: finalCompanyIds.length > 0 ? {
+          connect: finalCompanyIds.map((id) => ({ id }))
+        } : undefined,
+        departments: finalDepartmentIds.length > 0 ? {
+          connect: finalDepartmentIds.map((id) => ({ id }))
+        } : undefined,
         passwordHash,
         dn: "", // Local user
         disabled: false,
@@ -226,7 +258,8 @@ export async function POST(request: NextRequest) {
         } : undefined,
       },
       include: {
-        companyObj: true,
+        companies: true,
+        departments: true,
         roles: true,
       },
     });
@@ -234,6 +267,9 @@ export async function POST(request: NextRequest) {
     // Write audit log
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash: _, ...userWithoutPassword } = newUser;
+    const firstCompany = newUser.companies[0]?.code || "";
+    const firstDept = newUser.departments.map(d => d.nameVi || d.nameEn).join(", ") || "";
+    
     await logAction("user:create", lowercaseUsername, {
       status: "success",
       message: "auditLogsPage.messages.createUserSuccess",
@@ -241,7 +277,8 @@ export async function POST(request: NextRequest) {
         before: null,
         after: {
           ...userWithoutPassword,
-          company: newUser.companyObj?.code || "",
+          company: firstCompany,
+          department: firstDept,
         },
       },
     });
@@ -250,7 +287,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         ...userWithoutPassword,
-        company: newUser.companyObj?.code || "",
+        company: firstCompany,
+        department: firstDept,
       },
     });
   } catch (error: unknown) {

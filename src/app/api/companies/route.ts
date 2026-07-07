@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = request.nextUrl;
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") || DEFAULT_LIMIT.toString(), 10)));
+    const limit = Math.max(1, Math.min(10000, parseInt(searchParams.get("limit") || DEFAULT_LIMIT.toString(), 10)));
     const search = searchParams.get("search") || "";
     const sortBy = searchParams.get("sortBy") || "code";
     const sortOrder = searchParams.get("sortOrder") || "asc";
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         include: {
           _count: {
-            select: { users: true },
+            select: { users: true, departments: true },
           },
         },
       }),

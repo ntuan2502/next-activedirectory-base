@@ -149,7 +149,11 @@ export async function DELETE(
 
     // Kiểm tra xem có người dùng nào liên kết với công ty không
     const userCount = await prisma.user.count({
-      where: { companyId: id },
+      where: {
+        companies: {
+          some: { id },
+        },
+      },
     });
 
     if (userCount > 0) {

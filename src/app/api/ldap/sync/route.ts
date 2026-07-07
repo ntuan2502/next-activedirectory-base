@@ -110,17 +110,21 @@ export async function POST(request: NextRequest) {
         email: true,
         phone: true,
         title: true,
-        department: true,
-        companyId: true,
-        companyObj: {
+        companies: {
           select: {
             id: true,
             code: true,
             nameVi: true,
             nameEn: true,
-            taxAddress: true,
-            taxCode: true,
-          },
+          }
+        },
+        departments: {
+          select: {
+            id: true,
+            code: true,
+            nameVi: true,
+            nameEn: true,
+          }
         },
         employeeId: true,
         manager: true,
@@ -130,9 +134,11 @@ export async function POST(request: NextRequest) {
     });
 
     const formattedUsers = dbUsers.map((user) => {
+      const { companies, departments, ...rest } = user;
       return {
-        ...user,
-        company: user.companyObj?.code || "",
+        ...rest,
+        company: companies.map((c) => c.code).join(", "),
+        department: departments.map((d) => d.nameVi || d.nameEn).join(", "),
       };
     });
 

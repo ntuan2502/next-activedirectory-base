@@ -27,7 +27,7 @@ export function RowsPerPage({
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value, 10))}
         className={cn(
-          "w-[150px] h-8 pl-3 pr-8 rounded-lg border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground text-sm",
+          "w-[150px] h-10 pl-3 pr-8 rounded-md border border-border bg-card hover:bg-muted/10 font-semibold transition-all shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none text-foreground text-sm",
           className
         )}
       >

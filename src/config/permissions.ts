@@ -17,6 +17,12 @@ export const PERMISSIONS = {
   ROLES_UPDATE: "roles:update",
   ROLES_DELETE: "roles:delete",
 
+  // Departments Group
+  DEPARTMENTS_READ: "departments:read",
+  DEPARTMENTS_CREATE: "departments:create",
+  DEPARTMENTS_UPDATE: "departments:update",
+  DEPARTMENTS_DELETE: "departments:delete",
+
   // LDAP Group
   LDAP_TEST: "ldap:test",
   LDAP_SYNC: "ldap:sync",
@@ -52,6 +58,12 @@ export const AVAILABLE_PERMISSIONS: PermissionItem[] = [
   { id: PERMISSIONS.ROLES_CREATE, name: "Create Roles", description: "Can create new custom access control roles.", group: "Roles Management" },
   { id: PERMISSIONS.ROLES_UPDATE, name: "Update Roles", description: "Can modify permissions and descriptions of custom roles.", group: "Roles Management" },
   { id: PERMISSIONS.ROLES_DELETE, name: "Delete Roles", description: "Can delete custom access control roles.", group: "Roles Management" },
+
+  // Departments Management
+  { id: PERMISSIONS.DEPARTMENTS_READ, name: "View Departments", description: "Can view the list of departments.", group: "Departments Management" },
+  { id: PERMISSIONS.DEPARTMENTS_CREATE, name: "Create Departments", description: "Can create new departments.", group: "Departments Management" },
+  { id: PERMISSIONS.DEPARTMENTS_UPDATE, name: "Update Departments", description: "Can modify details of existing departments.", group: "Departments Management" },
+  { id: PERMISSIONS.DEPARTMENTS_DELETE, name: "Delete Departments", description: "Can delete departments (only if they have no users).", group: "Departments Management" },
 
   // LDAP Integration
   { id: PERMISSIONS.LDAP_TEST, name: "Test LDAP Connection", description: "Can perform LDAP connection health checks and test credentials.", group: "LDAP Integration" },

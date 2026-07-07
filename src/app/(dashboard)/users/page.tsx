@@ -581,14 +581,14 @@ export default function UsersPage() {
                 placeholder={t("usersPage.searchPlaceholder")}
                 value={localSearch}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="pl-9 h-8"
+                className="pl-9 h-10"
               />
             </div>
             <div className="flex flex-wrap sm:flex-nowrap gap-3">
               {selectedUserIds.size > 0 && (hasPermission(PERMISSIONS.USERS_UPDATE) || hasPermission(PERMISSIONS.USERS_DELETE)) && (
                 <DropdownMenu>
                   <DropdownMenuTrigger render={
-                    <Button variant="secondary" className="h-8" disabled={isBulkLoading}>
+                    <Button variant="secondary" className="h-10" disabled={isBulkLoading}>
                       {t("usersPage.bulkActions")} <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   } />

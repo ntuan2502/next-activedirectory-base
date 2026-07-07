@@ -13,7 +13,7 @@ export type LdapConfig = {
 export async function getLdapConfig(): Promise<LdapConfig> {
   const { prisma } = await import("@/lib/db");
   const settings = await prisma.systemSetting.findFirst();
-  
+
   if (!settings || !settings.ldapUrl) {
     throw new Error("errors.ldapConfigMissing");
   }
@@ -45,7 +45,7 @@ export async function withLdapClient<T>(
     await client.unbind();
     return result;
   } catch (error) {
-    try { await client.unbind(); } catch {}
+    try { await client.unbind(); } catch { }
     throw error;
   }
 }
