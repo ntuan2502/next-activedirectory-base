@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 import { sseManager } from "@/lib/sse";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 import { getServerTranslator } from "@/lib/i18n";
 
 // GET /api/auth/sessions - Fetch all active sessions of the current user

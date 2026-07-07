@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 import { getServerTranslator } from "@/lib/i18n";
 
 export async function POST(request: NextRequest) {

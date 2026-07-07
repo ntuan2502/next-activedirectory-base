@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
-import { logAction } from "@/lib/audit";
 import { getServerTranslator } from "@/lib/i18n";
+import { getUserById, updateUser, deleteUser } from "@/modules/users/services";
 
+// GET: Lấy thông tin chi tiết một người dùng
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -16,35 +15,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-
-    const user = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        companies: {
-          select: {
-            id: true,
-            code: true,
-            nameVi: true,
-            nameEn: true,
-          }
-        },
-        departments: {
-          select: {
-            id: true,
-            code: true,
-            nameVi: true,
-            nameEn: true,
-          }
-        },
-        roles: {
-          select: {
-            id: true,
-            name: true,
-            isSystem: true,
-          }
-        }
-      }
-    });
+    const user = await getUserById(id);
 
     if (!user) {
       return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
@@ -84,43 +55,15 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-
-    const existingUser = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        companies: true,
-        departments: true,
-        roles: true,
-      },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, companies, departments, roles, ...userWithoutPassword } = existingUser;
-    await logAction("user:delete", existingUser.username, {
-      status: "success",
-      message: "auditLogsPage.messages.deleteUserSuccess",
-      data: {
-        before: {
-          ...userWithoutPassword,
-          company: existingUser.companies.map((c) => c.code).join(", ") || "None",
-          department: existingUser.departments.map((d) => `${d.code} - ${d.nameVi}`).join(", ") || "None",
-          roles: existingUser.roles.map((r) => r.name).join(", ") || "None",
-        },
-        after: null,
-      },
-    });
-
-    await prisma.user.delete({
-      where: { id },
-    });
+    await deleteUser(id);
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    if (rawMessage === "USER_NOT_FOUND") {
+      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
+    }
+
     const message = t("errors.failedToDeleteUser", { error: rawMessage });
     console.error(error);
     return NextResponse.json(
@@ -156,125 +99,33 @@ export async function PUT(
       roleIds,
     } = body;
 
-    const existingUser = await prisma.user.findUnique({
-      where: { id },
-      include: {
-        companies: true,
-        departments: true,
-        roles: true,
-      },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
-    }
-
-    const isLdapUser = existingUser.dn !== "";
-
-    // Check required fields (only for local users)
-    if (!isLdapUser && (!displayName || !email)) {
-      return NextResponse.json({ error: t("errors.missingRequiredFields") }, { status: 400 });
-    }
-
-    // Extract beforeState for log
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: _, companies, departments, ...userBefore } = existingUser;
-
-    // Determine roles update payload
-    let rolesUpdate = undefined;
-    if (roleIds && Array.isArray(roleIds)) {
-      rolesUpdate = {
-        set: roleIds.map((rid: string) => ({ id: rid })),
-      };
-    }
-
-    const updateData: Prisma.UserUpdateInput = {
-      roles: rolesUpdate,
-    };
-
-    if (!isLdapUser) {
-      updateData.displayName = displayName;
-      updateData.firstName = firstName || "";
-      updateData.lastName = lastName || "";
-      updateData.email = email;
-      updateData.phone = phone || "";
-      updateData.title = title || "";
-      updateData.disabled = disabled !== undefined ? !!disabled : existingUser.disabled;
-    }
-
-    // Luôn cho phép cập nhật công ty (kể cả tài khoản AD sync)
-    if (companyIds !== undefined || companyId !== undefined) {
-      const finalCompanyIds: string[] = companyIds && Array.isArray(companyIds)
-        ? companyIds
-        : (companyId ? [companyId] : []);
-
-      updateData.companies = {
-        set: finalCompanyIds.map((cid: string) => ({ id: cid }))
-      };
-    }
-
-    // Luôn cho phép cập nhật phòng ban (kể cả tài khoản AD sync)
-    if (departmentIds !== undefined) {
-      const finalDepartmentIds: string[] = departmentIds && Array.isArray(departmentIds)
-        ? departmentIds
-        : [];
-
-      updateData.departments = {
-        set: finalDepartmentIds.map((did: string) => ({ id: did }))
-      };
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      include: {
-        companies: true,
-        departments: true,
-        roles: {
-          select: {
-            id: true,
-            name: true,
-            isSystem: true,
-          },
-        },
-      },
-    });
-
-    // Extract afterState for log
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { passwordHash: __, companies: _c, departments: _d, ...userAfter } = updatedUser;
-
-    await logAction("user:update", existingUser.username, {
-      status: "success",
-      message: "auditLogsPage.messages.updateUserSuccess",
-      data: {
-        before: {
-          ...userBefore,
-          company: existingUser.companies.map((c) => c.code).join(", ") || "None",
-          department: existingUser.departments.map((d) => `${d.code} - ${d.nameVi}`).join(", ") || "None",
-          roles: existingUser.roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem })),
-        },
-        after: {
-          ...userAfter,
-          company: updatedUser.companies.map((c) => c.code).join(", ") || "None",
-          department: updatedUser.departments.map((d) => `${d.code} - ${d.nameVi}`).join(", ") || "None",
-          roles: updatedUser.roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem })),
-        },
-      },
+    const result = await updateUser(id, {
+      displayName,
+      firstName,
+      lastName,
+      email,
+      phone,
+      title,
+      companyId,
+      companyIds,
+      departmentIds,
+      disabled,
+      roleIds,
     });
 
     return NextResponse.json({
       success: true,
-      data: {
-        ...userAfter,
-        companyIds: updatedUser.companies.map((c) => c.id),
-        departmentIds: updatedUser.departments.map((d) => d.id),
-        companyId: updatedUser.companies[0]?.id || "",
-        department: updatedUser.departments[0]?.nameVi || updatedUser.departments[0]?.nameEn || "",
-      },
+      data: result,
     });
   } catch (error: unknown) {
     const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
+    if (rawMessage === "USER_NOT_FOUND") {
+      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
+    }
+    if (rawMessage === "MISSING_REQUIRED_FIELDS") {
+      return NextResponse.json({ error: t("errors.missingRequiredFields") }, { status: 400 });
+    }
+
     const message = t("errors.failedToUpdateUser", { error: rawMessage });
     console.error(error);
     return NextResponse.json(

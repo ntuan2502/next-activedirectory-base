@@ -1,23 +1,7 @@
 import { withLdapClient, getAttr, LDAP_USER_ATTRIBUTES } from "@/lib/ldap";
 import { prisma } from "@/lib/db";
-import { logAction } from "@/lib/audit";
-
-export interface LdapUserPreview {
-  dn: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  email: string;
-  title: string;
-  department: string;
-  company: string;
-  employeeId: string;
-  manager: string;
-  phone: string;
-  isSyncable?: boolean;
-  isTest?: boolean;
-}
+import { logAction } from "@/modules/audit-logs/services";
+import { LdapUserPreview, LdapCompanySyncDetail, LdapDepartmentSyncDetail, LdapSyncDetail } from "./types";
 
 export async function fetchLdapUsers(): Promise<LdapUserPreview[]> {
   return await withLdapClient(async (client, config) => {
@@ -84,7 +68,6 @@ function toPascalCase(str: string): string {
 export async function syncLdapUsers(usernamesToSync?: string[]) {
   const ldapUsers = await fetchLdapUsers();
   
-  // Filter to only those requested (if specified) and those that are syncable
   const usersToSync = ldapUsers.filter((u) => {
     const isTarget = usernamesToSync ? usernamesToSync.includes(u.username) : true;
     return !!(u.isSyncable && isTarget && u.username);
@@ -110,7 +93,6 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     companyIdToCode.set(comp.id, comp.code.toUpperCase());
   }
 
-  // Thu thập các code công ty cần thiết từ danh sách đồng bộ
   const requiredCodes = new Set<string>();
   for (const user of usersToSync) {
     const detectedCode = parseCompanyCodeFromDn(user.dn);
@@ -122,7 +104,6 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     }
   }
 
-  // Tự động tạo các công ty chưa tồn tại trong cơ sở dữ liệu
   const companiesCreatedDetails: LdapCompanySyncDetail[] = [];
   for (const code of requiredCodes) {
     if (!companyMap.has(code)) {
@@ -154,9 +135,8 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
     }
   }
 
-  // Nạp toàn bộ phòng ban hiện có để tối ưu tra cứu
   const departments = await prisma.department.findMany();
-  const departmentMap = new Map<string, string>(); // Key: `${companyId}_code:${deptCode}` or `${companyId}_name:${deptName}`
+  const departmentMap = new Map<string, string>();
   for (const dept of departments) {
     const codeKey = `${dept.companyId}_code:${dept.code.toUpperCase()}`;
     const nameViKey = `${dept.companyId}_namevi:${dept.nameVi.toLowerCase()}`;
@@ -185,7 +165,6 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
       companyId = companyMap.get(user.company.toUpperCase()) || null;
     }
 
-    // Tự động tạo/tìm phòng ban nếu có companyId và user.department
     let deptId: string | null = null;
     if (companyId && user.department && user.department.trim() !== "") {
       const deptName = user.department.trim();
@@ -383,24 +362,6 @@ export async function syncLdapUsers(usernamesToSync?: string[]) {
   };
 }
 
-export interface LdapCompanySyncDetail {
-  code: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown>;
-}
-
-export interface LdapDepartmentSyncDetail {
-  code: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown>;
-}
-
-export interface LdapSyncDetail {
-  username: string;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown>;
-}
-
 export async function logLdapSyncResult(
   result: {
     syncedCount: number;
@@ -427,7 +388,6 @@ export async function logLdapSyncResult(
     const companyCount = result.companiesCreated?.length ?? 0;
     const departmentCount = result.departmentsCreated?.length ?? 0;
 
-    // 1. Ghi log đồng bộ công ty (chỉ khi có công ty được tạo mới)
     if (companyCount > 0) {
       await logAction("ldap:sync_companies", null, {
         status: "success",
@@ -439,7 +399,6 @@ export async function logLdapSyncResult(
       });
     }
 
-    // 2. Ghi log đồng bộ phòng ban (chỉ khi có phòng ban được tạo mới)
     if (departmentCount > 0) {
       await logAction("ldap:sync_departments", null, {
         status: "success",
@@ -451,7 +410,6 @@ export async function logLdapSyncResult(
       });
     }
 
-    // 3. Ghi log đồng bộ user
     await logAction("ldap:sync_users", null, {
       status: "success",
       message: "auditLogsPage.messages.ldapSyncUsersSuccess",

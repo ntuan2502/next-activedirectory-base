@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 import { checkAndRunSync } from "@/lib/scheduler";
 import { getServerTranslator } from "@/lib/i18n";
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteSession, getSession } from "@/lib/session";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 import { prisma } from "@/lib/db";
 
 export async function POST() {

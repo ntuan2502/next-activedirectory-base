@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
-import { logAction } from "@/lib/audit";
-import { fetchLdapUsers, syncLdapUsers, logLdapSyncResult } from "@/lib/sync-core";
+import { logAction } from "@/modules/audit-logs/services";
+import { fetchLdapUsers, syncLdapUsers, logLdapSyncResult } from "@/modules/ldap/services";
 import { getServerTranslator } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +56,6 @@ export async function POST(request: NextRequest) {
 
     if (action === "simulate" || action === "full") {
       const now = new Date();
-      // Run full sync (passing no argument syncs all LDAP users)
       const result = await syncLdapUsers();
 
       const settings = await prisma.systemSetting.findFirst();
@@ -97,7 +96,6 @@ export async function POST(request: NextRequest) {
 
     await logLdapSyncResult(result);
 
-    // Return all users from database for the UI list
     const dbUsers = await prisma.user.findMany({
       orderBy: { username: "asc" },
       select: {
@@ -153,7 +151,6 @@ export async function POST(request: NextRequest) {
     const message = t("errors.failedToSyncLdap", { error: rawMessage });
     console.error(error);
 
-    // If it was a simulated action, update SystemSetting to failed state
     try {
       const settings = await prisma.systemSetting.findFirst();
       if (settings) {

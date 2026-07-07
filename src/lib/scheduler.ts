@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { syncLdapUsers, logLdapSyncResult } from "@/lib/sync-core";
+import { syncLdapUsers, logLdapSyncResult } from "@/modules/ldap/services";
 
 declare global {
   var __schedulerInterval__: NodeJS.Timeout | undefined;

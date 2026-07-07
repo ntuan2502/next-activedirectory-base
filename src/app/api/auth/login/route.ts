@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser, AuthError } from "@/lib/auth";
 import { createSession } from "@/lib/session";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 import { getServerTranslator } from "@/lib/i18n";
 import { headers } from "next/headers";
 

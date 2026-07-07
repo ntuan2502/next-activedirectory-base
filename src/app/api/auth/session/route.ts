@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import crypto from "crypto";
 import { sseManager } from "@/lib/sse";
 import { getServerTranslator } from "@/lib/i18n";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 
 export async function GET() {
   const session = await getSession();

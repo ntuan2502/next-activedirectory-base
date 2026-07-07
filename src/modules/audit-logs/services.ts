@@ -2,12 +2,7 @@ import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { sseManager } from "@/lib/sse";
-
-export interface AuditLogDetails {
-  status: "success" | "failed";
-  message: string;
-  data: unknown;
-}
+import { AuditLogDetails } from "./types";
 
 export async function logAction(
   action: string,

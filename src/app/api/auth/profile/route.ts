@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { logAction } from "@/lib/audit";
+import { logAction } from "@/modules/audit-logs/services";
 import { getServerTranslator } from "@/lib/i18n";
 import { validatePassword } from "@/lib/password-validation";
 
