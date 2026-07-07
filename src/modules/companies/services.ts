@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { logAction } from "@/modules/audit-logs/services";
 import { CreateCompanyInput, UpdateCompanyInput } from "./types";
 import { Prisma } from "@prisma/client";
+import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 export async function getCompaniesList(params: {
   page: number;
@@ -81,7 +82,7 @@ export async function createCompany(input: CreateCompanyInput) {
   });
 
   if (existing) {
-    throw new Error(`COMPANY_CODE_EXISTS:${formattedCode}`);
+    throw new BadRequestError("errors.companyCodeExists", { code: formattedCode });
   }
 
   const newCompany = await prisma.company.create({
@@ -114,7 +115,7 @@ export async function updateCompany(id: string, input: UpdateCompanyInput) {
   });
 
   if (!existingCompany) {
-    throw new Error("COMPANY_NOT_FOUND");
+    throw new NotFoundError("errors.companyNotFound");
   }
 
   const updateData: Prisma.CompanyUpdateInput = {};
@@ -122,7 +123,7 @@ export async function updateCompany(id: string, input: UpdateCompanyInput) {
   if (code !== undefined) {
     const formattedCode = code.trim().toUpperCase();
     if (!formattedCode) {
-      throw new Error("COMPANY_CODE_CANNOT_BE_EMPTY");
+      throw new BadRequestError("errors.companyCodeCannotBeEmpty");
     }
 
     if (formattedCode !== existingCompany.code) {
@@ -130,7 +131,7 @@ export async function updateCompany(id: string, input: UpdateCompanyInput) {
         where: { code: formattedCode },
       });
       if (codeDuplicate) {
-        throw new Error(`COMPANY_CODE_EXISTS:${formattedCode}`);
+        throw new BadRequestError("errors.companyCodeExists", { code: formattedCode });
       }
     }
     updateData.code = formattedCode;
@@ -164,7 +165,7 @@ export async function deleteCompany(id: string) {
   });
 
   if (!existingCompany) {
-    throw new Error("COMPANY_NOT_FOUND");
+    throw new NotFoundError("errors.companyNotFound");
   }
 
   const userCount = await prisma.user.count({
@@ -176,7 +177,7 @@ export async function deleteCompany(id: string) {
   });
 
   if (userCount > 0) {
-    throw new Error("CANNOT_DELETE_COMPANY_HAS_USERS");
+    throw new BadRequestError("errors.cannotDeleteCompanyHasUsers");
   }
 
   await prisma.company.delete({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { updateUserRoles } from "@/modules/users/services";
+import { handleApiError } from "@/lib/errors";
 
 export async function PUT(
   request: NextRequest,
@@ -17,7 +18,7 @@ export async function PUT(
     const body = await request.json();
     const { roleIds } = body;
 
-    if (!Array.isArray(roleIds)) {
+    if (!roleIds || !Array.isArray(roleIds)) {
       return NextResponse.json({ error: t("errors.roleIdsMustBeArray") }, { status: 400 });
     }
 
@@ -25,12 +26,6 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: updatedUser });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "USER_NOT_FOUND") {
-      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
-    }
-
-    const message = t("errors.failedToUpdateUserRoles", { error: rawMessage });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToUpdateUserRoles");
   }
 }

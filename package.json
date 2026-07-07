@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint && tsc --noEmit",
-    "check-i18n": "node --experimental-strip-types scripts/check-i18n.mts"
+    "check-i18n": "node --experimental-strip-types scripts/check-i18n.mts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -41,7 +43,9 @@
     "eslint-config-next": "16.2.9",
     "prisma": "^7.8.0",
     "tailwindcss": "^4.3.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10",
+    "vitest-mock-extended": "^4.0.0"
   },
   "ignoreScripts": [
     "sharp",

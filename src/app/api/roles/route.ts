@@ -3,12 +3,15 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getRolesList, createRole } from "@/modules/roles/services";
+import { handleApiError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.ROLES_READ);
   if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
 
   try {
     const { searchParams } = request.nextUrl;
@@ -34,11 +37,7 @@ export async function GET(request: NextRequest) {
       pagination,
     });
   } catch (error: unknown) {
-    const { t } = await getServerTranslator();
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    const message = t("errors.failedToFetchRoles", { error: rawMessage });
-    console.error(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToFetchRoles");
   }
 }
 
@@ -56,15 +55,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "ROLE_NAME_REQUIRED") {
-      return NextResponse.json({ error: t("rolesPage.roleNameRequired") }, { status: 400 });
-    }
-    if (rawMessage === "ROLE_NAME_EXISTS") {
-      return NextResponse.json({ error: t("errors.roleNameExists") }, { status: 400 });
-    }
-
-    const message = t("errors.failedToCreateRole", { error: rawMessage });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToCreateRole");
   }
 }

@@ -3,6 +3,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getCompaniesList, createCompany } from "@/modules/companies/services";
+import { handleApiError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.COMPANIES_READ);
   if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
 
   try {
     const { searchParams } = request.nextUrl;
@@ -33,11 +36,7 @@ export async function GET(request: NextRequest) {
       pagination,
     });
   } catch (error: unknown) {
-    const { t } = await getServerTranslator();
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    const message = t("errors.failedToFetchCompanies", { error: rawMessage });
-    console.error(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToFetchCompanies");
   }
 }
 
@@ -69,14 +68,6 @@ export async function POST(request: NextRequest) {
       data: newCompany,
     });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage.startsWith("COMPANY_CODE_EXISTS:")) {
-      const code = rawMessage.split(":")[1];
-      return NextResponse.json({ error: t("errors.companyCodeExists", { code }) }, { status: 400 });
-    }
-
-    const message = t("errors.failedToCreateCompany", { error: rawMessage });
-    console.error(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToCreateCompany");
   }
 }

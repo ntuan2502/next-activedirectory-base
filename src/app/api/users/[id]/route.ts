@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { getUserById, updateUser, deleteUser } from "@/modules/users/services";
+import { handleApiError } from "@/lib/errors";
 
 // GET: Lấy thông tin chi tiết một người dùng
 export async function GET(
@@ -36,11 +37,7 @@ export async function GET(
       data: userWithoutPassword
     });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    return NextResponse.json(
-      { error: t("errors.failedToFetchUsers", { error: rawMessage }) },
-      { status: 500 }
-    );
+    return handleApiError(error, t, "errors.failedToFetchUsers");
   }
 }
 
@@ -59,17 +56,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "USER_NOT_FOUND") {
-      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
-    }
-
-    const message = t("errors.failedToDeleteUser", { error: rawMessage });
-    console.error(error);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 },
-    );
+    return handleApiError(error, t, "errors.failedToDeleteUser");
   }
 }
 
@@ -118,19 +105,6 @@ export async function PUT(
       data: result,
     });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "USER_NOT_FOUND") {
-      return NextResponse.json({ error: t("errors.userNotFound") }, { status: 404 });
-    }
-    if (rawMessage === "MISSING_REQUIRED_FIELDS") {
-      return NextResponse.json({ error: t("errors.missingRequiredFields") }, { status: 400 });
-    }
-
-    const message = t("errors.failedToUpdateUser", { error: rawMessage });
-    console.error(error);
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return handleApiError(error, t, "errors.failedToUpdateUser");
   }
 }

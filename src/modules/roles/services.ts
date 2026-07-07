@@ -3,6 +3,7 @@ import { logAction } from "@/modules/audit-logs/services";
 import { sseManager } from "@/lib/sse";
 import { CreateRoleInput, UpdateRoleInput } from "./types";
 import { Prisma } from "@prisma/client";
+import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 export async function getRolesList(params: {
   page: number;
@@ -87,7 +88,7 @@ export async function createRole(input: CreateRoleInput) {
   const { name, description, permissions } = input;
 
   if (!name) {
-    throw new Error("ROLE_NAME_REQUIRED");
+    throw new BadRequestError("rolesPage.roleNameRequired");
   }
 
   const existingRole = await prisma.role.findUnique({
@@ -95,7 +96,7 @@ export async function createRole(input: CreateRoleInput) {
   });
 
   if (existingRole) {
-    throw new Error("ROLE_NAME_EXISTS");
+    throw new BadRequestError("errors.roleNameExists");
   }
 
   const role = await prisma.role.create({
@@ -129,11 +130,11 @@ export async function updateRole(id: string, input: UpdateRoleInput) {
   });
 
   if (!existingRole) {
-    throw new Error("ROLE_NOT_FOUND");
+    throw new NotFoundError("errors.roleNotFound");
   }
 
   if (existingRole.isSystem) {
-    throw new Error("SYSTEM_ROLE_NOT_MODIFIED");
+    throw new BadRequestError("errors.systemRoleNotModified");
   }
 
   const updateData: Prisma.RoleUpdateInput = {
@@ -192,15 +193,15 @@ export async function deleteRole(id: string) {
   });
 
   if (!existingRole) {
-    throw new Error("ROLE_NOT_FOUND");
+    throw new NotFoundError("errors.roleNotFound");
   }
 
   if (existingRole.isSystem) {
-    throw new Error("SYSTEM_ROLE_NOT_DELETED");
+    throw new BadRequestError("errors.systemRoleNotDeleted");
   }
 
   if (existingRole._count && existingRole._count.users > 0) {
-    throw new Error("CANNOT_DELETE_ROLE_HAS_USERS");
+    throw new BadRequestError("errors.cannotDeleteRoleHasUsers");
   }
 
   await logAction("role:delete", existingRole.name, {

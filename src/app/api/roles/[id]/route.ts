@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { getRoleById, updateRole, deleteRole } from "@/modules/roles/services";
+import { handleApiError } from "@/lib/errors";
 
 export async function GET(
   _request: NextRequest,
@@ -22,8 +23,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    return NextResponse.json({ error: rawMessage }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToFetchRoles"); // using generic roles key
   }
 }
 
@@ -45,16 +45,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "ROLE_NOT_FOUND") {
-      return NextResponse.json({ error: t("errors.roleNotFound") }, { status: 404 });
-    }
-    if (rawMessage === "SYSTEM_ROLE_NOT_MODIFIED") {
-      return NextResponse.json({ error: t("errors.systemRoleNotModified") }, { status: 400 });
-    }
-
-    const message = t("errors.failedToUpdateRole", { error: rawMessage });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToUpdateRole");
   }
 }
 
@@ -73,18 +64,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "ROLE_NOT_FOUND") {
-      return NextResponse.json({ error: t("errors.roleNotFound") }, { status: 404 });
-    }
-    if (rawMessage === "SYSTEM_ROLE_NOT_DELETED") {
-      return NextResponse.json({ error: t("errors.systemRoleNotDeleted") }, { status: 400 });
-    }
-    if (rawMessage === "CANNOT_DELETE_ROLE_HAS_USERS") {
-      return NextResponse.json({ error: t("errors.cannotDeleteRoleHasUsers") }, { status: 400 });
-    }
-
-    const message = t("errors.failedToDeleteRole", { error: rawMessage });
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToDeleteRole");
   }
 }

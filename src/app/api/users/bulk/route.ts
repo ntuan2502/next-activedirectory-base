@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { bulkUserActions } from "@/modules/users/services";
+import { handleApiError } from "@/lib/errors";
 
 export async function POST(request: NextRequest) {
   const { t } = await getServerTranslator();
@@ -27,13 +28,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "NO_USERS_SELECTED") {
-      return NextResponse.json({ error: t("errors.noUsersSelected") }, { status: 400 });
-    }
-
-    const message = t("errors.failedBulkAction", { error: rawMessage });
-    console.error(error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, t, "errors.failedBulkAction");
   }
 }

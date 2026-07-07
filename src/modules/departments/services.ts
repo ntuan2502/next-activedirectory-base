@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { logAction } from "@/modules/audit-logs/services";
 import { CreateDepartmentInput, UpdateDepartmentInput, DepartmentWithRelations, FormattedDepartmentLog } from "./types";
 import { Prisma } from "@prisma/client";
+import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 // Hàm đệ quy kiểm tra xem phòng ban A có phải là con/cháu của phòng ban B hay không
 export async function isDescendant(childId: string, parentId: string): Promise<boolean> {
@@ -148,12 +149,12 @@ export async function createDepartment(input: CreateDepartmentInput) {
       where: { id: parentId },
     });
     if (!parentDept || (parentDept.companyId !== null && parentDept.companyId !== companyIdVal)) {
-      throw new Error("PARENT_DEPARTMENT_MUST_BELONG_TO_COMPANY");
+      throw new BadRequestError("errors.parentDepartmentMustBelongToCompany");
     }
   }
 
   if (managerId) {
-    throw new Error("MANAGER_MUST_BELONG_TO_DEPARTMENT_AT_CREATION");
+    throw new BadRequestError("errors.managerMustBelongToDepartment");
   }
 
   const formattedCode = code.trim();
@@ -168,7 +169,7 @@ export async function createDepartment(input: CreateDepartmentInput) {
   });
 
   if (existing) {
-    throw new Error("DEPARTMENT_CODE_EXISTS");
+    throw new BadRequestError("errors.departmentCodeExists");
   }
 
   const newDept = await prisma.department.create({
@@ -216,7 +217,7 @@ export async function createDepartment(input: CreateDepartmentInput) {
         },
       });
       if (diffCompanySubDept) {
-        throw new Error("CANNOT_ADD_SUB_DEPARTMENT_DIFFERENT_COMPANY");
+        throw new BadRequestError("errors.cannotAddSubDepartmentDifferentCompany");
       }
     }
 
@@ -277,7 +278,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
   });
 
   if (!existingDept) {
-    throw new Error("DEPARTMENT_NOT_FOUND");
+    throw new NotFoundError("errors.departmentNotFound");
   }
 
   const targetCompanyId = companyId !== undefined ? companyId : existingDept.companyId;
@@ -287,7 +288,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
       where: { id: companyId },
     });
     if (!companyExists) {
-      throw new Error("INVALID_PAYLOAD");
+      throw new BadRequestError("errors.invalidPayload");
     }
   }
 
@@ -296,7 +297,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
   if (code !== undefined) {
     const formattedCode = code.trim();
     if (!formattedCode) {
-      throw new Error("INVALID_PAYLOAD");
+      throw new BadRequestError("errors.invalidPayload");
     }
 
     if (formattedCode.toLowerCase() !== existingDept.code.toLowerCase()) {
@@ -311,7 +312,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
       });
 
       if (duplicate) {
-        throw new Error("DEPARTMENT_CODE_EXISTS");
+        throw new BadRequestError("errors.departmentCodeExists");
       }
     }
     updateData.code = formattedCode;
@@ -321,7 +322,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
 
   if (finalParentId !== null) {
     if (finalParentId === id) {
-      throw new Error("INVALID_PAYLOAD");
+      throw new BadRequestError("errors.invalidPayload");
     }
 
     const parentExists = await prisma.department.findUnique({
@@ -329,18 +330,18 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
     });
 
     if (!parentExists) {
-      throw new Error("INVALID_PAYLOAD");
+      throw new BadRequestError("errors.invalidPayload");
     }
 
     if (finalParentId !== existingDept.parentId) {
       const isLoop = await isDescendant(finalParentId, id);
       if (isLoop) {
-        throw new Error("INVALID_PAYLOAD");
+        throw new BadRequestError("errors.invalidPayload");
       }
     }
 
     if (parentExists.companyId !== null && parentExists.companyId !== targetCompanyId) {
-      throw new Error("PARENT_DEPARTMENT_MUST_BELONG_TO_COMPANY");
+      throw new BadRequestError("errors.parentDepartmentMustBelongToCompany");
     }
   }
 
@@ -358,7 +359,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
         },
       });
       if (!userInDept) {
-        throw new Error("MANAGER_MUST_BELONG_TO_DEPARTMENT");
+        throw new BadRequestError("errors.managerMustBelongToDepartment");
       }
 
       if (targetCompanyId) {
@@ -394,11 +395,11 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
   if (subDepartmentIds !== undefined) {
     for (const childId of subDepartmentIds) {
       if (childId === id) {
-        throw new Error("INVALID_PAYLOAD");
+        throw new BadRequestError("errors.invalidPayload");
       }
       const isLoop = await isDescendant(id, childId);
       if (isLoop) {
-        throw new Error("INVALID_PAYLOAD");
+        throw new BadRequestError("errors.invalidPayload");
       }
     }
   }
@@ -413,7 +414,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
       },
     });
     if (diffCompanyChild) {
-      throw new Error("CANNOT_CHANGE_COMPANY_WITH_SUB_DEPARTMENTS");
+      throw new BadRequestError("errors.cannotChangeCompanyWithSubDepartments");
     }
   }
 
@@ -462,7 +463,7 @@ export async function updateDepartment(id: string, input: UpdateDepartmentInput)
         },
       });
       if (diffCompanySubDept) {
-        throw new Error("CANNOT_ADD_SUB_DEPARTMENT_DIFFERENT_COMPANY");
+        throw new BadRequestError("errors.cannotAddSubDepartmentDifferentCompany");
       }
     }
 
@@ -603,15 +604,15 @@ export async function deleteDepartment(id: string) {
   });
 
   if (!existingDept) {
-    throw new Error("DEPARTMENT_NOT_FOUND");
+    throw new NotFoundError("errors.departmentNotFound");
   }
 
   if (existingDept._count.users > 0) {
-    throw new Error("CANNOT_DELETE_DEPARTMENT_HAS_USERS");
+    throw new BadRequestError("errors.cannotDeleteDepartmentHasUsers");
   }
 
   if (existingDept._count.subDepartments > 0) {
-    throw new Error("CANNOT_DELETE_DEPARTMENT_HAS_SUB_DEPARTMENTS");
+    throw new BadRequestError("errors.cannotDeleteDepartmentHasSubDepartments");
   }
 
   await prisma.department.delete({

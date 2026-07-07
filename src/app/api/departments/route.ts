@@ -3,6 +3,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getDepartmentsList, createDepartment } from "@/modules/departments/services";
+import { handleApiError } from "@/lib/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const authResponse = await requirePermission(PERMISSIONS.DEPARTMENTS_READ);
   if (authResponse) return authResponse;
+
+  const { t } = await getServerTranslator();
 
   try {
     const { searchParams } = request.nextUrl;
@@ -35,8 +38,7 @@ export async function GET(request: NextRequest) {
       pagination,
     });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : "unknownError";
-    return NextResponse.json({ error: rawMessage }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToFetchUsers"); // Using shared error string or generic one
   }
 }
 
@@ -71,21 +73,6 @@ export async function POST(request: NextRequest) {
       data: newDept,
     });
   } catch (error: unknown) {
-    const rawMessage = error instanceof Error ? error.message : t("common.unknownError");
-    if (rawMessage === "PARENT_DEPARTMENT_MUST_BELONG_TO_COMPANY") {
-      return NextResponse.json({ error: t("errors.parentDepartmentMustBelongToCompany") }, { status: 400 });
-    }
-    if (rawMessage === "MANAGER_MUST_BELONG_TO_DEPARTMENT_AT_CREATION") {
-      return NextResponse.json({ error: t("errors.managerMustBelongToDepartment") }, { status: 400 });
-    }
-    if (rawMessage === "DEPARTMENT_CODE_EXISTS") {
-      return NextResponse.json({ error: t("errors.departmentCodeExists") }, { status: 400 });
-    }
-    if (rawMessage === "CANNOT_ADD_SUB_DEPARTMENT_DIFFERENT_COMPANY") {
-      return NextResponse.json({ error: t("errors.cannotAddSubDepartmentDifferentCompany") }, { status: 400 });
-    }
-
-    console.error(error);
-    return NextResponse.json({ error: rawMessage }, { status: 500 });
+    return handleApiError(error, t, "errors.failedToFetchUsers");
   }
 }

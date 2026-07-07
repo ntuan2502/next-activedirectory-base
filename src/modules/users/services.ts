@@ -5,6 +5,7 @@ import { CreateUserInput, UpdateUserInput, GetUsersParams } from "./types";
 import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { validatePassword } from "@/lib/password-validation";
+import { BadRequestError, NotFoundError, PasswordValidationError } from "@/lib/errors";
 
 export async function getUsersList(params: GetUsersParams) {
   const { page, limit, search, sortBy, sortOrder } = params;
@@ -167,7 +168,7 @@ export async function createUser(input: CreateUserInput) {
   } = input;
 
   if (!username || !displayName || !email || !password) {
-    throw new Error("MISSING_REQUIRED_FIELDS");
+    throw new BadRequestError("errors.missingRequiredFields");
   }
 
   const lowercaseUsername = username.toLowerCase();
@@ -177,7 +178,7 @@ export async function createUser(input: CreateUserInput) {
   });
 
   if (existingUser) {
-    throw new Error("USER_ALREADY_EXISTS");
+    throw new BadRequestError("errors.userAlreadyExists");
   }
 
   const settings = await prisma.systemSetting.findFirst();
@@ -202,7 +203,7 @@ export async function createUser(input: CreateUserInput) {
     );
 
     if (validationErrors.length > 0) {
-      throw new Error(`PASSWORD_VALIDATION_FAILED:${JSON.stringify(validationErrors)}`);
+      throw new PasswordValidationError(validationErrors);
     }
   }
 
@@ -293,13 +294,13 @@ export async function updateUser(id: string, input: UpdateUserInput & { roleIds?
   });
 
   if (!existingUser) {
-    throw new Error("USER_NOT_FOUND");
+    throw new NotFoundError("errors.userNotFound");
   }
 
   const isLdapUser = existingUser.dn !== "";
 
   if (!isLdapUser && (!displayName || !email)) {
-    throw new Error("MISSING_REQUIRED_FIELDS");
+    throw new BadRequestError("errors.missingRequiredFields");
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -402,7 +403,7 @@ export async function deleteUser(id: string) {
   });
 
   if (!existingUser) {
-    throw new Error("USER_NOT_FOUND");
+    throw new NotFoundError("errors.userNotFound");
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -434,11 +435,11 @@ export async function resetUserPassword(id: string, passwordString: string) {
   });
 
   if (!existingUser) {
-    throw new Error("USER_NOT_FOUND");
+    throw new NotFoundError("errors.userNotFound");
   }
 
   if (existingUser.dn !== "") {
-    throw new Error("CANNOT_RESET_PASSWORD_LDAP_USER");
+    throw new BadRequestError("errors.cannotResetPasswordLdapUser");
   }
 
   const settings = await prisma.systemSetting.findFirst();
@@ -463,7 +464,7 @@ export async function resetUserPassword(id: string, passwordString: string) {
     );
 
     if (validationErrors.length > 0) {
-      throw new Error(`PASSWORD_VALIDATION_FAILED:${JSON.stringify(validationErrors)}`);
+      throw new PasswordValidationError(validationErrors);
     }
   }
 
@@ -490,7 +491,7 @@ export async function updateUserRoles(id: string, roleIds: string[]) {
   });
 
   if (!user) {
-    throw new Error("USER_NOT_FOUND");
+    throw new NotFoundError("errors.userNotFound");
   }
 
   const updatedUser = await prisma.user.update({
@@ -531,7 +532,7 @@ export async function updateUserRoles(id: string, roleIds: string[]) {
 
 export async function bulkUserActions(action: string, userIds: string[]) {
   if (userIds.length === 0) {
-    throw new Error("NO_USERS_SELECTED");
+    throw new BadRequestError("errors.noUsersSelected");
   }
 
   const affectedUsers = await prisma.user.findMany({
@@ -619,7 +620,7 @@ export async function bulkUserActions(action: string, userIds: string[]) {
       });
     }
   } else {
-    throw new Error("INVALID_ACTION");
+    throw new BadRequestError("errors.invalidAction");
   }
 
   return true;
