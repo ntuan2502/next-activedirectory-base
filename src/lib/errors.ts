@@ -70,10 +70,11 @@ export function handleApiError(
   }
 
   const rawMessage = error instanceof Error ? error.message : String(error);
+  const localizedError = rawMessage.startsWith("errors.") ? t(rawMessage) : t("errors.unknown");
 
-  logger.error(`API Error Fallback: ${rawMessage}`, error);
+  logger.error("logs.apiErrorFallback", error, { error: rawMessage });
   return NextResponse.json(
-    { error: t(defaultErrorKey, { error: rawMessage }) },
+    { error: t(defaultErrorKey, { error: localizedError }) },
     { status: 500 }
   );
 }

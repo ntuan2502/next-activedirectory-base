@@ -16,7 +16,7 @@ export async function POST(
   const { t } = await getServerTranslator();
 
   const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
-  if (passwordResetLimiter.isRateLimited(ip)) {
+  if (await passwordResetLimiter.isRateLimited(ip)) {
     return NextResponse.json({ error: t("errors.rateLimitExceeded") }, { status: 429 });
   }
 

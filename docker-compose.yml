@@ -12,6 +12,15 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
 
+  redis:
+    image: redis:alpine
+    container_name: ad-sync-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+
   adminer:
     image: adminer:latest
     container_name: ad-sync-adminer
@@ -23,4 +32,4 @@ services:
 
 volumes:
   postgres-data:
-
+  redis-data:

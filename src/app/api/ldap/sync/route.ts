@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   const { t } = await getServerTranslator();
 
   const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
-  if (ldapSyncLimiter.isRateLimited(ip)) {
+  if (await ldapSyncLimiter.isRateLimited(ip)) {
     return NextResponse.json({ error: t("errors.rateLimitExceeded") }, { status: 429 });
   }
   try {

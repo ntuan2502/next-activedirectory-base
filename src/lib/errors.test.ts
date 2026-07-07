@@ -1,7 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NotFoundError, BadRequestError, PasswordValidationError, handleApiError } from "./errors";
+import { logger } from "./logger";
 
 describe("Errors module", () => {
+  beforeEach(() => {
+    vi.spyOn(logger, "error").mockImplementation(() => {});
+  });
+
   const t = vi.fn().mockImplementation((key, vars) => {
     if (vars) {
       return `translated:${key}:${JSON.stringify(vars)}`;
@@ -47,12 +52,12 @@ describe("Errors module", () => {
     });
 
     it("should fall back to status 500 and default error message for generic errors", async () => {
-      const error = new Error("Something broke inside the DB");
+      const error = new Error("errors.databaseError");
       const response = handleApiError(error, t, "errors.failedToUpdateUser");
 
       expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data).toEqual({ error: 'translated:errors.failedToUpdateUser:{"error":"Something broke inside the DB"}' });
+      expect(data).toEqual({ error: 'translated:errors.failedToUpdateUser:{"error":"translated:errors.databaseError"}' });
     });
   });
 });

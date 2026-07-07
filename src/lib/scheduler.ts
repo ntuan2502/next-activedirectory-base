@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { syncLdapUsers, logLdapSyncResult } from "@/modules/ldap/services";
+import { logger } from "@/lib/logger";
 
 declare global {
   var __schedulerInterval__: NodeJS.Timeout | undefined;
@@ -7,25 +8,22 @@ declare global {
 }
 
 export function startScheduler() {
-  // Prevent duplicate schedulers in development (Next.js hot reloads)
   if (globalThis.__schedulerInterval__) {
-    console.log("[Scheduler] Already active, skipping initialization.");
+    logger.info("logs.schedulerAlreadyActive");
     return;
   }
 
-  console.log("[Scheduler] Initializing background LDAP sync scheduler...");
+  logger.info("logs.schedulerInitializing");
 
-  // Run initial check after 15 seconds
   setTimeout(checkAndRunSync, 15000);
 
-  // Check every 1 minute (60000 ms)
   const interval = setInterval(checkAndRunSync, 60000);
   globalThis.__schedulerInterval__ = interval;
 }
 
 export async function checkAndRunSync() {
   if (globalThis.__schedulerRunning__) {
-    console.log("[Scheduler] Sync is already running in background, skipping check.");
+    logger.info("logs.schedulerSyncRunning");
     return;
   }
 
@@ -37,7 +35,6 @@ export async function checkAndRunSync() {
     }
 
     const now = new Date();
-    // Default interval to 24 hours if null/0/negative
     const intervalMinutes = Math.max(1, settings.syncInterval || 1440);
     const lastSync = settings.lastSyncAt ? new Date(settings.lastSyncAt) : new Date(0);
 
@@ -45,11 +42,13 @@ export async function checkAndRunSync() {
     const intervalMs = intervalMinutes * 60 * 1000;
 
     if (timeDiff >= intervalMs) {
-      console.log(`[Scheduler] Starting scheduled sync (interval: ${intervalMinutes}m, last sync: ${lastSync.toISOString()})...`);
+      logger.info("logs.schedulerSyncStarting", {
+        intervalMinutes,
+        lastSync: lastSync.toISOString(),
+      });
       globalThis.__schedulerRunning__ = true;
 
       try {
-        // Run full sync (passing undefined matches all users)
         const result = await syncLdapUsers();
 
         await prisma.systemSetting.update({
@@ -61,13 +60,12 @@ export async function checkAndRunSync() {
           },
         });
 
-        // Ghi audit log cho đồng bộ tự động thành công
         await logLdapSyncResult(result);
 
-        console.log(`[Scheduler] Sync successful: ${result.syncedCount} users.`);
+        logger.info("logs.schedulerSyncSuccess", { syncedCount: result.syncedCount });
       } catch (syncError: unknown) {
         const errorMsg = syncError instanceof Error ? syncError.message : "Unknown LDAP sync error";
-        console.error(syncError);
+        logger.error("logs.schedulerSyncError", syncError);
 
         await prisma.systemSetting.update({
           where: { id: settings.id },
@@ -78,7 +76,6 @@ export async function checkAndRunSync() {
           },
         });
 
-        // Ghi audit log cho đồng bộ tự động thất bại
         await logLdapSyncResult(null, {
           key: "errors.failedToSyncLdap",
           params: { error: errorMsg },
@@ -88,6 +85,6 @@ export async function checkAndRunSync() {
       }
     }
   } catch (dbError) {
-    console.error(dbError);
+    logger.error("logs.schedulerDbError", dbError);
   }
 }
