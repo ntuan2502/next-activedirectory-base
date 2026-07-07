@@ -66,10 +66,16 @@ export function DepartmentEditor({ departmentId, mode }: DepartmentEditorProps) 
   }, [currentUser]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
-  const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(true);
+  const [companies, setCompanies] = useState<Company[]>(() => {
+    return deptContext?.availableCompanies || [];
+  });
+  const [allUsers, setAllUsers] = useState<User[]>(() => {
+    return deptContext?.availableUsers || [];
+  });
+  const [allDepartments, setAllDepartments] = useState<Department[]>(() => {
+    return deptContext?.availableDepartments || [];
+  });
+  const [isLoadingDropdowns, setIsLoadingDropdowns] = useState(isCreateMode ? true : !deptContext);
 
   // Form State
   const [formCode, setFormCode] = useState(departmentData?.code || "");
@@ -78,8 +84,18 @@ export function DepartmentEditor({ departmentId, mode }: DepartmentEditorProps) 
   const [formCompanyId, setFormCompanyId] = useState(departmentData?.companyId || "");
   const [formParentId, setFormParentId] = useState(departmentData?.parentId || "");
   const [formManagerId, setFormManagerId] = useState(departmentData?.managerId || "");
-  const [formSubDepartmentIds, setFormSubDepartmentIds] = useState<string[]>([]);
-  const [formUserIds, setFormUserIds] = useState<string[]>([]);
+  
+  const [formSubDepartmentIds, setFormSubDepartmentIds] = useState<string[]>(() => {
+    if (departmentData && deptContext?.availableDepartments) {
+      return deptContext.availableDepartments
+        .filter((d) => d.parentId === departmentData.id)
+        .map((d) => d.id);
+    }
+    return [];
+  });
+  const [formUserIds, setFormUserIds] = useState<string[]>(() => {
+    return departmentData?.users?.map((u) => u.id) || [];
+  });
 
   const [initialState, setInitialState] = useState<{
     code: string;
@@ -90,10 +106,30 @@ export function DepartmentEditor({ departmentId, mode }: DepartmentEditorProps) 
     managerId: string;
     subDepartmentIds: string[];
     userIds: string[];
-  } | null>(null);
+  } | null>(() => {
+    if (departmentData && deptContext?.availableDepartments) {
+      const childIds = deptContext.availableDepartments
+        .filter((d) => d.parentId === departmentData.id)
+        .map((d) => d.id);
+      const mappedUserIds = departmentData.users?.map((u) => u.id) || [];
+      return {
+        code: departmentData.code,
+        nameVi: departmentData.nameVi,
+        nameEn: departmentData.nameEn,
+        companyId: departmentData.companyId || "",
+        parentId: departmentData.parentId || "",
+        managerId: departmentData.managerId || "",
+        subDepartmentIds: childIds,
+        userIds: mappedUserIds,
+      };
+    }
+    return null;
+  });
 
   // Load companies & users
   useEffect(() => {
+    if (deptContext) return;
+
     async function loadData() {
       try {
         const [companiesRes, usersRes] = await Promise.all([
@@ -119,10 +155,12 @@ export function DepartmentEditor({ departmentId, mode }: DepartmentEditorProps) 
       }
     }
     loadData();
-  }, []);
+  }, [deptContext]);
 
   // Fetch all departments in the system for parent selection
   useEffect(() => {
+    if (deptContext) return;
+
     async function fetchAllDepartments() {
       try {
         const res = await fetch("/api/departments?limit=1000");
@@ -138,7 +176,7 @@ export function DepartmentEditor({ departmentId, mode }: DepartmentEditorProps) 
     }
 
     fetchAllDepartments();
-  }, []);
+  }, [deptContext]);
 
   // Reset parent and manager when company changes in create mode
   useEffect(() => {

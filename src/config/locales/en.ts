@@ -80,7 +80,7 @@ export const en = {
     addCompany: "Add Company",
     allCompanies: "All Companies",
     showingRecords: "Showing {{count}} of {{total}} companies",
-    editCompany: "Edit",
+    editCompany: "Edit Company",
     deleteConfirmTitle: "Confirm Delete Company",
     deleteConfirmDesc: "Are you sure you want to delete this company?",
     successCreate: "Company created successfully.",

@@ -37,3 +37,6 @@ This document consolidates all project conventions, user preferences, coding sta
 - **ALWAYS** include a show/hide password toggle (eye icon / `Eye` and `EyeOff` from `lucide-react`) for all password input fields in the application (such as Login, Setup, Account Profile, and Add User / Reset Password dialogs).
 - **STRICTLY FORBIDDEN** to use hardcoded (raw) text or strings anywhere in the UI (including labels, placeholders, buttons, titles, alert messages, toast notifications, console logs, and backend API responses). Use translation keys (`t(...)`) in all supported locales (`vi.ts`, `en.ts`, `ja.ts`, `th.ts`).
 - **ALWAYS** ensure card padding (khoảng cách tới viền) does not exceed Tailwind class value `4` (which is `1rem` or `16px`). Make sure NOT to double pad (nếu parent `<Card>` đã có padding thì `<CardContent>` giữ padding mặc định) để tránh vượt quá giới hạn 16px này.
+
+## VIII. UI/UX & State Optimization
+- **ALWAYS** optimize UI transitions in Next.js nested layouts by fetching and caching shared dropdown database lists (like companies, users, departments) at the layout level (using context provider) and initializing state synchronously in sub-pages. Avoid local fetch triggers or skeleton-loading state resetting on mount to eliminate UI flicker/frequent re-renders.

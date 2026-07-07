@@ -80,7 +80,7 @@ export const th = {
     addCompany: "เพิ่มบริษัท",
     allCompanies: "บริษัททั้งหมด",
     showingRecords: "แสดง {{count}} จากทั้งหมด {{total}} บริษัท",
-    editCompany: "แก้ไข",
+    editCompany: "แก้ไขบริษัท",
     deleteConfirmTitle: "ยืนยันการลบบริษัท",
     deleteConfirmDesc: "คุณแน่ใจหรือไม่ว่าต้องการลบบริษัทนี้?",
     successCreate: "เพิ่มบริษัทสำเร็จ",

@@ -44,9 +44,36 @@ interface DepartmentRecord {
   }[];
 }
 
+export interface DropdownCompany {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+}
+
+export interface DropdownUser {
+  id: string;
+  username: string;
+  displayName: string;
+  companyIds?: string[];
+  departmentIds?: string[];
+}
+
+export interface DropdownDepartment {
+  id: string;
+  code: string;
+  nameVi: string;
+  nameEn: string;
+  companyId: string | null;
+  parentId: string | null;
+}
+
 interface DepartmentContextType {
   departmentData: DepartmentRecord | null;
   setDepartmentData: React.Dispatch<React.SetStateAction<DepartmentRecord | null>>;
+  availableCompanies: DropdownCompany[];
+  availableUsers: DropdownUser[];
+  availableDepartments: DropdownDepartment[];
   isLoading: boolean;
   fetchDepartment: () => Promise<void>;
 }
@@ -76,12 +103,42 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
 
   const [isLoading, setIsLoading] = useState(true);
   const [departmentData, setDepartmentData] = useState<DepartmentRecord | null>(null);
+  const [availableCompanies, setAvailableCompanies] = useState<DropdownCompany[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<DropdownUser[]>([]);
+  const [availableDepartments, setAvailableDepartments] = useState<DropdownDepartment[]>([]);
 
   const fetchDepartment = useCallback(async () => {
     try {
-      const res = await fetch(`/api/departments/${departmentId}`);
-      if (res.ok) {
-        const data = await res.json();
+      const [deptRes, companiesRes, usersRes, allDeptsRes] = await Promise.all([
+        fetch(`/api/departments/${departmentId}`),
+        fetch("/api/companies?limit=100"),
+        fetch("/api/users?limit=1000"),
+        fetch("/api/departments?limit=1000")
+      ]);
+
+      if (companiesRes.ok) {
+        const companiesData = await companiesRes.json();
+        if (companiesData.success) {
+          setAvailableCompanies(companiesData.data || []);
+        }
+      }
+
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        if (usersData.success) {
+          setAvailableUsers(usersData.data || []);
+        }
+      }
+
+      if (allDeptsRes.ok) {
+        const allDeptsData = await allDeptsRes.json();
+        if (allDeptsData.success) {
+          setAvailableDepartments(allDeptsData.data || []);
+        }
+      }
+
+      if (deptRes.ok) {
+        const data = await deptRes.json();
         if (data.success && data.data) {
           setDepartmentData(data.data);
         } else {
@@ -118,7 +175,17 @@ export default function DepartmentLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <DepartmentContext.Provider value={{ departmentData, setDepartmentData, isLoading, fetchDepartment }}>
+    <DepartmentContext.Provider
+      value={{
+        departmentData,
+        setDepartmentData,
+        availableCompanies,
+        availableUsers,
+        availableDepartments,
+        isLoading,
+        fetchDepartment
+      }}
+    >
       {children}
     </DepartmentContext.Provider>
   );

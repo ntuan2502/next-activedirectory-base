@@ -12,6 +12,7 @@
 - [project] Record entity ID in audit logs; include show/hide toggle for password fields → project-conventions.md
 - [project] Hardcoded text is forbidden; Card padding must not exceed 16px → project-conventions.md
 - [project] Always create files in TypeScript (.ts/.tsx), never in JavaScript (.js) → project-conventions.md
+- [project] Cache shared dropdown database lists in layout context to prevent UI flicker → project-conventions.md
 
 ## Feedback
 - [feedback] Always run pnpm lint (eslint && tsc) before replying to verify changes → project-conventions.md

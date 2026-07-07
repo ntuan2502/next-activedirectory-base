@@ -80,7 +80,7 @@ export const vi = {
     addCompany: "Thêm công ty",
     allCompanies: "Tất cả công ty",
     showingRecords: "Hiển thị {{count}} trên tổng số {{total}} công ty",
-    editCompany: "Sửa",
+    editCompany: "Sửa công ty",
     deleteConfirmTitle: "Xác nhận xóa công ty",
     deleteConfirmDesc: "Bạn có chắc chắn muốn xóa công ty này không?",
     successCreate: "Thêm công ty thành công.",

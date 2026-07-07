@@ -80,7 +80,7 @@ export const ja = {
     addCompany: "会社を追加",
     allCompanies: "すべての会社",
     showingRecords: "全 {{total}} 件中 {{count}} 件の企業を表示",
-    editCompany: "編集",
+    editCompany: "会社を編集",
     deleteConfirmTitle: "会社の削除確認",
     deleteConfirmDesc: "この会社を本当に削除しますか？",
     successCreate: "会社を追加しました。",
