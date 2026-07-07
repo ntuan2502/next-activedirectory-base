@@ -43,45 +43,7 @@ type AuditLogRecord = {
   } | null;
 };
 
-const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  "auth:login": { label: "Login", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
-  "auth:logout": { label: "Logout", color: "bg-muted-foreground/10 text-muted-foreground border-muted-foreground/20" },
-  "auth:initial_setup": { label: "Initial Super Admin Setup", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
-  "ldap:test_connection": { label: "LDAP Connection Test", color: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
-  "ldap:fetch_data": { label: "Fetch LDAP Data", color: "bg-cyan-500/10 text-cyan-500 border-cyan-500/20" },
-  "ldap:sync_users": { label: "LDAP User Sync", color: "bg-sky-500/10 text-sky-600 border-sky-500/20" },
-  "ldap:sync_companies": { label: "LDAP Company Sync", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
-  "ldap:sync_departments": { label: "LDAP Department Sync", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
-  "user:create": { label: "Create User", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
-  "user:update": { label: "Update User", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
-  "user:delete": { label: "Delete User", color: "bg-rose-500/10 text-rose-500 border-rose-500/20" },
-  "user:update_roles": { label: "Update User Roles", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
-  "user:update_profile": { label: "Update Profile", color: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
-  "user:change_password": { label: "Change Password", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
-  "user:lock": { label: "Lock User", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  "user:unlock": { label: "Unlock User", color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  "users:bulk_delete": { label: "Bulk Delete Users", color: "bg-red-500/10 text-red-500 border-red-500/20" },
-  "users:bulk_disable": { label: "Bulk Disable Users", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
-  "users:bulk_enable": { label: "Bulk Enable Users", color: "bg-green-500/10 text-green-500 border-green-500/20" },
-  "users:bulk_lock": { label: "Bulk Lock Users", color: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
-  "users:bulk_unlock": { label: "Bulk Unlock Users", color: "bg-green-500/10 text-green-500 border-green-500/20" },
-  "role:create": { label: "Create Role", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
-  "role:update": { label: "Update Role", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
-  "role:delete": { label: "Delete Role", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
-  "settings:update": { label: "Update Settings", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
-  "settings:initial_setup_ldap": { label: "Setup Initial LDAP", color: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
-  "settings:initial_setup_skip": { label: "Skip Initial LDAP", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  "company:create": { label: "Create Company", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
-  "company:update": { label: "Update Company", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
-  "company:delete": { label: "Delete Company", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
-  "user:update_settings": { label: "Update Display Preferences", color: "bg-sky-500/10 text-sky-500 border-sky-500/20" },
-  "session:revoke_all": { label: "Revoke All Sessions", color: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
-  "session:revoke_other": { label: "Revoke Other Sessions", color: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-  "session:revoke_specific": { label: "Revoke Specific Session", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
-  "department:create": { label: "Create Department", color: "bg-teal-500/10 text-teal-500 border-teal-500/20" },
-  "department:update": { label: "Update Department", color: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" },
-  "department:delete": { label: "Delete Department", color: "bg-pink-500/10 text-pink-500 border-pink-500/20" },
-};
+
 
 const getActionTranslationKey = (action: string): string => {
   const mapping: Record<string, string> = {
@@ -780,13 +742,12 @@ export default function AuditLogsPage() {
   };
 
   const getActionBadge = (action: string) => {
-    const config = ACTION_LABELS[action] || { label: action, color: "bg-muted text-muted-foreground border-muted-foreground/20" };
     const translationKey = getActionTranslationKey(action);
-    const label = translationKey ? t(translationKey) : config.label;
+    const label = translationKey ? t(translationKey) : action;
     return (
-      <Badge variant="outline" className={`${config.color} font-medium`}>
+      <span className="font-semibold text-sm text-foreground">
         {label}
-      </Badge>
+      </span>
     );
   };
 
@@ -1245,7 +1206,7 @@ export default function AuditLogsPage() {
                 <div>
                   <span className="text-xs text-muted-foreground block">{t("auditLogsPage.tableHeaders.action")}</span>
                   <span className="font-semibold block mt-0.5">
-                    {getActionTranslationKey(selectedLog.action) ? t(getActionTranslationKey(selectedLog.action)) : (ACTION_LABELS[selectedLog.action]?.label || selectedLog.action)}
+                    {getActionTranslationKey(selectedLog.action) ? t(getActionTranslationKey(selectedLog.action)) : selectedLog.action}
                   </span>
                 </div>
                 <div>
