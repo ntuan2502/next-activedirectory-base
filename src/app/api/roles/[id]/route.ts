@@ -3,6 +3,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { getRoleById, updateRole, deleteRole } from "@/modules/roles/services";
 import { handleApiError } from "@/lib/errors";
+import { UpdateRoleSchema } from "@/modules/roles/schemas";
 
 export async function GET(
   _request: NextRequest,
@@ -23,7 +24,7 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {
-    return handleApiError(error, t, "errors.failedToFetchRoles"); // using generic roles key
+    return handleApiError(error, t, "errors.failedToFetchRoles");
   }
 }
 
@@ -39,9 +40,9 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, description, permissions } = body;
+    const validatedData = UpdateRoleSchema.parse(body);
 
-    const role = await updateRole(id, { name, description, permissions });
+    const role = await updateRole(id, validatedData);
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {

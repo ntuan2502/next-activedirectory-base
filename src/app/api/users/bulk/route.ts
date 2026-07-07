@@ -3,16 +3,15 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { bulkUserActions } from "@/modules/users/services";
 import { handleApiError } from "@/lib/errors";
+import { BulkUserActionsSchema } from "@/modules/users/schemas";
 
 export async function POST(request: NextRequest) {
   const { t } = await getServerTranslator();
   try {
     const body = await request.json();
-    const { action, userIds } = body;
+    const validatedData = BulkUserActionsSchema.parse(body);
 
-    if (!action || !userIds || !Array.isArray(userIds)) {
-      return NextResponse.json({ error: t("errors.invalidPayload") }, { status: 400 });
-    }
+    const { action, userIds } = validatedData;
 
     if (action === "delete") {
       const authResponse = await requirePermission(PERMISSIONS.USERS_DELETE);

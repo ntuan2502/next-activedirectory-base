@@ -3,6 +3,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { getCompanyById, updateCompany, deleteCompany } from "@/modules/companies/services";
 import { handleApiError } from "@/lib/errors";
+import { UpdateCompanySchema } from "@/modules/companies/schemas";
 
 // GET: Lấy thông tin chi tiết một công ty
 export async function GET(
@@ -44,15 +45,9 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { code, nameVi, nameEn, taxAddress, taxCode } = body;
+    const validatedData = UpdateCompanySchema.parse(body);
 
-    const updatedCompany = await updateCompany(id, {
-      code,
-      nameVi,
-      nameEn,
-      taxAddress,
-      taxCode,
-    });
+    const updatedCompany = await updateCompany(id, validatedData);
 
     return NextResponse.json({
       success: true,

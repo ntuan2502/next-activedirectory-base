@@ -3,6 +3,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { getUserById, updateUser, deleteUser } from "@/modules/users/services";
 import { handleApiError } from "@/lib/errors";
+import { UpdateUserSchema } from "@/modules/users/schemas";
 
 // GET: Lấy thông tin chi tiết một người dùng
 export async function GET(
@@ -72,33 +73,9 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const {
-      displayName,
-      firstName,
-      lastName,
-      email,
-      phone,
-      title,
-      companyId,
-      companyIds,
-      departmentIds,
-      disabled,
-      roleIds,
-    } = body;
+    const validatedData = UpdateUserSchema.parse(body);
 
-    const result = await updateUser(id, {
-      displayName,
-      firstName,
-      lastName,
-      email,
-      phone,
-      title,
-      companyId,
-      companyIds,
-      departmentIds,
-      disabled,
-      roleIds,
-    });
+    const result = await updateUser(id, validatedData);
 
     return NextResponse.json({
       success: true,

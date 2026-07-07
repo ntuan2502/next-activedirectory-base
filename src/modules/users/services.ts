@@ -269,7 +269,7 @@ export async function createUser(input: CreateUserInput) {
   };
 }
 
-export async function updateUser(id: string, input: UpdateUserInput & { roleIds?: string[], companyId?: string }) {
+export async function updateUser(id: string, input: UpdateUserInput & { roleIds?: string[], companyId?: string | null }) {
   const {
     displayName,
     firstName,

@@ -4,6 +4,7 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { logAction } from "@/modules/audit-logs/services";
 import { fetchLdapUsers, syncLdapUsers, logLdapSyncResult } from "@/modules/ldap/services";
 import { getServerTranslator } from "@/lib/i18n";
+import { ldapSyncLimiter } from "@/lib/rate-limiter";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,11 @@ export async function POST(request: NextRequest) {
   if (authResponse) return authResponse;
 
   const { t } = await getServerTranslator();
+
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  if (ldapSyncLimiter.isRateLimited(ip)) {
+    return NextResponse.json({ error: t("errors.rateLimitExceeded") }, { status: 429 });
+  }
   try {
     const body = await request.json();
     const { usernamesToSync, action } = body;

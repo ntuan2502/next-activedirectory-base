@@ -3,6 +3,8 @@ import { requirePermission, PERMISSIONS } from "@/lib/permissions";
 import { getServerTranslator } from "@/lib/i18n";
 import { resetUserPassword } from "@/modules/users/services";
 import { handleApiError } from "@/lib/errors";
+import { ResetPasswordSchema } from "@/modules/users/schemas";
+import { passwordResetLimiter } from "@/lib/rate-limiter";
 
 export async function POST(
   request: NextRequest,
@@ -13,19 +15,17 @@ export async function POST(
 
   const { t } = await getServerTranslator();
 
+  const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+  if (passwordResetLimiter.isRateLimited(ip)) {
+    return NextResponse.json({ error: t("errors.rateLimitExceeded") }, { status: 429 });
+  }
+
   try {
     const { id } = await params;
     const body = await request.json();
-    const { password } = body;
+    const validatedData = ResetPasswordSchema.parse(body);
 
-    if (!password) {
-      return NextResponse.json(
-        { error: t("errors.passwordRequired") },
-        { status: 400 }
-      );
-    }
-
-    await resetUserPassword(id, password);
+    await resetUserPassword(id, validatedData.password);
 
     return NextResponse.json({
       success: true,

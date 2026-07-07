@@ -4,6 +4,7 @@ import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getUsersList, createUser } from "@/modules/users/services";
 import { handleApiError } from "@/lib/errors";
+import { CreateUserSchema } from "@/modules/users/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -46,35 +47,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const {
-      username,
-      displayName,
-      firstName,
-      lastName,
-      email,
-      phone,
-      title,
-      companyId,
-      companyIds,
-      departmentIds,
-      password,
-      roleIds,
-    } = body;
+    const validatedData = CreateUserSchema.parse(body);
 
-    const formattedUser = await createUser({
-      username,
-      displayName,
-      firstName,
-      lastName,
-      email,
-      phone,
-      title,
-      companyId,
-      companyIds,
-      departmentIds,
-      password,
-      roleIds,
-    });
+    const formattedUser = await createUser(validatedData);
 
     return NextResponse.json({
       success: true,

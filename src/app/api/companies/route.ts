@@ -4,6 +4,7 @@ import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getCompaniesList, createCompany } from "@/modules/companies/services";
 import { handleApiError } from "@/lib/errors";
+import { CreateCompanySchema } from "@/modules/companies/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -49,19 +50,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { code, nameVi, nameEn, taxAddress, taxCode } = body;
+    const validatedData = CreateCompanySchema.parse(body);
 
-    if (!code || !code.trim()) {
-      return NextResponse.json({ error: t("errors.companyCodeRequired") }, { status: 400 });
-    }
-
-    const newCompany = await createCompany({
-      code,
-      nameVi,
-      nameEn,
-      taxAddress,
-      taxCode,
-    });
+    const newCompany = await createCompany(validatedData);
 
     return NextResponse.json({
       success: true,

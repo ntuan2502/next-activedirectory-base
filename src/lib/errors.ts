@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
+import { logger } from "@/lib/logger";
 
 export class AppError extends Error {
   constructor(
@@ -34,6 +36,19 @@ export function handleApiError(
   t: (key: string, variables?: Record<string, string | number>) => string,
   defaultErrorKey: string
 ) {
+  if (error instanceof ZodError) {
+    return NextResponse.json(
+      {
+        error: t("errors.invalidPayload"),
+        validationErrors: error.issues.map((err) => ({
+          message: err.message.startsWith("errors.") ? t(err.message) : err.message,
+          path: err.path.join("."),
+        })),
+      },
+      { status: 400 }
+    );
+  }
+
   if (error instanceof PasswordValidationError) {
     return NextResponse.json(
       {
@@ -56,7 +71,7 @@ export function handleApiError(
 
   const rawMessage = error instanceof Error ? error.message : String(error);
 
-  console.error(error);
+  logger.error(`API Error Fallback: ${rawMessage}`, error);
   return NextResponse.json(
     { error: t(defaultErrorKey, { error: rawMessage }) },
     { status: 500 }

@@ -4,6 +4,7 @@ import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getRolesList, createRole } from "@/modules/roles/services";
 import { handleApiError } from "@/lib/errors";
+import { CreateRoleSchema } from "@/modules/roles/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +50,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, description, permissions } = body;
+    const validatedData = CreateRoleSchema.parse(body);
 
-    const role = await createRole({ name, description, permissions });
+    const role = await createRole(validatedData);
 
     return NextResponse.json({ success: true, data: role });
   } catch (error: unknown) {

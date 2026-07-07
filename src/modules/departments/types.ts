@@ -1,8 +1,8 @@
 export interface CreateDepartmentInput {
   code: string;
   nameVi: string;
-  nameEn: string;
-  companyId: string | null;
+  nameEn?: string;
+  companyId?: string | null;
   parentId?: string | null;
   managerId?: string | null;
   subDepartmentIds?: string[];

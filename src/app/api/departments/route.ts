@@ -4,6 +4,7 @@ import { DEFAULT_LIMIT } from "@/config/constants";
 import { getServerTranslator } from "@/lib/i18n";
 import { getDepartmentsList, createDepartment } from "@/modules/departments/services";
 import { handleApiError } from "@/lib/errors";
+import { CreateDepartmentSchema } from "@/modules/departments/schemas";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export async function GET(request: NextRequest) {
       pagination,
     });
   } catch (error: unknown) {
-    return handleApiError(error, t, "errors.failedToFetchUsers"); // Using shared error string or generic one
+    return handleApiError(error, t, "errors.failedToFetchUsers");
   }
 }
 
@@ -51,22 +52,9 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { code, nameVi, nameEn, companyId, parentId, managerId, subDepartmentIds, userIds } = body;
+    const validatedData = CreateDepartmentSchema.parse(body);
 
-    if (!code || !code.trim()) {
-      return NextResponse.json({ error: t("errors.invalidPayload") }, { status: 400 });
-    }
-
-    const newDept = await createDepartment({
-      code,
-      nameVi,
-      nameEn,
-      companyId,
-      parentId,
-      managerId,
-      subDepartmentIds,
-      userIds,
-    });
+    const newDept = await createDepartment(validatedData);
 
     return NextResponse.json({
       success: true,

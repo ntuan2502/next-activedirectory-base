@@ -14,7 +14,7 @@ export interface CreateUserInput {
   email: string;
   phone?: string;
   title?: string;
-  companyId?: string;
+  companyId?: string | null;
   companyIds?: string[];
   departmentIds?: string[];
   password?: string;

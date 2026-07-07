@@ -11,4 +11,10 @@ export const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>;
 
 beforeEach(() => {
   mockReset(prismaMock);
+  prismaMock.$transaction.mockImplementation((callback) => {
+    if (typeof callback === "function") {
+      return callback(prismaMock);
+    }
+    return Promise.resolve(callback);
+  });
 });
