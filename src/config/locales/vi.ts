@@ -702,18 +702,13 @@ export const vi = {
   },
   dashboardCharts: {
     syncOverview: "Tổng quan trạng thái đồng bộ",
-    deptBreakdown: "Thống kê theo phòng ban",
     activityTimeline: "Timeline hoạt động (7 ngày qua)",
     syncedUsers: "Đã đồng bộ",
     pendingUsers: "Chờ đồng bộ",
     disabledUsers: "Vô hiệu hóa",
     activityCount: "Hoạt động",
     noData: "Không có dữ liệu hiển thị",
-    noDeptData: "Không có dữ liệu phòng ban",
     totalUsers: "Tổng User",
-    horizontalBar: "Biểu đồ cột ngang",
-    verticalBar: "Biểu đồ cột dọc",
-    pieChart: "Biểu đồ tròn",
   },
   permissions: {
     names: {

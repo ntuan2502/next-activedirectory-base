@@ -641,18 +641,13 @@ export const th = {
   },
   dashboardCharts: {
     syncOverview: "ภาพรวมสถานะการซิงค์",
-    deptBreakdown: "สัดส่วนแยกตามแผนก",
     activityTimeline: "ช่วงเวลาของกิจกรรม (7 วันล่าสุด)",
     syncedUsers: "ซิงค์แล้ว",
     pendingUsers: "รอดำเนินการซิงค์",
     disabledUsers: "ปิดใช้งาน",
     activityCount: "กิจกรรม",
     noData: "ไม่มีข้อมูลที่จะแสดง",
-    noDeptData: "ไม่มีข้อมูลแผนก",
     totalUsers: "ผู้ใช้ทั้งหมด",
-    horizontalBar: "แผนภูมิแท่งแนวนอน",
-    verticalBar: "แผนภูมิแท่งแนวตั้ง",
-    pieChart: "แผนภูมิวงกลม",
   },
   permissions: {
     names: {

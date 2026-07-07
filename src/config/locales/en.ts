@@ -702,18 +702,13 @@ export const en = {
   },
   dashboardCharts: {
     syncOverview: "Sync Status Overview",
-    deptBreakdown: "Department Breakdown",
     activityTimeline: "Activity Timeline (Last 7 Days)",
     syncedUsers: "Synced",
     pendingUsers: "Pending Sync",
     disabledUsers: "Disabled",
     activityCount: "Activities",
     noData: "No data available",
-    noDeptData: "No department data available",
     totalUsers: "Total Users",
-    horizontalBar: "Horizontal Bar",
-    verticalBar: "Vertical Bar",
-    pieChart: "Pie Chart",
   },
   permissions: {
     names: {

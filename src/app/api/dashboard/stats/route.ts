@@ -30,34 +30,6 @@ export async function GET() {
       },
     });
 
-    // 2. Department Breakdown
-    const depts = await prisma.department.findMany({
-      where: {
-        users: {
-          some: {}
-        }
-      },
-      select: {
-        nameVi: true,
-        nameEn: true,
-        _count: {
-          select: {
-            users: true
-          }
-        }
-      },
-      orderBy: {
-        users: {
-          _count: "desc"
-        }
-      }
-    });
-
-    const departmentStats = depts.map((d) => ({
-      name: d.nameVi || d.nameEn || "Unknown",
-      count: d._count.users,
-    }));
-
     return NextResponse.json({
       success: true,
       data: {
@@ -67,7 +39,7 @@ export async function GET() {
           disabled: disabledSynced,
           local: localUsers,
         },
-        departments: departmentStats,
+        departments: [],
         activity: [],
       },
     });
