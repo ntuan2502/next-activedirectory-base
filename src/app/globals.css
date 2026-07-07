@@ -149,3 +149,10 @@ input[data-slot="input"] {
   min-height: 40px !important;
   box-sizing: border-box !important;
 }
+
+/* Force absolute height of 40px (2.5rem) on all custom select elements with h-10 to match input height */
+select.h-10 {
+  height: 40px !important;
+  min-height: 40px !important;
+  box-sizing: border-box !important;
+}
