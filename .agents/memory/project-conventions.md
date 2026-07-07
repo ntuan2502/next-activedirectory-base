@@ -1,42 +1,39 @@
 ---
 type: project
 created: 2026-06-14
-updated: 2026-06-15
+updated: 2026-07-07
 ---
 
-# Project Conventions
+# Project Conventions & Guidelines
 
-## Git Workflow
-- Always create a new dedicated branch for major code changes.
-- Branch name format should follow: `feature/[task-slug]` or `fix/[bug-slug]`.
+This document consolidates all project conventions, user preferences, coding standards, and past corrections to guide the Agent.
 
-## Package Manager & Tool Execution
-- **ALWAYS** use `pnpm` as the package manager.
-- **NEVER** use `npx`. Instead, use `pnpx` or `pnpm dlx` for executing commands/tools.
+## I. Communication & Environment (User Preferences)
+- **ALWAYS** respond and write all user-facing content (including chat messages, task lists (`task.md`), and walkthroughs (`walkthrough.md`)) in **Vietnamese**.
+- **DO NOT** use automated browser subagents (`browser_subagent`) to test UI changes. The user will manually test UI changes.
+- **ALWAYS** write code, comments, variables, and database schemas in **English**.
+- Adhere strictly to **SOLID**, **DRY**, and **Clean Code** principles. Code should be concise, direct, self-documenting, and avoid over-engineering.
 
-## Quality Control & Verification
-- **ALWAYS** run `pnpm lint` to check for code quality issues and ensure lint checks pass before finalizing any response to the user, **ONLY** when there are code changes.
+## II. TypeScript Coding Standards
+- **STRICTLY FORBIDDEN** to use the `any` type under all circumstances. Always use precise type declarations, generics, or `unknown` where applicable. **This rule applies strictly to all files in the repository, including utility scripts, helper files, and configurations, without exception.**
+- **STRICTLY FORBIDDEN** to use `eslint-disable` directives in any files created or modified by the agent, unless no other workaround is possible and it is explicitly approved by the user. **This rule also applies to all dev scripts and auxiliary files.**
+- **ALWAYS** create script and codebase files in TypeScript (`.ts`/`.tsx`). **NEVER** create raw JavaScript (`.js`/`.jsx`) files.
 
-## TypeScript Coding Standards
-- **STRICTLY FORBIDDEN** to use the `any` type under all circumstances. Always use precise type declarations, generics, or `unknown` where applicable.
+## III. Quality Control & Verification (Feedback History)
+- **ALWAYS** run `pnpm lint` (which runs `eslint && tsc --noEmit`) to check for code quality and compilation errors before replying **whenever code changes are made**. Do not finalize responses with code changes without passing lint checks.
+- **ALWAYS** proactively run the translation check script (`pnpm check-i18n`) whenever code or translation files are modified to detect missing or unused keys across locales, and fix them automatically.
 
-## Database & Prisma Workflow
+## IV. Git & Package Manager Workflow
+- **ALWAYS** use `pnpm` as the package manager. **NEVER** use `npm` or `npx` (use `pnpx` or `pnpm dlx` instead).
+- **ALWAYS** create a new dedicated branch for major code changes (format: `feature/[task-slug]` or `fix/[bug-slug]`).
+
+## V. Database & Prisma Workflow
 - When schema changes or drift are detected in development, **ALWAYS** use `pnpm prisma migrate dev` to generate migration files and safely apply updates to the database.
 
-## Logging & Audit Logs
+## VI. Audit Logs
 - When any entity changes (create, update, delete), the ID of this entity must always be recorded in the target field or details of the audit log.
 
-## Password Inputs & Security UI
+## VII. UI Design & Layout Standards
 - **ALWAYS** include a show/hide password toggle (eye icon / `Eye` and `EyeOff` from `lucide-react`) for all password input fields in the application (such as Login, Setup, Account Profile, and Add User / Reset Password dialogs).
-
-## Internationalization & Localization (i18n)
-- **STRICTLY FORBIDDEN** to use hardcoded (raw) text or strings anywhere in the project (including UI labels, placeholders, buttons, titles, alert messages, toast notifications, console logs, and backend API responses).
-- **ALWAYS** define translation keys in all supported locales (`vi.ts`, `en.ts`, `ja.ts`, `th.ts`) and fetch them dynamically using the translation function (`t(...)` or backend localization equivalent).
-
-## UI Spacing & Card Layout
+- **STRICTLY FORBIDDEN** to use hardcoded (raw) text or strings anywhere in the UI (including labels, placeholders, buttons, titles, alert messages, toast notifications, console logs, and backend API responses). Use translation keys (`t(...)`) in all supported locales (`vi.ts`, `en.ts`, `ja.ts`, `th.ts`).
 - **ALWAYS** ensure card padding (khoảng cách tới viền) does not exceed Tailwind class value `4` (which is `1rem` or `16px`). Make sure NOT to double pad (nếu parent `<Card>` đã có padding thì `<CardContent>` giữ padding mặc định) để tránh vượt quá giới hạn 16px này.
-
-
-
-
-
